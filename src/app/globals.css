@@ -4,23 +4,23 @@
   --sidebar-text-active: #ffffff;
   --sidebar-item-hover: #ffffff10;
   --sidebar-item-active: #ffffff15;
-  
+
   --main-bg: #f8fafc;
   --card-bg: #ffffff;
   --primary-color: #10b981;
   --primary-hover: #059669;
-  
+
   --text-main: #1e293b;
   --text-muted: #64748b;
   --border-color: #e2e8f0;
-  
+
   --header-height: 70px;
   --sidebar-width: 260px;
-  
+
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
-  
+
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
@@ -73,4 +73,65 @@ ul {
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+}
+
+/* Notification Banner */
+.notification-banner {
+  background-color: #10b981;
+  color: white;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  position: relative;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 1000;
+}
+
+.banner-content {
+  display: flex;
+  white-space: nowrap;
+  animation: marquee 30s linear infinite;
+}
+
+.banner-text {
+  padding-right: 50px;
+}
+
+.banner-close {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.1);
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: background 0.2s;
+  z-index: 1001;
+}
+
+.banner-close:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.dashboard-layout {
+  display: flex;
+  min-height: calc(100vh - 40px);
 }
