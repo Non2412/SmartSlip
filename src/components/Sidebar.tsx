@@ -12,77 +12,100 @@ const Sidebar = () => {
       height: '100vh',
       position: 'sticky',
       top: 0,
-      borderRight: '1px solid #ffffff10'
+      borderRight: '1px solid var(--border-color)'
     }}>
-      <div style={{ marginBottom: '40px', padding: '0 8px', width: '100%' }}>
+      <div style={{ marginBottom: '32px', padding: '0 8px', width: '100%', display: 'flex', justifyContent: 'center' }}>
         <img
           src="/logo.png"
           alt="SmartSlip AI"
-          style={{ width: '100%', height: 'auto', display: 'block' }}
+          style={{ width: '160px', height: 'auto', display: 'block' }}
         />
       </div>
 
-      <nav style={{ flex: 1 }}>
-        <ul style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <SidebarItem active label="หน้าหลัก" icon={<HomeIcon />} />
-          <SidebarItem label="รายการใบเสร็จ" icon={<ListIcon />} />
-          <SidebarItem label="รายงานสรุป" icon={<ChartIcon />} />
+      <nav style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ padding: '0 8px 12px', fontSize: '0.85rem', fontWeight: '600', color: '#94a3b8' }}>
+          To-do ของฉัน
+        </div>
+        <ul style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '24px' }}>
+          <SidebarItem label="เช็กใบเสร็จที่เจอจากอีเมล" icon={<MailIcon />} />
+          <SidebarItem label="Task ที่ต้องตรวจสอบ/จัดการ" icon={<TaskIcon />} />
+        </ul>
 
-          <div style={{ margin: '24px 8px 8px', fontSize: '0.75rem', fontWeight: '600', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Settings
-          </div>
-          <SidebarItem label="ตั้งค่าระบบ" icon={<SettingsIcon />} />
+        <div style={{ padding: '0 8px 12px', fontSize: '0.85rem', fontWeight: '600', color: '#94a3b8' }}>
+          เมนูธุรกิจ
+        </div>
+        <ul style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <SidebarItem active label="รายการใบเสร็จ" icon={<ListIcon />} />
+          <SidebarItem label="เพิ่มใบเสร็จ" icon={<UploadIcon />} />
+          <SidebarItem label="Google Sheets" icon={<SheetsIcon />} isExternal />
+          <SidebarItem label="Google Drive" icon={<DriveIcon />} isExternal />
         </ul>
       </nav>
 
       <div style={{
-        marginTop: 'auto', padding: '12px', backgroundColor: '#ffffff0a', borderRadius: '12px',
-        display: 'flex', alignItems: 'center', gap: '12px'
+        marginTop: 'auto', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '12px',
+        display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid var(--border-color)'
       }}>
-        <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#6366f1', overflow: 'hidden' }}>
+        <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#6366f1', overflow: 'hidden', position: 'relative' }}>
           <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
+          <div style={{ position: 'absolute', bottom: 0, right: 0, width: '12px', height: '12px', backgroundColor: '#22c55e', border: '2px solid white', borderRadius: '50%' }}></div>
         </div>
-        <div>
-          <div style={{ fontSize: '0.875rem', fontWeight: '600', color: 'white' }}>ศิริชัย พัฒนา</div>
-          <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>PREMIUM ACCOUNT</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '0.875rem', fontWeight: '700', color: 'var(--text-main)' }}>นพนันท์ เกษอินทร์</div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '500' }}>1339200044447</div>
         </div>
       </div>
     </aside>
   );
 };
 
-const SidebarItem = ({ label, icon, active = false }: { label: string, icon: React.ReactNode, active?: boolean }) => (
+const SidebarItem = ({ label, icon, active = false, isExternal = false }: { label: string, icon: React.ReactNode, active?: boolean, isExternal?: boolean }) => (
   <li>
     <a href="#" style={{
       display: 'flex',
       alignItems: 'center',
       gap: '12px',
-      padding: '12px 16px',
-      borderRadius: '12px',
-      color: active ? 'white' : 'var(--sidebar-text)',
-      backgroundColor: active ? 'var(--sidebar-item-active)' : 'transparent',
+      padding: '10px 12px',
+      borderRadius: '8px',
+      color: active ? '#1e293b' : '#64748b',
+      backgroundColor: active ? '#f1f5f9' : 'transparent',
       transition: 'all 0.2s ease',
-      fontSize: '0.925rem',
-      fontWeight: active ? '600' : '500'
+      fontSize: '0.9rem',
+      fontWeight: active ? '700' : '500',
+      textDecoration: 'none'
     }}>
-      <span style={{ color: active ? 'var(--primary-color)' : 'inherit' }}>{icon}</span>
-      {label}
+      <span style={{ display: 'flex', alignItems: 'center', color: active ? '#475569' : 'inherit' }}>{icon}</span>
+      <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+      {isExternal && (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+      )}
     </a>
   </li>
 );
 
-// Minimal Icon Components
-const HomeIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+// Icons based on the image
+const MailIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
 );
+
+const TaskIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></svg>
+);
+
 const ListIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
 );
-const ChartIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20V10" /><path d="M18 20V4" /><path d="M6 20v-4" /></svg>
+
+const UploadIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
 );
-const SettingsIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>
+
+const SheetsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" /></svg>
+);
+
+const DriveIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19L14.5 6H9.5L2 19H22Z" /><path d="M14.5 6L18 12.5L22 19H14.5L14.5 6Z" /><path d="M9.5 6L14.5 6L11.5 11L9.5 6Z" /></svg>
 );
 
 export default Sidebar;

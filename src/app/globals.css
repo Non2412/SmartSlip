@@ -1,9 +1,9 @@
 :root {
-  --sidebar-bg: #1a2332;
-  --sidebar-text: #94a3b8;
-  --sidebar-text-active: #ffffff;
-  --sidebar-item-hover: #ffffff10;
-  --sidebar-item-active: #ffffff15;
+  --sidebar-bg: #ffffff;
+  --sidebar-text: #64748b;
+  --sidebar-text-active: #10b981;
+  --sidebar-item-hover: #f1f5f9;
+  --sidebar-item-active: #ecfdf5;
 
   --main-bg: #f8fafc;
   --card-bg: #ffffff;
