@@ -14,21 +14,12 @@ const Sidebar = () => {
       top: 0,
       borderRight: '1px solid #ffffff10'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '40px', padding: '0 8px' }}>
-        <span style={{ fontSize: '1.5rem', fontWeight: '800', fontStyle: 'italic', letterSpacing: '-0.02em' }}>
-          <span style={{ color: '#3b82f6' }}>Smart</span>
-          <span style={{ color: '#10b981' }}>Slip</span>
-        </span>
-        <div style={{
-          backgroundColor: '#ff7e33',
-          color: 'white',
-          padding: '2px 6px',
-          borderRadius: '8px',
-          fontSize: '0.75rem',
-          fontWeight: '900',
-          boxShadow: '0 2px 4px rgba(255, 126, 51, 0.4)',
-          marginLeft: '2px'
-        }}>AI</div>
+      <div style={{ marginBottom: '40px', padding: '0 8px', width: '100%' }}>
+        <img
+          src="/logo.png"
+          alt="SmartSlip AI"
+          style={{ width: '100%', height: 'auto', display: 'block' }}
+        />
       </div>
 
       <nav style={{ flex: 1 }}>
