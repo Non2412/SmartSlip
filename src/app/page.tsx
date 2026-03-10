@@ -1,14 +1,23 @@
+'use client';
+
+import React, { useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import { StatCard, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
+import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 
 export default function DashboardPage() {
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
   return (
     <div className="dashboard-layout">
       <Sidebar />
 
       <main className="main-content">
-        <TopBar title="ภาพรวมรายจ่าย" />
+        <TopBar
+          title="ภาพรวมรายจ่าย"
+          onCreateReceipt={() => setIsSheetOpen(true)}
+        />
 
         <div className="page-container">
           {/* Summary Stats Row */}
@@ -47,6 +56,11 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
+
+      <CreateReceiptSheet
+        isOpen={isSheetOpen}
+        onClose={() => setIsSheetOpen(false)}
+      />
     </div>
   );
 }
