@@ -1,6 +1,10 @@
 import React from 'react';
 
-const Sidebar = () => {
+interface SidebarProps {
+  onAddReceipt?: () => void;
+}
+
+const Sidebar = ({ onAddReceipt }: SidebarProps) => {
   return (
     <aside style={{
       width: 'var(--sidebar-width)',
@@ -36,7 +40,11 @@ const Sidebar = () => {
         </div>
         <ul style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <SidebarItem active label="รายการใบเสร็จ" icon={<ListIcon />} />
-          <SidebarItem label="เพิ่มใบเสร็จ" icon={<UploadIcon />} />
+          <SidebarItem
+            label="เพิ่มใบเสร็จ"
+            icon={<UploadIcon />}
+            onClick={onAddReceipt}
+          />
           <SidebarItem label="Google Sheets" icon={<SheetsIcon />} isExternal />
           <SidebarItem label="Google Drive" icon={<DriveIcon />} isExternal />
         </ul>
@@ -59,21 +67,37 @@ const Sidebar = () => {
   );
 };
 
-const SidebarItem = ({ label, icon, active = false, isExternal = false }: { label: string, icon: React.ReactNode, active?: boolean, isExternal?: boolean }) => (
+interface SidebarItemProps {
+  label: string;
+  icon: React.ReactNode;
+  active?: boolean;
+  isExternal?: boolean;
+  onClick?: () => void;
+}
+
+const SidebarItem = ({ label, icon, active = false, isExternal = false, onClick }: SidebarItemProps) => (
   <li>
-    <a href="#" style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      padding: '10px 12px',
-      borderRadius: '8px',
-      color: active ? '#1e293b' : '#64748b',
-      backgroundColor: active ? '#f1f5f9' : 'transparent',
-      transition: 'all 0.2s ease',
-      fontSize: '0.9rem',
-      fontWeight: active ? '700' : '500',
-      textDecoration: 'none'
-    }}>
+    <a
+      href="#"
+      onClick={(e) => {
+        if (onClick) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        padding: '10px 12px',
+        borderRadius: '8px',
+        color: active ? '#1e293b' : '#64748b',
+        backgroundColor: active ? '#f1f5f9' : 'transparent',
+        transition: 'all 0.2s ease',
+        fontSize: '0.9rem',
+        fontWeight: active ? '700' : '500',
+        textDecoration: 'none'
+      }}>
       <span style={{ display: 'flex', alignItems: 'center', color: active ? '#475569' : 'inherit' }}>{icon}</span>
       <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
       {isExternal && (

@@ -1,6 +1,11 @@
 import React from 'react';
 
-const TopBar = ({ title }: { title: string }) => {
+interface TopBarProps {
+    title: string;
+    onCreateReceipt: () => void;
+}
+
+const TopBar = ({ title, onCreateReceipt }: TopBarProps) => {
     return (
         <header style={{
             height: 'var(--header-height)',
@@ -9,7 +14,9 @@ const TopBar = ({ title }: { title: string }) => {
             alignItems: 'center',
             justifyContent: 'space-between',
             backgroundColor: 'transparent',
-            marginTop: '12px'
+            marginTop: '12px',
+            position: 'relative',
+            zIndex: 10
         }}>
             <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-main)' }}>{title}</h1>
 
@@ -40,11 +47,16 @@ const TopBar = ({ title }: { title: string }) => {
                     <BellIcon />
                 </button>
 
-                <button style={{
-                    display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px',
-                    backgroundColor: 'var(--primary-color)', color: 'white', borderRadius: '12px',
-                    fontWeight: '600', fontSize: '0.9rem'
-                }}>
+                <button
+                    onClick={onCreateReceipt}
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px',
+                        backgroundColor: 'var(--primary-color)', color: 'white', borderRadius: '12px',
+                        fontWeight: '600', fontSize: '0.9rem', border: 'none', transition: 'filter 0.2s'
+                    }}
+                    onMouseOver={(e) => (e.currentTarget.style.filter = 'brightness(0.95)')}
+                    onMouseOut={(e) => (e.currentTarget.style.filter = 'brightness(1)')}
+                >
                     <PlusIcon />
                     <span>สร้างใบเสร็จ</span>
                 </button>
