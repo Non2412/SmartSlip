@@ -135,3 +135,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.logoutButton {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #94a3b8;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.logoutButton:hover {
+  background-color: #fee2e2;
+  color: #ef4444;
+}

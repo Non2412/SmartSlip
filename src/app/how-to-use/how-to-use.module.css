@@ -1,0 +1,141 @@
+.heroSection {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  padding: 48px 32px;
+  border-radius: 20px;
+  margin-bottom: 40px;
+  color: white;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(16, 185, 129, 0.15);
+}
+
+.heroTitle {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+  letter-spacing: -0.02em;
+}
+
+.heroSubtitle {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.stepsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+.stepCard {
+  background: white;
+  padding: 32px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  position: relative;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stepCard:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.05);
+  border-color: var(--accent-color);
+}
+
+.stepBadge {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 28px;
+  height: 28px;
+  background: #f1f5f9;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.iconWrapper {
+  width: 56px;
+  height: 56px;
+  background: var(--accent-color);
+  color: white;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 20px -5px var(--accent-color);
+  opacity: 0.9;
+}
+
+.stepTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 12px;
+}
+
+.stepDescription {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.noteSection {
+  background: #f8fafc;
+  border: 1px dashed var(--border-color);
+  padding: 32px;
+  border-radius: 20px;
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.noteIcon {
+  font-size: 2.5rem;
+  background: white;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.noteTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-main);
+}
+
+.noteList {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.noteList li {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.noteList li::before {
+  content: "•";
+  color: #10b981;
+  font-weight: bold;
+}
