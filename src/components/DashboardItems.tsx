@@ -1,4 +1,7 @@
-import React from 'react';
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { useReceipts } from '@/hooks/useReceipts';
 
 export const StatCard = ({ title, value, subValue, trend, status }: { title: string, value: string, subValue?: string, trend?: string, status?: string }) => (
     <div style={{
@@ -73,29 +76,58 @@ export const ExpenseChart = () => (
     </div>
 );
 
-export const RecentUploads = () => (
-    <div style={{
-        backgroundColor: 'var(--card-bg)',
-        padding: '24px',
-        borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-sm)',
-        flex: 1,
-        minWidth: '320px'
-    }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '24px' }}>อัปโหลดล่าสุด</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <UploadItem name="Receipt_Oct_24.pdf" status="กำลังประมวลผล OCR..." icon="#6366f1" />
-            <UploadItem name="IMG_20231023.jpg" status="เสร็จสิ้น" completed icon="#10b981" />
-            <UploadItem name="Grab_Taxi_Slip.jpg" status="เสร็จสิ้น" completed icon="#10b981" />
-        </div>
-        <button style={{
-            width: '100%', padding: '12px', marginTop: '24px', border: '1px solid var(--border-color)',
-            borderRadius: '12px', color: 'var(--primary-color)', fontWeight: '600', fontSize: '0.9rem'
+export const RecentUploads = ({ userId }: { userId?: string }) => {
+    const { receipts, loading, fetchReceipts } = useReceipts();
+
+    useEffect(() => {
+        fetchReceipts(userId);
+    }, [userId, fetchReceipts]);
+
+    // แสดงเพียง 3 รายการล่าสุด
+    const recentReceipts = receipts.slice(0, 3);
+
+    return (
+        <div style={{
+            backgroundColor: 'var(--card-bg)',
+            padding: '24px',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: 'var(--shadow-sm)',
+            flex: 1,
+            minWidth: '320px'
         }}>
-            ดูประวัติทั้งหมด
-        </button>
-    </div>
-);
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '24px' }}>อัปโหลดล่าสุด</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {loading ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>
+                        ⏳ กำลังโหลด...
+                    </div>
+                ) : recentReceipts.length === 0 ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>
+                        ยังไม่มีรายการอัพโหลด
+                    </div>
+                ) : (
+                    recentReceipts.map((receipt) => (
+                        <UploadItem
+                            key={receipt.id}
+                            name={receipt.storeName}
+                            status="เสร็จสิ้น"
+                            completed
+                            icon="#10b981"
+                        />
+                    ))
+                )}
+            </div>
+            <button style={{
+                width: '100%', padding: '12px', marginTop: '24px', border: '1px solid var(--border-color)',
+                borderRadius: '12px', color: 'var(--primary-color)', fontWeight: '600', fontSize: '0.9rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+            }}>
+                ดูประวัติทั้งหมด
+            </button>
+        </div>
+    );
+};
 
 const UploadItem = ({ name, status, completed = false, icon }: { name: string, status: string, completed?: boolean, icon: string }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px' }}>
