@@ -1,0 +1,55 @@
+.notificationBanner {
+  background-color: #10b981;
+  color: white;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  position: relative;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 1000;
+}
+
+.bannerContent {
+  display: flex;
+  white-space: nowrap;
+  animation: marquee 30s linear infinite;
+}
+
+.bannerText {
+  padding-right: 50px;
+}
+
+.bannerClose {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.1);
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: background 0.2s;
+  z-index: 1001;
+  border: none;
+  cursor: pointer;
+}
+
+.bannerClose:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}

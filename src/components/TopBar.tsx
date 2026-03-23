@@ -1,50 +1,28 @@
 import React from 'react';
+import styles from './TopBar.module.css';
 
 const TopBar = ({ title }: { title: string }) => {
     return (
-        <header style={{
-            height: 'var(--header-height)',
-            padding: '0 32px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            backgroundColor: 'transparent',
-            marginTop: '12px'
-        }}>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-main)' }}>{title}</h1>
+        <header className={styles.header}>
+            <h1 className={styles.title}>{title}</h1>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+            <div className={styles.actions}>
+                <div className={styles.searchContainer}>
+                    <span className={styles.searchIconWrapper}>
                         <SearchIcon />
                     </span>
                     <input
                         type="text"
                         placeholder="ค้นหา..."
-                        style={{
-                            padding: '10px 16px 10px 40px',
-                            borderRadius: '12px',
-                            border: '1px solid var(--border-color)',
-                            width: '280px',
-                            fontSize: '0.9rem',
-                            outline: 'none',
-                            backgroundColor: 'white'
-                        }}
+                        className={styles.searchInput}
                     />
                 </div>
 
-                <button style={{
-                    width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    borderRadius: '12px', backgroundColor: 'white', border: '1px solid var(--border-color)'
-                }}>
+                <button className={styles.iconButton}>
                     <BellIcon />
                 </button>
 
-                <button style={{
-                    display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px',
-                    backgroundColor: 'var(--primary-color)', color: 'white', borderRadius: '12px',
-                    fontWeight: '600', fontSize: '0.9rem'
-                }}>
+                <button className={styles.primaryButton}>
                     <PlusIcon />
                     <span>สร้างใบเสร็จ</span>
                 </button>
