@@ -1,7 +1,8 @@
-import React from 'react';
-import styles from './TopBar.module.css';
+'use client';
 
-const TopBar = ({ title }: { title: string }) => {
+import React, { useState } from 'react';
+
+const TopBar = ({ title, onCreateNew }: { title: string, onCreateNew?: () => void }) => {
     return (
         <header className={styles.header}>
             <h1 className={styles.title}>{title}</h1>
@@ -22,7 +23,19 @@ const TopBar = ({ title }: { title: string }) => {
                     <BellIcon />
                 </button>
 
-                <button className={styles.primaryButton}>
+                <button
+                    onClick={onCreateNew}
+                    style={{
+                        display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px',
+                        backgroundColor: 'var(--primary-color)', color: 'white', borderRadius: '12px',
+                        fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        border: 'none',
+                        opacity: 0.9
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '0.9'}
+                >
                     <PlusIcon />
                     <span>สร้างใบเสร็จ</span>
                 </button>
