@@ -2,9 +2,9 @@
 
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
-import { StatCard } from '@/components/DashboardItems';
-import ReceiptHistory from '@/components/ReceiptHistory';
-import { CreateReceiptModal } from '@/components/CreateReceiptModal';
+import { StatCard } from '@/app/dashborad/DashboardItems';
+import ReceiptHistory from '@/app/history/ReceiptHistory';
+import { CreateReceiptModal } from '@/app/createreceipt/CreateReceiptModal';
 import { useReceipts } from '@/hooks/useReceipts';
 import { useState, useEffect } from 'react';
 
