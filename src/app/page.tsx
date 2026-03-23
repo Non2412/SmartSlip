@@ -2,7 +2,8 @@
 
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
-import { StatCard, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
+import { StatCard, RecentUploads } from '@/components/DashboardItems';
+import ReceiptHistory from '@/components/ReceiptHistory';
 import { CreateReceiptModal } from '@/components/CreateReceiptModal';
 import { useReceipts } from '@/hooks/useReceipts';
 import { useState, useEffect } from 'react';
@@ -74,7 +75,7 @@ export default function DashboardPage() {
             gap: '32px',
             alignItems: 'flex-start'
           }}>
-            <ExpenseChart />
+            <ReceiptHistory />
             <RecentUploads userId={userId} />
           </div>
         </div>

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
+import styles from './DashboardItems.module.css';
 import { useReceipts } from '@/hooks/useReceipts';
 
 interface StatCardProps {
@@ -102,7 +103,7 @@ export const RecentUploads = ({ userId }: { userId?: string }) => {
                             name={receipt.storeName}
                             status="เสร็จสิ้น"
                             completed
-                            icon="#10b981"
+                            iconColor="#10b981"
                         />
                     ))
                 )}
