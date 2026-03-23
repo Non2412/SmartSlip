@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
+import styles from './TopBar.module.css';
 
 const TopBar = ({ title, onCreateNew }: { title: string, onCreateNew?: () => void }) => {
     return (
