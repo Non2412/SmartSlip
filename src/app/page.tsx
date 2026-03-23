@@ -2,7 +2,7 @@
 
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
-import { StatCard, RecentUploads } from '@/components/DashboardItems';
+import { StatCard } from '@/components/DashboardItems';
 import ReceiptHistory from '@/components/ReceiptHistory';
 import { CreateReceiptModal } from '@/components/CreateReceiptModal';
 import { useReceipts } from '@/hooks/useReceipts';
@@ -69,14 +69,12 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Content Row: History and Recent Uploads */}
+          {/* Content Row: History Table */}
           <div style={{
-            display: 'flex',
-            gap: '32px',
-            alignItems: 'flex-start'
+            display: 'block',
+            width: '100%'
           }}>
             <ReceiptHistory />
-            <RecentUploads userId={userId} />
           </div>
         </div>
       </main>

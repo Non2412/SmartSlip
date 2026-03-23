@@ -33,8 +33,8 @@
 
 html,
 body {
-  height: 100%;
-  max-width: 100vw;
+  height: 100vh;
+  width: 100vw;
   overflow: hidden;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--main-bg);
@@ -60,6 +60,8 @@ ul {
 .dashboard-layout {
   display: flex;
   height: 100vh;
+  width: 100vw;
+  overflow: hidden;
 }
 
 /* Compensate for notification-banner if active */
@@ -72,20 +74,17 @@ body:has(.notification-banner) .dashboard-layout {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  height: 100%;
+  height: 100vh;
   overflow-y: auto;
+  overflow-x: hidden;
   scroll-behavior: smooth;
+  position: relative;
 }
 
 .page-container {
   padding: 24px;
+  padding-bottom: 80px; /* Extra space for scrolling comfort */
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
-}
-
-/* Layout Utilities */
-.dashboard-layout {
-  display: flex;
-  min-height: calc(100vh - 40px);
 }
