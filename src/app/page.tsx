@@ -1,6 +1,7 @@
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
-import { StatCard, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
+import { StatCard, RecentUploads } from '@/components/DashboardItems';
+import ReceiptHistory from '@/components/ReceiptHistory';
 
 export default function DashboardPage() {
   return (
@@ -36,14 +37,19 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Charts and Lists Row */}
+          {/* Content Row: History and Recent Uploads */}
           <div style={{
             display: 'flex',
-            gap: '24px',
-            flexWrap: 'wrap'
+            gap: '32px',
+            alignItems: 'flex-start'
           }}>
-            <ExpenseChart />
-            <RecentUploads />
+            <div style={{ flex: 1.8, minWidth: 0 }}>
+              <ReceiptHistory />
+            </div>
+            
+            <div style={{ flex: 1, minWidth: '320px' }}>
+              <RecentUploads />
+            </div>
           </div>
         </div>
       </main>
