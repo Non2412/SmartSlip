@@ -57,7 +57,7 @@ const Sidebar = () => {
           <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
           <div className={styles.statusIndicator}></div>
         </div>
-        <div style={{ flex: 1 }}>
+        <div className={styles.userInfo}>
           <div className={styles.userName}>นพนันท์ เกษอินทร์</div>
           <div className={styles.userId}>1339200044447</div>
         </div>
