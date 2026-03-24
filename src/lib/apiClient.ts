@@ -102,10 +102,12 @@ export async function createReceipt(
  * Extract receipt data from an image
  */
 export async function extractReceiptFromImage(
-  file: File
+  file: File,
+  userId: string = 'user123'
 ): Promise<ApiResponse<ReceiptData>> {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('image', file);
+  formData.append('userId', userId);
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/receipts/extract`, {
