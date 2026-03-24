@@ -38,7 +38,7 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard-layout">
-      <Sidebar />
+      <Sidebar onAddReceipt={() => setIsSheetOpen(true)} />
 
       <main className="main-content">
         <TopBar title="ภาพรวมรายจ่าย" onCreateNew={handleCreateNew} />
