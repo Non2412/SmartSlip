@@ -5,7 +5,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import styles from './Sidebar.module.css';
 
-const Sidebar = () => {
+interface SidebarProps {
+  onAddReceipt?: () => void;
+}
+
+const Sidebar = ({ onAddReceipt }: SidebarProps) => {
   const pathname = usePathname();
 
   return (
@@ -34,7 +38,7 @@ const Sidebar = () => {
         </div>
         <ul className={styles.navList}>
           <SidebarItem href="/" active={pathname === '/'} label="รายการใบเสร็จ" icon={<ListIcon />} />
-          <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} />
+          <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} onClick={onAddReceipt} />
           <SidebarItem href="#" label="Google Sheets" icon={<SheetsIcon />} isExternal />
           <SidebarItem href="#" label="Google Drive" icon={<DriveIcon />} isExternal />
         </ul>
@@ -69,11 +73,17 @@ const Sidebar = () => {
   );
 };
 
-const SidebarItem = ({ href, label, icon, active = false, isExternal = false }: { href: string, label: string, icon: React.ReactNode, active?: boolean, isExternal?: boolean }) => (
+const SidebarItem = ({ href, label, icon, active = false, isExternal = false, onClick }: { href: string, label: string, icon: React.ReactNode, active?: boolean, isExternal?: boolean, onClick?: () => void }) => (
   <li>
     <Link
       href={href}
       className={`${styles.sidebarLink} ${active ? styles.sidebarLinkActive : styles.sidebarLinkInactive}`}
+      onClick={(e) => {
+        if (onClick) {
+          e.preventDefault();
+          onClick();
+        }
+      }}
     >
       <span className={`${styles.sidebarLinkIcon} ${active ? styles.sidebarLinkIconActive : ''}`}>
         {icon}

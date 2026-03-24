@@ -9,8 +9,8 @@ import { useReceipts } from '@/hooks/useReceipts';
 import { useState, useEffect } from 'react';
 
 export default function DashboardPage() {
-  const { receipts, fetchReceipts, loading } = useReceipts();
-  const [userId, setUserId] = useState<string>('user123'); // ใช้ ID เริ่มต้น
+  const { receipts, fetchReceipts } = useReceipts();
+  const [userId] = useState<string>('user123'); // ใช้ ID เริ่มต้น
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard-layout">
-      <Sidebar onAddReceipt={() => setIsSheetOpen(true)} />
+      <Sidebar onAddReceipt={() => setShowCreateModal(true)} />
 
       <main className="main-content">
         <TopBar title="ภาพรวมรายจ่าย" onCreateNew={handleCreateNew} />

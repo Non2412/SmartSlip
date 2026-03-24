@@ -31,6 +31,7 @@ export function CreateReceiptModal({
     if (receipt) {
       setStoreName('');
       setAmount('');
+      setFile(null);
       onSuccess?.();
       onClose();
     }
@@ -121,7 +122,6 @@ export function CreateReceiptModal({
               type="submit"
               disabled={loading}
               className={styles.submitButton}
-              style={{ backgroundColor: '#10b981' }}
             >
               {loading ? '⏳ กำลังบันทึก...' : '💾 บันทึก'}
             </button>
@@ -131,7 +131,7 @@ export function CreateReceiptModal({
         {/* Upload Tab */}
         {activeTab === 'upload' && (
           <div className={styles.form}>
-            <label className={styles.uploadArea}>
+            <label className={`${styles.uploadArea} ${file ? styles.fileSelected : ''}`}>
               <input
                 type="file"
                 accept="image/*"
@@ -172,18 +172,17 @@ export function CreateReceiptModal({
                     className={styles.input}
                   />
                 </div>
-
-                <button
-                  onClick={handleManualSubmit}
-                  disabled={loading || !storeName || !amount}
-                  className={styles.submitButton}
-                  style={{ backgroundColor: '#10b981' }}
-                  type="button"
-                >
-                  {loading ? '⏳ กำลังบันทึก...' : '💾 บันทึก'}
-                </button>
               </>
             )}
+
+            <button
+              onClick={handleManualSubmit}
+              disabled={loading || !storeName || !amount}
+              className={styles.submitButton}
+              type="button"
+            >
+              {loading ? '⏳ กำลังบันทึก...' : '💾 บันทึก'}
+            </button>
           </div>
         )}
       </div>
