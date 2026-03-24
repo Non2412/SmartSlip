@@ -1,61 +1,41 @@
+'use client';
+
 import React from 'react';
+import styles from './TopBar.module.css';
 
-interface TopBarProps {
-    title: string;
-    onCreateReceipt: () => void;
-}
-
-const TopBar = ({ title, onCreateReceipt }: TopBarProps) => {
+const TopBar = ({ title, onCreateNew }: { title: string, onCreateNew?: () => void }) => {
     return (
-        <header style={{
-            height: 'var(--header-height)',
-            padding: '0 32px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            backgroundColor: 'transparent',
-            marginTop: '12px',
-            position: 'relative',
-            zIndex: 10
-        }}>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-main)' }}>{title}</h1>
+        <header className={styles.header}>
+            <h1 className={styles.title}>{title}</h1>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+            <div className={styles.actions}>
+                <div className={styles.searchContainer}>
+                    <span className={styles.searchIconWrapper}>
                         <SearchIcon />
                     </span>
                     <input
                         type="text"
                         placeholder="ค้นหา..."
-                        style={{
-                            padding: '10px 16px 10px 40px',
-                            borderRadius: '12px',
-                            border: '1px solid var(--border-color)',
-                            width: '280px',
-                            fontSize: '0.9rem',
-                            outline: 'none',
-                            backgroundColor: 'white'
-                        }}
+                        className={styles.searchInput}
                     />
                 </div>
 
-                <button style={{
-                    width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    borderRadius: '12px', backgroundColor: 'white', border: '1px solid var(--border-color)'
-                }}>
+                <button className={styles.iconButton}>
                     <BellIcon />
                 </button>
 
                 <button
-                    onClick={onCreateReceipt}
+                    onClick={onCreateNew}
                     style={{
                         display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px',
                         backgroundColor: 'var(--primary-color)', color: 'white', borderRadius: '12px',
-                        fontWeight: '600', fontSize: '0.9rem', border: 'none', transition: 'filter 0.2s'
+                        fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        border: 'none',
+                        opacity: 0.9
                     }}
-                    onMouseOver={(e) => (e.currentTarget.style.filter = 'brightness(0.95)')}
-                    onMouseOut={(e) => (e.currentTarget.style.filter = 'brightness(1)')}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '0.9'}
                 >
                     <PlusIcon />
                     <span>สร้างใบเสร็จ</span>
