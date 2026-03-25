@@ -71,7 +71,9 @@ export const RecentUploads = ({ userId }: { userId?: string }) => {
     const { receipts, loading, fetchReceipts } = useReceipts();
 
     useEffect(() => {
-        fetchReceipts(userId);
+        if (userId) {
+            fetchReceipts(userId);
+        }
     }, [userId, fetchReceipts]);
 
     // แสดงเพียง 3 รายการล่าสุด
