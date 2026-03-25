@@ -1,204 +1,94 @@
 /**
- * API Client for SmartSlip_API
- * Handles all communication with the backend receipt API
+ * SmartSlip API Client
+ * ช่วยจัดการการรับส่งข้อมูลระหว่าง Frontend และ Backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || '';
-
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-  status?: number;
-}
-
-interface ReceiptData {
-  amount: number;
-  sender?: string;
-  receiver: string;
-  date: string;
-  confidence?: 'high' | 'medium' | 'low';
-  method?: string;
-}
-
-interface Receipt {
+export interface Receipt {
   id: string;
-  userId: string;
   storeName: string;
   totalAmount: number;
-  imageUrl?: string;
-  extractedData?: ReceiptData;
+  userId: string;
   createdAt: string;
   updatedAt: string;
+  extractedData?: {
+    date?: string;
+    method?: string;
+    receiver?: string;
+  };
 }
 
+export interface CreateReceiptData {
+  storeName: string;
+  totalAmount: number;
+  userId: string;
+  extractedData?: any;
+}
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY || 'super-secret-api-key-12345';
+
 /**
- * Make an API request with authentication
+ * ฟังก์ชันหลักสำหรับการเรียกใข้ API
  */
-async function apiRequest<T>(
+export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
-): Promise<ApiResponse<T>> {
-  const url = `${API_BASE_URL}${endpoint}`;
-  
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    'x-api-key': API_KEY,
-    ...options.headers,
-  };
-
+): Promise<{ success: boolean; data?: T; error?: string }> {
   try {
+    const url = endpoint.startsWith('http') 
+      ? endpoint 
+      : `${API_BASE_URL}${endpoint}`;
+
+    const headers = new Headers(options.headers);
+    if (API_KEY) {
+      headers.set('x-api-key', API_KEY);
+    }
+    if (!headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
+
     const response = await fetch(url, {
       ...options,
       headers,
     });
 
-    const data = await response.json();
+    const result = await response.json();
 
     if (!response.ok) {
       return {
         success: false,
-        error: data.error ||`API Error: ${response.status}`,
-        status: response.status,
+        error: result.error || `HTTP error! status: ${response.status}`,
       };
     }
 
     return {
       success: true,
-      data: data.data || data,
-      status: response.status,
+      data: result.data || result,
     };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('API Request Error:', errorMessage);
+  } catch (error: any) {
     return {
       success: false,
-      error: errorMessage,
+      error: error.message || 'Unknown network error',
     };
   }
 }
 
 /**
- * Create a new receipt
+ * ฟังก์ชันการทำงานพื้นฐานของใบเสร็จ (Helper functions)
  */
-export async function createReceipt(
-  storeName: string,
-  totalAmount: number,
-  userId: string
-): Promise<ApiResponse<Receipt>> {
-  return apiRequest<Receipt>('/api/receipts', {
+export const receiptApi = {
+  // ดึงรายการใบเสร็จ
+  getAll: (userId: string) => apiRequest<Receipt[]>(`/receipts?userId=${userId}`),
+  
+  // เพิ่มใบเสร็จใหม่
+  create: (data: CreateReceiptData) => apiRequest<Receipt>('/receipts', {
     method: 'POST',
-    body: JSON.stringify({
-      storeName,
-      totalAmount,
-      userId,
-    }),
-  });
-}
-
-/**
- * Extract receipt data from an image
- */
-export async function extractReceiptFromImage(
-  file: File,
-  userId: string = 'user123'
-): Promise<ApiResponse<ReceiptData>> {
-  const formData = new FormData();
-  formData.append('image', file);
-  formData.append('userId', userId);
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/receipts/extract`, {
-      method: 'POST',
-      headers: {
-        'x-api-key': API_KEY,
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.error || `API Error: ${response.status}`,
-        status: response.status,
-      };
-    }
-
-    return {
-      success: true,
-      data: data.data || data,
-      status: response.status,
-    };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Extract Receipt Error:', errorMessage);
-    return {
-      success: false,
-      error: errorMessage,
-    };
-  }
-}
-
-/**
- * Get all receipts for a user
- */
-export async function getReceipts(userId?: string): Promise<ApiResponse<Receipt[]>> {
-  let endpoint = '/api/receipts';
-  if (userId) {
-    endpoint += `?userId=${encodeURIComponent(userId)}`;
-  }
-  return apiRequest<Receipt[]>(endpoint, {
-    method: 'GET',
-  });
-}
-
-/**
- * Get a single receipt by ID
- */
-export async function getReceiptById(id: string): Promise<ApiResponse<Receipt>> {
-  return apiRequest<Receipt>(`/api/receipts/${id}`, {
-    method: 'GET',
-  });
-}
-
-/**
- * Update a receipt
- */
-export async function updateReceipt(
-  id: string,
-  updates: Partial<Receipt>
-): Promise<ApiResponse<Receipt>> {
-  return apiRequest<Receipt>(`/api/receipts/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(updates),
-  });
-}
-
-/**
- * Delete a receipt
- */
-export async function deleteReceipt(id: string): Promise<ApiResponse<{ success: boolean }>> {
-  return apiRequest<{ success: boolean }>(`/api/receipts/${id}`, {
-    method: 'DELETE',
-  });
-}
-
-/**
- * Check API health
- */
-export async function checkApiHealth(): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/health`, {
-      method: 'GET',
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-export type { Receipt, ReceiptData, ApiResponse };
+    body: JSON.stringify(data),
+  }),
+  
+  // ประมวลผล OCR
+  extract: (imageBase64: string) => apiRequest<any>('/receipts/extract', {
+    method: 'POST',
+    body: JSON.stringify({ image: imageBase64 }),
+  }),
+};

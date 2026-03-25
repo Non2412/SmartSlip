@@ -2,12 +2,15 @@
 
 import React, { useRef, useState } from 'react';
 import { useReceipts } from '@/hooks/useReceipts';
-import { ReceiptData } from '@/lib/apiClient';
 import styles from './ReceiptUploader.module.css';
 
-export function ReceiptUploader() {
+interface ReceiptUploaderProps {
+  onOCRSuccess: (data: any) => void;
+}
+
+export function ReceiptUploader({ onOCRSuccess }: ReceiptUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [extractedData, setExtractedData] = useState<ReceiptData | null>(null);
+  const [extractedData, setExtractedData] = useState<any | null>(null);
   const [preview, setPreview] = useState<string>('');
   const { extractFromImage, loading, error } = useReceipts();
 
@@ -22,11 +25,13 @@ export function ReceiptUploader() {
     };
     reader.readAsDataURL(file);
 
-    // Extract receipt data
+    // Extract receipt data using AI
     setExtractedData(null);
     const data = await extractFromImage(file);
     if (data) {
       setExtractedData(data);
+      // ส่งข้อมูลกลับไปให้หน้าจอหลัก (Modal) เพื่อเติมข้อมูลในช่องต่างๆ
+      onOCRSuccess(data);
     }
   };
 
@@ -57,9 +62,8 @@ export function ReceiptUploader() {
         onClick={handleUploadClick}
         disabled={loading}
         className={styles.uploadButton}
-        style={{ backgroundColor: '#10b981' }}
       >
-        {loading ? '⏳ กำลังประมวลผล...' : '📤 เลือกรูปใบเสร็จ'}
+        {loading ? '⏳ กำลังวิเคราะห์ข้อมูล...' : '📤 เลือกรูปใบเสร็จ'}
       </button>
 
       {error && (
@@ -82,60 +86,41 @@ export function ReceiptUploader() {
 
       {extractedData && (
         <div className={styles.dataContainer}>
-          <h4 className={styles.dataTitle}>✅ ผลการประมวลผล</h4>
+          <h4 className={styles.dataTitle}>✅ ผลการประมวลผล (AI)</h4>
 
           <div className={styles.dataGrid}>
-            {extractedData.amount && (
+            {extractedData.amount !== undefined && (
               <div>
-                <span className={styles.dataLabel}>💰 จำนวนเงิน:</span>
+                <span className={styles.dataLabel}>💰 ยอดเงิน:</span>
                 <div className={styles.amountValue}>
                   {formatCurrency(extractedData.amount)}
                 </div>
               </div>
             )}
 
-            {extractedData.receiver && (
+            {extractedData.store && (
               <div>
-                <span className={styles.dataLabel}>🏢 ผู้รับ:</span>
-                <div className={styles.dataValue}>{extractedData.receiver}</div>
+                <span className={styles.dataLabel}>🏢 ร้านค้า:</span>
+                <div className={styles.dataValue}>{extractedData.store}</div>
               </div>
             )}
 
-            {extractedData.sender && (
+            {extractedData.method && (
               <div>
-                <span className={styles.dataLabel}>👤 ผู้ส่ง:</span>
-                <div className={styles.dataValue}>{extractedData.sender}</div>
+                <span className={styles.dataLabel}>💳 ชำระโดย:</span>
+                <div className={styles.dataValue}>{extractedData.method}</div>
               </div>
             )}
 
             {extractedData.date && (
               <div>
                 <span className={styles.dataLabel}>📅 วันที่:</span>
-                <div className={styles.dataValue}>{extractedData.date}</div>
+                <div className={styles.dataValue}>
+                   {new Date(extractedData.date).toLocaleDateString('th-TH')}
+                </div>
               </div>
             )}
           </div>
-
-          {extractedData.confidence && (
-            <div className={styles.confidenceContainer}>
-              <span className={styles.dataLabel}>ความแม่นยำ: </span>
-              <span
-                className={`${styles.confidenceBadge} ${
-                  extractedData.confidence === 'high'
-                    ? styles.confidenceHigh
-                    : extractedData.confidence === 'medium'
-                      ? styles.confidenceMedium
-                      : styles.confidenceLow
-                }`}
-              >
-                {extractedData.confidence === 'high'
-                  ? '✅ สูง'
-                  : extractedData.confidence === 'medium'
-                    ? '⚠️ ปานกลาง'
-                    : '❓ ต่ำ'}
-              </span>
-            </div>
-          )}
         </div>
       )}
     </div>

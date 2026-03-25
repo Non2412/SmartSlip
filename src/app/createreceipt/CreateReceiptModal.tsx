@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useReceipts } from '@/hooks/useReceipts';
+import React, { useState, useEffect } from 'react';
 import styles from './CreateReceiptModal.module.css';
+import { ReceiptUploader } from './ReceiptUploader';
+import { useReceipts } from '@/hooks/useReceipts';
 
 interface CreateReceiptModalProps {
   isOpen: boolean;
@@ -11,181 +12,185 @@ interface CreateReceiptModalProps {
   userId: string;
 }
 
-export function CreateReceiptModal({
-  isOpen,
-  onClose,
+export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({ 
+  isOpen, 
+  onClose, 
   onSuccess,
-  userId,
-}: CreateReceiptModalProps) {
+  userId 
+}) => {
+  const [activeTab, setActiveTab] = useState<'manual' | 'upload'>('manual');
   const [storeName, setStoreName] = useState('');
   const [amount, setAmount] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [activeTab, setActiveTab] = useState<'manual' | 'upload'>('manual');
-  const { uploadReceipt, extractFromImage, loading, error } = useReceipts();
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]); // YYYY-MM-DD
+  const [paymentMethod, setPaymentMethod] = useState('เงินสด');
+  const [category, setCategory] = useState('อาหาร');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleManualSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!storeName || !amount) return;
+  const { createReceipt } = useReceipts();
 
-    const receipt = await uploadReceipt(storeName, parseFloat(amount), userId);
-    if (receipt) {
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
       setStoreName('');
       setAmount('');
-      setFile(null);
-      onSuccess?.();
-      onClose();
+      setDate(new Date().toISOString().split('T')[0]);
+      setError(null);
     }
-  };
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-
-    setFile(selectedFile);
-
-    // แยกข้อมูลจากรูป
-    const data = await extractFromImage(selectedFile);
-    if (data) {
-      setStoreName(data.receiver || '');
-      setAmount(data.amount?.toString() || '');
-    }
-  };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!storeName || !amount) {
+      setError('กรุณากรอกชื่อร้านและจำนวนเงินให้ครบถ้วน');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    const result = await createReceipt({
+      storeName,
+      totalAmount: parseFloat(amount),
+      userId,
+      extractedData: {
+        date,
+        method: paymentMethod,
+        receiver: category
+      }
+    });
+
+    setIsSubmitting(false);
+
+    if (result.success) {
+      if (onSuccess) onSuccess();
+      onClose();
+    } else {
+      setError(result.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+    }
+  };
+
+  const handleOCRSuccess = (data: any) => {
+    // When OCR succeeds, populate manual fields and switch to manual tab for review
+    setStoreName(data.store || '');
+    setAmount(data.amount?.toString() || '');
+    if (data.date) {
+        try {
+            const isoDate = new Date(data.date).toISOString().split('T')[0];
+            setDate(isoDate);
+        } catch { /* keep current date */ }
+    }
+    setPaymentMethod(data.method || 'ไม่ระบุ');
+    setCategory(data.receiver || 'ทั่วไป');
+    setActiveTab('manual');
+  };
+
   return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h2 className={styles.modalTitle}>สร้างใบเสร็จ</h2>
-          <button onClick={onClose} className={styles.closeButton}>
-            ✕
-          </button>
+    <div className={styles.overlay} onClick={onClose}>
+      <div className={styles.sidepanel} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.header}>
+          <h2>สร้างใบเสร็จ</h2>
+          <button className={styles.closeBtn} onClick={onClose}>✕</button>
         </div>
 
-        {/* Tabs */}
         <div className={styles.tabs}>
-          <button
+          <button 
+            className={`${styles.tab} ${activeTab === 'manual' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('manual')}
-            className={`${styles.tabButton} ${activeTab === 'manual' ? styles.tabButtonActive : ''}`}
           >
             📝 ป้อนตัวเลข
           </button>
-          <button
+          <button 
+            className={`${styles.tab} ${activeTab === 'upload' ? styles.activeTab : ''}`}
             onClick={() => setActiveTab('upload')}
-            className={`${styles.tabButton} ${activeTab === 'upload' ? styles.tabButtonActive : ''}`}
           >
             🖼️ อัพโหลดรูป
           </button>
         </div>
 
-        {error && (
-          <div className={styles.error}>
-            ❌ {error}
-          </div>
-        )}
-
-        {/* Manual Entry Tab */}
-        {activeTab === 'manual' && (
-          <form onSubmit={handleManualSubmit} className={styles.form}>
-            <div className={styles.formGroup}>
-              <label className={styles.label}>
-                ชื่อร้าน/ธุรกิจ *
-              </label>
-              <input
-                type="text"
-                value={storeName}
-                onChange={(e) => setStoreName(e.target.value)}
-                placeholder="เช่น: DMDM Restaurant"
-                className={styles.input}
-                required
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label className={styles.label}>
-                จำนวนเงิน (บาท) *
-              </label>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
-                step="0.01"
-                min="0"
-                className={styles.input}
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className={styles.submitButton}
-            >
-              {loading ? '⏳ กำลังบันทึก...' : '💾 บันทึก'}
-            </button>
-          </form>
-        )}
-
-        {/* Upload Tab */}
-        {activeTab === 'upload' && (
-          <div className={styles.form}>
-            <label className={`${styles.uploadArea} ${file ? styles.fileSelected : ''}`}>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                style={{ display: 'none' }}
-              />
-              <div className={styles.uploadIcon}>📸</div>
-              <div className={styles.uploadTextPrimary}>
-                {file ? file.name : 'คลิกเลือกรูปใบเสร็จ'}
+        <div className={styles.content}>
+          {activeTab === 'upload' ? (
+            <ReceiptUploader onOCRSuccess={handleOCRSuccess} />
+          ) : (
+            <form onSubmit={handleManualSubmit} className={styles.form}>
+              {error && <div className={styles.errorMessage}>⚠️ {error}</div>}
+              
+              <div className={styles.inputGroup}>
+                <label>ชื่อร้าน/ธุรกิจ *</label>
+                <input 
+                  type="text" 
+                  placeholder="เช่น: Inthanin Coffee" 
+                  value={storeName}
+                  onChange={(e) => setStoreName(e.target.value)}
+                  required
+                />
               </div>
-              <div className={styles.uploadTextSecondary}>หรือลากรูปมาวางที่นี่</div>
-            </label>
 
-            {file && (
-              <>
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>
-                    ชื่อร้าน/ธุรกิจ
-                  </label>
-                  <input
-                    type="text"
-                    value={storeName}
-                    onChange={(e) => setStoreName(e.target.value)}
-                    className={styles.input}
+              <div className={styles.inputGroup}>
+                <label>จำนวนเงิน (บาท) *</label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  placeholder="0.00" 
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className={styles.inputRow}>
+                <div className={styles.inputGroup}>
+                  <label>วันที่ *</label>
+                  <input 
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    required
                   />
                 </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>
-                    จำนวนเงิน (บาท)
-                  </label>
-                  <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    step="0.01"
-                    min="0"
-                    className={styles.input}
-                  />
+                <div className={styles.inputGroup}>
+                  <label>วิธีชำระเงิน</label>
+                  <select 
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                  >
+                    <option value="เงินสด">เงินสด</option>
+                    <option value="โอนเงิน">โอนเงินธนาคาร</option>
+                    <option value="บัตรเครดิต">บัตรเครดิต</option>
+                    <option value="อื่นๆ">อื่นๆ</option>
+                  </select>
                 </div>
-              </>
-            )}
+              </div>
 
-            <button
-              onClick={handleManualSubmit}
-              disabled={loading || !storeName || !amount}
-              className={styles.submitButton}
-              type="button"
-            >
-              {loading ? '⏳ กำลังบันทึก...' : '💾 บันทึก'}
-            </button>
-          </div>
-        )}
+              <div className={styles.inputGroup}>
+                <label>หมวดหมู่</label>
+                <select 
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
+                  <option value="อาหาร">อาหารและเครื่องดื่ม</option>
+                  <option value="ของใช้">ของใช้ทั่วไป</option>
+                  <option value="เดินทาง">การเดินทาง</option>
+                  <option value="บันเทิง">ความบันเทิง</option>
+                  <option value="อื่นๆ">อื่นๆ</option>
+                </select>
+              </div>
+
+              <div className={styles.footer}>
+                <button 
+                  type="submit" 
+                  className={styles.submitBtn}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'กำลังบันทึก...' : '💾 บันทึก'}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );
-}
+};
