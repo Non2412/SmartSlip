@@ -112,7 +112,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
         <div className={styles.content}>
           {activeTab === 'upload' ? (
-            <ReceiptUploader onOCRSuccess={handleOCRSuccess} />
+            <ReceiptUploader onOCRSuccess={handleOCRSuccess} userId={userId} />
           ) : (
             <form onSubmit={handleManualSubmit} className={styles.form}>
               {error && <div className={styles.errorMessage}>⚠️ {error}</div>}

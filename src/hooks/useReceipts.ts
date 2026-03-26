@@ -7,7 +7,7 @@ export interface UseReceiptsReturn {
   receipts: Receipt[];
   fetchReceipts: (userId: string) => Promise<void>;
   createReceipt: (data: CreateReceiptData) => Promise<{ success: boolean; data?: Receipt; error?: string }>;
-  extractFromImage: (file: File) => Promise<any>;
+  extractFromImage: (file: File, userId: string) => Promise<any>;
   loading: boolean;
   error: string | null;
 }
@@ -53,19 +53,12 @@ export const useReceipts = (): UseReceiptsReturn => {
     }
   }, []);
 
-  const extractFromImage = useCallback(async (file: File) => {
+  const extractFromImage = useCallback(async (file: File, userId: string) => {
     setLoading(true);
     setError(null);
     try {
-      // Convert file to base64
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      const result = await receiptApi.extract(base64);
+      // ส่ง file object โดยตรง แทน base64
+      const result = await receiptApi.extract(file, userId);
       
       if (result.success && result.data) {
         return result.data;
