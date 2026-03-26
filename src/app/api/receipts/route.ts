@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { storeName, totalAmount, userId, extractedData } = body;
+    const { storeName, totalAmount, userId, extractedData, imageFileId } = body;
 
     if (!storeName || totalAmount === undefined) {
       return NextResponse.json(
@@ -62,6 +62,7 @@ export async function POST(request: Request) {
       totalAmount: parseFloat(totalAmount.toString()),
       userId: userId || 'user123',
       extractedData: extractedData || null,
+      imageFileId: imageFileId || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

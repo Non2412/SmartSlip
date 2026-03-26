@@ -52,6 +52,27 @@ export async function POST(request: Request) {
 
     const data = JSON.parse(jsonMatch[0]);
 
+    // --- UPLOAD TO GOOGLE DRIVE ---
+    let driveFileId = null;
+    try {
+      const { uploadFile } = await import('@/lib/googledrive');
+      
+      // Clean up base64 string
+      const base64Data = image.split(',')[1] || image;
+      const buffer = Buffer.from(base64Data, 'base64');
+      
+      const uploadResult = await uploadFile(
+        buffer, 
+        `receipt-${Date.now()}.jpg`, 
+        'image/jpeg'
+      );
+      driveFileId = uploadResult.id;
+    } catch (driveError) {
+      console.error('Google Drive Upload Failed:', driveError);
+      // We don't want to fail the whole request just because Drive upload failed, 
+      // but you can change this behavior if needed.
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -59,7 +80,8 @@ export async function POST(request: Request) {
         amount: parseFloat(data.amount) || 0,
         date: data.date || new Date().toISOString(),
         method: data.method || 'ไม่ระบุ',
-        receiver: data.receiver || 'ทั่วไป'
+        receiver: data.receiver || 'ทั่วไป',
+        imageFileId: driveFileId // Add fileId to the response
       }
     });
   } catch (error: any) {

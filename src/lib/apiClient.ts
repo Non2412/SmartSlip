@@ -8,6 +8,7 @@ export interface Receipt {
   storeName: string;
   totalAmount: number;
   userId: string;
+  imageFileId?: string;
   createdAt: string;
   updatedAt: string;
   extractedData?: {
@@ -22,6 +23,7 @@ export interface CreateReceiptData {
   totalAmount: number;
   userId: string;
   extractedData?: any;
+  imageFileId?: string;
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
