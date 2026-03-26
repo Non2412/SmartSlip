@@ -6,9 +6,10 @@ import styles from './ReceiptUploader.module.css';
 
 interface ReceiptUploaderProps {
   onOCRSuccess: (data: any) => void;
+  userId: string;
 }
 
-export function ReceiptUploader({ onOCRSuccess }: ReceiptUploaderProps) {
+export function ReceiptUploader({ onOCRSuccess, userId }: ReceiptUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [extractedData, setExtractedData] = useState<any | null>(null);
   const [preview, setPreview] = useState<string>('');
@@ -27,7 +28,7 @@ export function ReceiptUploader({ onOCRSuccess }: ReceiptUploaderProps) {
 
     // Extract receipt data using AI
     setExtractedData(null);
-    const data = await extractFromImage(file);
+    const data = await extractFromImage(file, userId);
     if (data) {
       setExtractedData(data);
       // ส่งข้อมูลกลับไปให้หน้าจอหลัก (Modal) เพื่อเติมข้อมูลในช่องต่างๆ

@@ -88,9 +88,35 @@ export const receiptApi = {
     body: JSON.stringify(data),
   }),
   
-  // ประมวลผล OCR
-  extract: (imageBase64: string) => apiRequest<any>('/receipts/extract', {
-    method: 'POST',
-    body: JSON.stringify({ image: imageBase64 }),
-  }),
+  // ประมวลผล OCR - ส่ง multipart/form-data แทน JSON
+  extract: (file: File, userId: string) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('userId', userId);
+
+    return fetch(`${API_BASE_URL}/receipts/extract`, {
+      method: 'POST',
+      headers: {
+        'x-api-key': API_KEY,
+      },
+      body: formData,
+    })
+      .then(response => response.json())
+      .then(result => {
+        if (!result.success && result.error) {
+          return {
+            success: false,
+            error: result.error,
+          };
+        }
+        return {
+          success: true,
+          data: result.data || result,
+        };
+      })
+      .catch((error: any) => ({
+        success: false,
+        error: error.message || 'Network error',
+      }));
+  },
 };
