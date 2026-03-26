@@ -4,22 +4,41 @@ import React, { useState } from 'react';
 
 const TopBar = ({ title, onCreateNew }: { title: string, onCreateNew?: () => void }) => {
     return (
-        <header className={styles.header}>
-            <h1 className={styles.title}>{title}</h1>
+        <header style={{
+            height: 'var(--header-height)',
+            padding: '0 32px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: 'transparent',
+            marginTop: '12px'
+        }}>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-main)' }}>{title}</h1>
 
-            <div className={styles.actions}>
-                <div className={styles.searchContainer}>
-                    <span className={styles.searchIconWrapper}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
                         <SearchIcon />
                     </span>
                     <input
                         type="text"
                         placeholder="ค้นหา..."
-                        className={styles.searchInput}
+                        style={{
+                            padding: '10px 16px 10px 40px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--border-color)',
+                            width: '280px',
+                            fontSize: '0.9rem',
+                            outline: 'none',
+                            backgroundColor: 'white'
+                        }}
                     />
                 </div>
 
-                <button className={styles.iconButton}>
+                <button style={{
+                    width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    borderRadius: '12px', backgroundColor: 'white', border: '1px solid var(--border-color)'
+                }}>
                     <BellIcon />
                 </button>
 
