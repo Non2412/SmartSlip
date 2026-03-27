@@ -28,7 +28,8 @@ export function ReceiptUploader({ onOCRSuccess, userId }: ReceiptUploaderProps) 
 
     // Extract receipt data using AI
     setExtractedData(null);
-    const data = await extractFromImage(file, userId);
+    // You can pass the actual userId here, e.g., from a session
+    const data = await extractFromImage(file, 'user123'); 
     if (data) {
       setExtractedData(data);
       // ส่งข้อมูลกลับไปให้หน้าจอหลัก (Modal) เพื่อเติมข้อมูลในช่องต่างๆ

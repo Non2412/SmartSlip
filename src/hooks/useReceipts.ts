@@ -53,12 +53,19 @@ export const useReceipts = (): UseReceiptsReturn => {
     }
   }, []);
 
-  const extractFromImage = useCallback(async (file: File, userId: string) => {
+  const extractFromImage = useCallback(async (file: File, userId?: string) => {
     setLoading(true);
     setError(null);
     try {
-      // ส่ง file object โดยตรง แทน base64
-      const result = await receiptApi.extract(file, userId);
+      // Convert file to base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const result = await receiptApi.extract(base64, userId);
       
       if (result.success && result.data) {
         return result.data;

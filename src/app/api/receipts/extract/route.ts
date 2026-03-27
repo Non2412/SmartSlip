@@ -6,7 +6,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { image } = body; // Base64 image data
+    const { image, userId } = body; // Base64 image data + Optional userId
 
     if (!image) {
       return NextResponse.json(
@@ -31,11 +31,10 @@ export async function POST(request: Request) {
       **สำคัญ**: คืนค่าเฉพาะ JSON เท่านั้น ไม่ต้องมีคำอธิบายเพิ่มเติม และภาษาไทยถูกต้อง
     `;
 
-    // Process image (binary data if needed, but here we assume base64 string)
-    // format: { mimeType: "image/jpeg", data: "base64-string" }
+    // Process image
     const imageParts = [{
       inlineData: {
-        data: image.split(',')[1] || image, // Remove data:image/jpeg;base64, if exists
+        data: image.split(',')[1] || image,
         mimeType: 'image/jpeg'
       }
     }];
@@ -52,25 +51,40 @@ export async function POST(request: Request) {
 
     const data = JSON.parse(jsonMatch[0]);
 
-    // --- UPLOAD TO GOOGLE DRIVE ---
+    // --- UPLOAD TO GOOGLE DRIVE (WITH AUTO-FOLDER LOGIC) ---
     let driveFileId = null;
+    let webViewLink = null;
+    
     try {
-      const { uploadFile } = await import('@/lib/googledrive');
+      const { uploadFile, getUserMonthFolder } = await import('@/lib/googledrive');
       
-      // Clean up base64 string
+      // 1. Get/Create Folder Structure (User -> Month-Year)
+      let targetFolderId = undefined;
+      if (userId) {
+        try {
+          targetFolderId = await getUserMonthFolder(userId);
+        } catch (folderErr) {
+          console.error('Auto Folder Creation Failed, using root:', folderErr);
+        }
+      }
+
+      // 2. Upload File
       const base64Data = image.split(',')[1] || image;
       const buffer = Buffer.from(base64Data, 'base64');
       
+      const fileName = `receipt-${data.store || 'unknown'}-${Date.now()}.jpg`.replace(/[^a-zA-Z0-9.-]/g, '_');
+      
       const uploadResult = await uploadFile(
         buffer, 
-        `receipt-${Date.now()}.jpg`, 
-        'image/jpeg'
+        fileName, 
+        'image/jpeg',
+        targetFolderId
       );
+      
       driveFileId = uploadResult.id;
+      webViewLink = (uploadResult as any).webViewLink;
     } catch (driveError) {
-      console.error('Google Drive Upload Failed:', driveError);
-      // We don't want to fail the whole request just because Drive upload failed, 
-      // but you can change this behavior if needed.
+      console.error('Google Drive Process Failed:', driveError);
     }
 
     return NextResponse.json({
@@ -81,7 +95,8 @@ export async function POST(request: Request) {
         date: data.date || new Date().toISOString(),
         method: data.method || 'ไม่ระบุ',
         receiver: data.receiver || 'ทั่วไป',
-        imageFileId: driveFileId // Add fileId to the response
+        imageFileId: driveFileId,
+        driveUrl: webViewLink
       }
     });
   } catch (error: any) {
