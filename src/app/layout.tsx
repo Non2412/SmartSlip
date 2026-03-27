@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import NotificationBanner from "@/components/NotificationBanner";
+import NotificationBanner from "@/app/notification/NotificationBanner";
 import "./globals.css";
 
 const geistSans = Geist({

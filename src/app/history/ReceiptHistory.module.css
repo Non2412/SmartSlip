@@ -1,0 +1,190 @@
+.filterBar {
+  background: white;
+  padding: 16px 24px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.searchInputWrapper {
+  flex: 1;
+  position: relative;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 10px 16px;
+  padding-left: 40px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #10b981;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.filterLabel {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.btnGroup {
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 12px;
+}
+
+.filterBtn {
+  padding: 6px 16px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.filterBtnActive {
+  background: white;
+  color: #10b981;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.paginationInfo {
+  margin-bottom: 16px;
+  padding: 0 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.pageCountSelect {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pageCountBtn {
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+}
+
+.pageCountBtnActive {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.tableCard {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.historyTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.historyTable th {
+  background: #f8fafc;
+  padding: 18px 20px;
+  text-align: left;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  font-weight: 700;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.historyTable td {
+  padding: 20px;
+  font-size: 0.9rem;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.storeInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.storeIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.categoryBadge {
+  padding: 6px 12px;
+  background: #f1f5f9;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.amountText {
+  font-weight: 700;
+  color: #1e293b;
+  font-size: 1rem;
+}
+
+.statusWrapper {
+  display: flex;
+  align-items: center;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.dateText {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeText {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 4px;
+}
