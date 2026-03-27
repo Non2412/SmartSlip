@@ -1,11 +1,9 @@
-"use client"
-import React from 'react';
-import { signOut } from 'next-auth/react';
 "use client";
 
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -68,79 +66,35 @@ const Sidebar = ({ onAddReceipt }: SidebarProps) => {
           <div className={styles.userName}>นพนันท์ เกษอินทร์</div>
           <div className={styles.userId}>1339200044447</div>
         </div>
-        <button className={styles.logoutButton} title="ออกจากระบบ">
+        <button 
+          className={styles.logoutButton} 
+          title="ออกจากระบบ"
+          onClick={() => signOut({ callbackUrl: '/login' })}
+        >
           <LogoutIcon />
         </button>
-      </div>
-
-      <div style={{
-        marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '12px'
-      }}>
-        <SidebarItem 
-          label="ออกจากระบบ" 
-          icon={<LogoutIcon />} 
-          onClick={() => signOut({ callbackUrl: '/login' })}
-          danger
-        />
       </div>
     </aside>
   );
 };
 
 const SidebarItem = ({ 
+  href, 
   label, 
   icon, 
   active = false, 
   isExternal = false, 
-  onClick,
-  danger = false
+  onClick 
 }: { 
+  href?: string, 
   label: string, 
   icon: React.ReactNode, 
   active?: boolean, 
-  isExternal?: boolean,
-  onClick?: () => void,
-  danger?: boolean
-}) => (
-  <li>
-    <button 
-      onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        padding: '10px 12px',
-        borderRadius: '8px',
-        color: danger ? '#ef4444' : (active ? '#1e293b' : '#64748b'),
-        backgroundColor: active ? '#f1f5f9' : 'transparent',
-        transition: 'all 0.2s ease',
-        fontSize: '0.9rem',
-        fontWeight: active ? '700' : '500',
-        textDecoration: 'none',
-        border: 'none',
-        width: '100%',
-        cursor: 'pointer',
-        textAlign: 'left'
-      }}
-    >
-      <span style={{ display: 'flex', alignItems: 'center', color: danger ? '#ef4444' : (active ? '#475569' : 'inherit') }}>{icon}</span>
-      <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
-      {isExternal && (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
-      )}
-    </button>
-const SidebarItem = ({ href, label, icon, active = false, isExternal = false, onClick }: { href: string, label: string, icon: React.ReactNode, active?: boolean, isExternal?: boolean, onClick?: () => void }) => (
-  <li>
-    <Link
-      href={href}
-      className={`${styles.sidebarLink} ${active ? styles.sidebarLinkActive : styles.sidebarLinkInactive}`}
-      onClick={(e) => {
-        if (onClick) {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-    >
+  isExternal?: boolean, 
+  onClick?: () => void 
+}) => {
+  const content = (
+    <>
       <span className={`${styles.sidebarLinkIcon} ${active ? styles.sidebarLinkIconActive : ''}`}>
         {icon}
       </span>
@@ -148,9 +102,52 @@ const SidebarItem = ({ href, label, icon, active = false, isExternal = false, on
       {isExternal && (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
       )}
-    </Link>
-  </li>
-);
+    </>
+  );
+
+  const className = `${styles.sidebarLink} ${active ? styles.sidebarLinkActive : styles.sidebarLinkInactive}`;
+
+  if (onClick && (!href || href === '#')) {
+    return (
+      <li>
+        <button 
+          onClick={onClick} 
+          className={className} 
+          style={{ 
+            width: '100%', 
+            border: 'none', 
+            cursor: 'pointer', 
+            textAlign: 'left', 
+            background: 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '10px 12px'
+          }}
+        >
+          {content}
+        </button>
+      </li>
+    );
+  }
+
+  return (
+    <li>
+      <Link
+        href={href || '/'}
+        className={className}
+        onClick={(e) => {
+          if (onClick) {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+      >
+        {content}
+      </Link>
+    </li>
+  );
+};
 
 // Icons
 function MailIcon() {
@@ -184,9 +181,5 @@ function HelpIcon() {
 function LogoutIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
 }
-
-const LogoutIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
-);
 
 export default Sidebar;
