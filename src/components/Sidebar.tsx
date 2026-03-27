@@ -1,4 +1,6 @@
+"use client"
 import React from 'react';
+import { signOut } from 'next-auth/react';
 
 const Sidebar = () => {
   return (
@@ -55,31 +57,63 @@ const Sidebar = () => {
           <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '500' }}>1339200044447</div>
         </div>
       </div>
+
+      <div style={{
+        marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '12px'
+      }}>
+        <SidebarItem 
+          label="ออกจากระบบ" 
+          icon={<LogoutIcon />} 
+          onClick={() => signOut({ callbackUrl: '/login' })}
+          danger
+        />
+      </div>
     </aside>
   );
 };
 
-const SidebarItem = ({ label, icon, active = false, isExternal = false }: { label: string, icon: React.ReactNode, active?: boolean, isExternal?: boolean }) => (
+const SidebarItem = ({ 
+  label, 
+  icon, 
+  active = false, 
+  isExternal = false, 
+  onClick,
+  danger = false
+}: { 
+  label: string, 
+  icon: React.ReactNode, 
+  active?: boolean, 
+  isExternal?: boolean,
+  onClick?: () => void,
+  danger?: boolean
+}) => (
   <li>
-    <a href="#" style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      padding: '10px 12px',
-      borderRadius: '8px',
-      color: active ? '#1e293b' : '#64748b',
-      backgroundColor: active ? '#f1f5f9' : 'transparent',
-      transition: 'all 0.2s ease',
-      fontSize: '0.9rem',
-      fontWeight: active ? '700' : '500',
-      textDecoration: 'none'
-    }}>
-      <span style={{ display: 'flex', alignItems: 'center', color: active ? '#475569' : 'inherit' }}>{icon}</span>
+    <button 
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        padding: '10px 12px',
+        borderRadius: '8px',
+        color: danger ? '#ef4444' : (active ? '#1e293b' : '#64748b'),
+        backgroundColor: active ? '#f1f5f9' : 'transparent',
+        transition: 'all 0.2s ease',
+        fontSize: '0.9rem',
+        fontWeight: active ? '700' : '500',
+        textDecoration: 'none',
+        border: 'none',
+        width: '100%',
+        cursor: 'pointer',
+        textAlign: 'left'
+      }}
+    >
+      <span style={{ display: 'flex', alignItems: 'center', color: danger ? '#ef4444' : (active ? '#475569' : 'inherit') }}>{icon}</span>
       <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
       {isExternal && (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
       )}
-    </a>
+    </button>
   </li>
 );
 
@@ -106,6 +140,10 @@ const SheetsIcon = () => (
 
 const DriveIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19L14.5 6H9.5L2 19H22Z" /><path d="M14.5 6L18 12.5L22 19H14.5L14.5 6Z" /><path d="M9.5 6L14.5 6L11.5 11L9.5 6Z" /></svg>
+);
+
+const LogoutIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
 );
 
 export default Sidebar;

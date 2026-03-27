@@ -21,7 +21,7 @@ export default function LoginPage() {
       <div className={styles.loginCard}>
         <div className={styles.loginHeader}>
           <div className={styles.loginLogo}>
-            <img src="/logo.png" alt="SmartSlip AI Logo" width={180} height={56} style={{ objectFit: 'contain' }} />
+            <img src="/logo.png" alt="SmartSlip AI Logo" width={400} height={180} style={{ objectFit: 'contain' }} />
           </div>
           <p>Login to your account to continue</p>
         </div>
@@ -36,7 +36,7 @@ export default function LoginPage() {
               <span className={styles.loader}></span>
             ) : (
               <>
-                <img src="/line-icon.svg" alt="LINE" width={24} height={24} />
+                <img src="/line-icon.svg" alt="LINE" width={30} height={30} />
                 Continue with LINE
               </>
             )}
