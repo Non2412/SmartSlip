@@ -1,3 +1,7 @@
+import { redirect } from "next/navigation"
+
+export default function RootPage() {
+    redirect("/dashboard")
 'use client';
 
 import Sidebar from '@/components/Sidebar';
