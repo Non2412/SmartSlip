@@ -4,12 +4,11 @@ import { Readable } from 'stream';
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
 
 export async function getGoogleDriveClient() {
-  const auth = new google.auth.JWT(
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    undefined,
-    process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    SCOPES
-  );
+  const auth = new google.auth.JWT({
+    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    scopes: SCOPES,
+  });
 
   return google.drive({ version: 'v3', auth });
 }
@@ -32,7 +31,7 @@ export async function findOrCreateFolder(folderName: string, parentId?: string) 
 
     if (listResponse.data.files && listResponse.data.files.length > 0) {
       // Folder exists
-      return listResponse.data.files[0].id;
+      return listResponse.data.files[0].id || undefined;
     }
 
     // Create folder if it doesn't exist
@@ -45,7 +44,7 @@ export async function findOrCreateFolder(folderName: string, parentId?: string) 
       fields: 'id',
     });
 
-    return createResponse.data.id;
+    return createResponse.data.id || undefined;
   } catch (error) {
     console.error(`Error in findOrCreateFolder (${folderName}):`, error);
     throw error;

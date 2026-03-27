@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       let targetFolderId = undefined;
       if (userId) {
         try {
-          targetFolderId = await getUserMonthFolder(userId);
+          targetFolderId = await getUserMonthFolder(userId) || undefined;
         } catch (folderErr) {
           console.error('Auto Folder Creation Failed, using root:', folderErr);
         }

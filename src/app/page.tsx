@@ -3,7 +3,7 @@
 
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
-import { StatCard } from '@/app/dashborad/DashboardItems';
+import { StatCard } from '@/components/DashboardItems';
 import ReceiptHistory from '@/app/history/ReceiptHistory';
 import { CreateReceiptModal } from '@/app/createreceipt/CreateReceiptModal';
 import { useReceipts } from '@/hooks/useReceipts';
