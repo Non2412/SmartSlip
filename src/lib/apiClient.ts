@@ -22,7 +22,7 @@ export interface CreateReceiptData {
   storeName: string;
   totalAmount: number;
   userId: string;
-  extractedData?: any;
+  extractedData?: unknown;
   imageFileId?: string;
 }
 
@@ -37,8 +37,8 @@ export async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<{ success: boolean; data?: T; error?: string }> {
   try {
-    const url = endpoint.startsWith('http') 
-      ? endpoint 
+    const url = endpoint.startsWith('http')
+      ? endpoint
       : `${API_BASE_URL}${endpoint}`;
 
     const headers = new Headers(options.headers);
@@ -67,10 +67,10 @@ export async function apiRequest<T>(
       success: true,
       data: result.data || result,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       success: false,
-      error: error.message || 'Unknown network error',
+      error: error instanceof Error ? error.message : 'Unknown network error',
     };
   }
 }
@@ -81,15 +81,15 @@ export async function apiRequest<T>(
 export const receiptApi = {
   // ดึงรายการใบเสร็จ
   getAll: (userId: string) => apiRequest<Receipt[]>(`/receipts?userId=${userId}`),
-  
+
   // เพิ่มใบเสร็จใหม่
   create: (data: CreateReceiptData) => apiRequest<Receipt>('/receipts', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
-  
+
   // ประมวลผล OCR และอัปโหลดขึ้น Drive
-  extract: (imageBase64: string, userId?: string) => apiRequest<any>('/receipts/extract', {
+  extract: (imageBase64: string, userId?: string) => apiRequest<unknown>('/receipts/extract', {
     method: 'POST',
     body: JSON.stringify({ image: imageBase64, userId }),
   }),

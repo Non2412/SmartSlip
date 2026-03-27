@@ -7,7 +7,7 @@ export interface UseReceiptsReturn {
   receipts: Receipt[];
   fetchReceipts: (userId: string) => Promise<void>;
   createReceipt: (data: CreateReceiptData) => Promise<{ success: boolean; data?: Receipt; error?: string }>;
-  extractFromImage: (file: File, userId: string) => Promise<any>;
+  extractFromImage: (file: File, userId: string) => Promise<unknown>;
   loading: boolean;
   error: string | null;
 }
@@ -27,8 +27,8 @@ export const useReceipts = (): UseReceiptsReturn => {
       } else {
         setError(result.error || 'Failed to fetch receipts');
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
     }
@@ -39,15 +39,15 @@ export const useReceipts = (): UseReceiptsReturn => {
     setError(null);
     try {
       const result = await receiptApi.create(data);
-      
+
       if (result.success && result.data) {
         setReceipts(prev => [result.data as Receipt, ...prev]);
         return { success: true, data: result.data };
       } else {
         return { success: false, error: result.error || 'Failed to create receipt' };
       }
-    } catch (err: any) {
-      return { success: false, error: err.message };
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
     } finally {
       setLoading(false);
     }
@@ -66,15 +66,15 @@ export const useReceipts = (): UseReceiptsReturn => {
       });
 
       const result = await receiptApi.extract(base64, userId);
-      
+
       if (result.success && result.data) {
         return result.data;
       } else {
         setError(result.error || 'Failed to extract data');
         return null;
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
       return null;
     } finally {
       setLoading(false);

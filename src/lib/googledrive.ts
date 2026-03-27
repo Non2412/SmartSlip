@@ -19,10 +19,10 @@ export async function getGoogleDriveClient() {
  */
 export async function findOrCreateFolder(folderName: string, parentId?: string) {
   const drive = await getGoogleDriveClient();
-  
+
   // Search for the folder
   const query = `mimeType = 'application/vnd.google-apps.folder' and name = '${folderName}' ${parentId ? `and '${parentId}' in parents` : ''} and trashed = false`;
-  
+
   try {
     const listResponse = await drive.files.list({
       q: query,
@@ -40,7 +40,7 @@ export async function findOrCreateFolder(folderName: string, parentId?: string) 
       requestBody: {
         name: folderName,
         mimeType: 'application/vnd.google-apps.folder',
-        parents: parentId ? [parentId] : [],
+        parents: parentId ? [parentId as string] : [],
       },
       fields: 'id',
     });
@@ -69,9 +69,9 @@ export async function getUserMonthFolder(userId: string, userName?: string) {
   const now = new Date();
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const monthYearName = `${monthNames[now.getMonth()]}-${now.getFullYear()}`;
-  
+
   const monthFolderId = await findOrCreateFolder(monthYearName, userFolderId);
-  
+
   return monthFolderId;
 }
 

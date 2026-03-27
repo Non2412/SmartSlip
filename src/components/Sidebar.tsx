@@ -40,7 +40,7 @@ const Sidebar = ({ onAddReceipt }: SidebarProps) => {
           <SidebarItem href="/" active={pathname === '/'} label="รายการใบเสร็จ" icon={<ListIcon />} />
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} onClick={onAddReceipt} />
           <SidebarItem href="#" label="Google Sheets" icon={<SheetsIcon />} isExternal />
-          <SidebarItem href="#" label="Google Drive" icon={<DriveIcon />} isExternal />
+          <SidebarItem href="/api/drive/redirect/1339200044447" label="Google Drive" icon={<DriveIcon />} isExternal />
         </ul>
 
         <div className={styles.navSection}>
