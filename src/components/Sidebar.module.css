@@ -43,7 +43,7 @@
 
 
 .logoContainer {
-  margin-bottom: 32px;
+  margin-bottom: 20px;
   padding: 0 8px;
   width: 100%;
   display: flex;
@@ -63,8 +63,8 @@
 }
 
 .navSection {
-  padding: 0 8px 12px;
-  font-size: 0.95rem;
+  padding: 0 8px 8px;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #94a3b8;
 }
@@ -72,8 +72,8 @@
 .navList {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 24px;
+  gap: 2px;
+  margin-bottom: 16px;
   list-style: none;
   padding: 0;
 }
@@ -156,10 +156,10 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 8px;
   transition: all 0.2s ease;
-  font-size: 1rem;
+  font-size: 0.9rem;
   text-decoration: none;
   width: 100%;
   border: none;
