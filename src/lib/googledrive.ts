@@ -4,12 +4,11 @@ import { Readable } from 'stream';
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
 
 export async function getGoogleDriveClient() {
-  const auth = new google.auth.JWT(
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    undefined,
-    process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    SCOPES
-  );
+  const auth = new google.auth.JWT({
+    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    scopes: SCOPES
+  });
 
   return google.drive({ version: 'v3', auth });
 }
@@ -32,7 +31,9 @@ export async function findOrCreateFolder(folderName: string, parentId?: string) 
 
     if (listResponse.data.files && listResponse.data.files.length > 0) {
       // Folder exists
-      return listResponse.data.files[0].id;
+      const folderId = listResponse.data.files[0].id;
+      if (!folderId) throw new Error(`Found folder ${folderName} but it has no ID`);
+      return folderId as string;
     }
 
     // Create folder if it doesn't exist
@@ -45,7 +46,8 @@ export async function findOrCreateFolder(folderName: string, parentId?: string) 
       fields: 'id',
     });
 
-    return createResponse.data.id;
+    if (!createResponse.data.id) throw new Error(`Failed to create folder ${folderName}`);
+    return createResponse.data.id as string;
   } catch (error) {
     console.error(`Error in findOrCreateFolder (${folderName}):`, error);
     throw error;
@@ -57,7 +59,7 @@ export async function findOrCreateFolder(folderName: string, parentId?: string) 
  * Structure: Root -> User Folder -> Month-Year Folder
  * @returns The ID of the Month-Year folder
  */
-export async function getUserMonthFolder(userId: string, userName?: string) {
+export async function getUserMonthFolder(userId: string, userName?: string): Promise<string> {
   const rootFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
   if (!rootFolderId) throw new Error('GOOGLE_DRIVE_FOLDER_ID is not defined');
 
