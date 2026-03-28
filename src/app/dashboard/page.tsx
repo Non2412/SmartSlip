@@ -1,14 +1,40 @@
+"use client";
+
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
-import { StatCard, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
+import { StatCard, ExpenseChart, RecentUploads } from '@/app/dashborad/DashboardItems';
+import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function DashboardPage() {
+  const pathname = usePathname();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [pathname]);
+
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const closeSidebar = () => setIsSidebarOpen(false);
+
   return (
     <div className="dashboard-layout">
-      <Sidebar />
+      {/* Sidebar Overlay for mobile */}
+      <div 
+        className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} 
+        onClick={closeSidebar}
+      />
+
+      <Sidebar 
+        isOpen={isSidebarOpen}
+        onClose={closeSidebar}
+      />
 
       <main className="main-content">
-        <TopBar title="ภาพรวมรายจ่าย" />
+        <TopBar 
+          title="ภาพรวมรายจ่าย" 
+          onToggleSidebar={toggleSidebar}
+        />
 
         <div className="page-container">
           {/* Summary Stats Row */}
@@ -50,3 +76,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
