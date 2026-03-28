@@ -9,7 +9,38 @@
   position: sticky;
   top: 0;
   border-right: 1px solid var(--border-color);
+  transition: transform 0.3s ease, width 0.3s ease;
+  z-index: 100;
 }
+
+@media (max-width: 1366px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: var(--mobile-sidebar-width);
+    transform: translateX(-100%); /* Now works because width is defined */
+    border-right: none;
+    box-shadow: 10px 0 25px -5px rgba(0, 0, 0, 0.1);
+    display: none !important;
+    opacity: 0;
+    padding: 0;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  .sidebarActive {
+    display: flex !important;
+    transform: translateX(0);
+    opacity: 1;
+    padding: 24px 16px 32px;
+    pointer-events: all;
+    width: var(--mobile-sidebar-width);
+  }
+}
+
+
+
 
 .logoContainer {
   margin-bottom: 32px;
@@ -18,6 +49,7 @@
   display: flex;
   justify-content: center;
 }
+
 
 .logo {
   width: 160px;
@@ -32,7 +64,7 @@
 
 .navSection {
   padding: 0 8px 12px;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: #94a3b8;
 }
@@ -102,7 +134,7 @@
 }
 
 .userName {
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--text-main);
   white-space: nowrap;
@@ -112,7 +144,7 @@
 }
 
 .userId {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
   font-weight: 500;
   white-space: nowrap;
@@ -124,12 +156,20 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 10px 14px;
   border-radius: 8px;
   transition: all 0.2s ease;
-  font-size: 0.9rem;
+  font-size: 1rem;
   text-decoration: none;
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  background-color: transparent;
+  color: inherit;
+  font-family: inherit;
 }
+
 
 .sidebarLinkActive {
   color: #1e293b;

@@ -8,16 +8,28 @@ import ReceiptHistory from '@/app/history/ReceiptHistory';
 import { CreateReceiptModal } from '@/app/createreceipt/CreateReceiptModal';
 import { useReceipts } from '@/hooks/useReceipts';
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function DashboardPage() {
+  const pathname = usePathname();
   const { receipts, fetchReceipts, loading, error } = useReceipts();
+
   const [userId] = useState<string>('user123'); // ใช้ ID เริ่มต้น
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
-    // เรียก API เพื่อดึงรายการใบเสร็จ
+    // ดึงข้อมูลเมื่อ component mount
     fetchReceipts(userId);
   }, [userId, fetchReceipts]);
+
+  // ปิด sidebar เมื่อเปลี่ยนหน้า (ถ้ามีการใช้งาน router)
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [pathname]);
+
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const closeSidebar = () => setIsSidebarOpen(false);
 
   // คำนวณสถิติ
   const totalExpense = receipts.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
@@ -39,10 +51,28 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard-layout">
-      <Sidebar onAddReceipt={() => setShowCreateModal(true)} />
+      {/* Sidebar Overlay for mobile */}
+      <div 
+        className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} 
+        onClick={closeSidebar}
+      />
+
+      <Sidebar 
+        onAddReceipt={() => {
+          setShowCreateModal(true);
+          closeSidebar();
+        }} 
+        isOpen={isSidebarOpen}
+        onClose={closeSidebar}
+      />
 
       <main className="main-content">
-        <TopBar title="ภาพรวมรายจ่าย" onCreateNew={handleCreateNew} />
+        <TopBar 
+          title="ภาพรวมรายจ่าย" 
+          onCreateNew={handleCreateNew} 
+          onToggleSidebar={toggleSidebar}
+        />
+
 
         <div className="page-container">
           {/* Summary Stats Row */}

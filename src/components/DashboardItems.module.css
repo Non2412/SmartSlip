@@ -47,14 +47,14 @@
 }
 
 .statLabel {
-  font-size: 0.875rem;
+  font-size: 0.95rem;
   color: var(--text-muted);
   font-weight: 500;
   margin-bottom: 4px;
 }
 
 .statValue {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
   color: var(--text-main);
 }
@@ -204,4 +204,38 @@
 
 .completedIndicator {
   color: #10b981;
+}
+@media (max-width: 768px) {
+  .statCard {
+    min-width: 100%;
+    padding: 16px;
+  }
+  
+  .statValue {
+    font-size: 1.5rem;
+  }
+
+  .chartCard {
+    padding: 16px;
+    min-height: 300px;
+  }
+  
+  .chartContainer {
+    height: 180px;
+  }
+  
+  .bar {
+    width: 40%;
+  }
+
+  .uploadItem {
+    gap: 8px;
+    padding: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .statCardHeader {
+    margin-bottom: 8px;
+  }
 }

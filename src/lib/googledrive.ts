@@ -56,7 +56,7 @@ export async function findOrCreateFolder(folderName: string, parentId?: string) 
  * Structure: Root -> User Folder -> Month-Year Folder
  * @returns The ID of the Month-Year folder
  */
-export async function getUserMonthFolder(userId: string, userName?: string) {
+export async function getUserMonthFolder(userId: string, userName?: string): Promise<string> {
   const rootFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
   if (!rootFolderId) throw new Error('GOOGLE_DRIVE_FOLDER_ID is not defined');
 
