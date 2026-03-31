@@ -1,13 +1,13 @@
 .statCard {
   background-color: var(--card-bg);
-  padding: 24px;
+  padding: 16px;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   flex: 1;
   min-width: 240px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   position: relative;
 }
 
@@ -54,7 +54,7 @@
 }
 
 .statValue {
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-main);
 }
@@ -161,7 +161,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px;
+  padding: 4px 8px;
 }
 
 .uploadIconWrapper {

@@ -28,6 +28,19 @@
 
   /* Central UI Scaling Factor */
   --base-font-size: 14px; 
+  --base-font-size: 16px; 
+}
+
+@media (min-width: 800px) {
+  :root {
+    --base-font-size: 16px; 
+  }
+}
+
+@media (min-width: 1441px) {
+  :root {
+    --base-font-size: 16px; 
+  }
 }
 
 
@@ -145,4 +158,4 @@ body:has(.notification-banner) .dashboard-layout {
 }
 
 
-
+

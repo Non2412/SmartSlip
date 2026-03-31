@@ -7,7 +7,7 @@ export async function getGoogleDriveClient() {
   const auth = new google.auth.JWT({
     email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
     key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    scopes: SCOPES
+    scopes: SCOPES,
   });
 
   return google.drive({ version: 'v3', auth });
@@ -31,9 +31,7 @@ export async function findOrCreateFolder(folderName: string, parentId?: string) 
 
     if (listResponse.data.files && listResponse.data.files.length > 0) {
       // Folder exists
-      const folderId = listResponse.data.files[0].id;
-      if (!folderId) throw new Error(`Found folder ${folderName} but it has no ID`);
-      return folderId as string;
+      return listResponse.data.files[0].id || undefined;
     }
 
     // Create folder if it doesn't exist
@@ -46,8 +44,7 @@ export async function findOrCreateFolder(folderName: string, parentId?: string) 
       fields: 'id',
     });
 
-    if (!createResponse.data.id) throw new Error(`Failed to create folder ${folderName}`);
-    return createResponse.data.id as string;
+    return createResponse.data.id || undefined;
   } catch (error) {
     console.error(`Error in findOrCreateFolder (${folderName}):`, error);
     throw error;
