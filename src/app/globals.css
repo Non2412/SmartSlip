@@ -16,8 +16,8 @@
   --border-color: #e2e8f0;
 
   --header-height: 4rem;
-  --sidebar-width: 15rem;
-  --mobile-sidebar-width: 17rem;
+  --sidebar-width: 18rem;
+  --mobile-sidebar-width: 18rem;
 
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
@@ -27,6 +27,7 @@
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 
   /* Central UI Scaling Factor */
+  --base-font-size: 14px; 
   --base-font-size: 16px; 
 }
 
@@ -157,4 +158,4 @@ body:has(.notification-banner) .dashboard-layout {
 }
 
 
-
+
