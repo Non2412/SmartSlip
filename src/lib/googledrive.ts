@@ -75,6 +75,8 @@ export async function getUserMonthFolder(userId: string, userName?: string): Pro
       throw error;
     }
   }
+  const userFolderId = await findOrCreateFolder(userFolderName, rootFolderId);
+  if (!userFolderId) throw new Error(`Could not find or create folder for user: ${userFolderName}`);
 
   // 2. Find or create Month-Year Folder inside User Folder
   const now = new Date();
@@ -82,6 +84,7 @@ export async function getUserMonthFolder(userId: string, userName?: string): Pro
   const monthYearName = `${monthNames[now.getMonth()]}-${now.getFullYear()}`;
 
   const monthFolderId = await findOrCreateFolder(monthYearName, userFolderId);
+  if (!monthFolderId) throw new Error(`Could not find or create month folder: ${monthYearName}`);
 
   return monthFolderId;
 }

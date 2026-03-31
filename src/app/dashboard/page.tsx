@@ -2,7 +2,7 @@
 
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
-import { StatCard, ExpenseChart, RecentUploads } from '@/app/dashborad/DashboardItems';
+import { StatCard, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
