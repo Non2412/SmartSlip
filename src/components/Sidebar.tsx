@@ -1,89 +1,177 @@
-import React from 'react';
+"use client";
 
-const Sidebar = () => {
+import React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { signOut } from 'next-auth/react';
+import styles from './Sidebar.module.css';
+
+interface SidebarProps {
+  onAddReceipt?: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
+  const pathname = usePathname();
+
   return (
-    <aside style={{
-      width: 'var(--sidebar-width)',
-      backgroundColor: 'var(--sidebar-bg)',
-      color: 'var(--sidebar-text)',
-      display: 'flex',
-      flexDirection: 'column',
-      padding: '24px 16px',
-      height: '100vh',
-      position: 'sticky',
-      top: 0,
-      borderRight: '1px solid #ffffff10'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '40px', padding: '0 8px' }}>
-        <div style={{ 
-          width: '32px', height: '32px', backgroundColor: 'var(--primary-color)', 
-          borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'white', fontWeight: 'bold'
-        }}>G</div>
-        <span style={{ fontSize: '1.25rem', fontWeight: '700', color: 'white' }}>SmartReceipt</span>
+    <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarActive : ''}`}>
+
+      <div className={styles.logoContainer}>
+        <Link href="/">
+          <img
+            src="/logo.png"
+            alt="SmartSlip AI"
+            className={styles.logo}
+          />
+        </Link>
       </div>
 
-      <nav style={{ flex: 1 }}>
-        <ul style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <SidebarItem active label="หน้าหลัก" icon={<HomeIcon />} />
-          <SidebarItem label="รายการใบเสร็จ" icon={<ListIcon />} />
-          <SidebarItem label="รายงานสรุป" icon={<ChartIcon />} />
-          
-          <div style={{ margin: '24px 8px 8px', fontSize: '0.75rem', fontWeight: '600', color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Settings
-          </div>
-          <SidebarItem label="ตั้งค่าระบบ" icon={<SettingsIcon />} />
+      <nav className={styles.nav}>
+        <div className={styles.navSection}>
+          To-do ของฉัน
+        </div>
+        <ul className={styles.navList}>
+          <SidebarItem href="#" label="เช็กใบเสร็จที่เจอจากอีเมล" icon={<MailIcon />} />
+          <SidebarItem href="#" label="Task ที่ต้องตรวจสอบ/จัดการ" icon={<TaskIcon />} />
+        </ul>
+
+        <div className={styles.navSection}>
+          เมนูธุรกิจ
+        </div>
+        <ul className={styles.navList}>
+          <SidebarItem href="/" active={pathname === '/'} label="รายการใบเสร็จ" icon={<ListIcon />} />
+          <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} onClick={onAddReceipt} />
+          <SidebarItem href="#" label="Google Sheets" icon={<SheetsIcon />} isExternal />
+          <SidebarItem href="/api/drive/redirect/1339200044447" label="Google Drive" icon={<DriveIcon />} isExternal />
+        </ul>
+
+        <div className={styles.navSection}>
+          ช่วยเหลือ
+        </div>
+        <ul className={styles.navListNoMargin}>
+          <SidebarItem
+            href="/how-to-use"
+            active={pathname === '/how-to-use'}
+            label="วิธีการใช้งาน"
+            icon={<HelpIcon />}
+          />
         </ul>
       </nav>
 
-      <div style={{ 
-        marginTop: 'auto', padding: '12px', backgroundColor: '#ffffff0a', borderRadius: '12px',
-        display: 'flex', alignItems: 'center', gap: '12px'
-      }}>
-        <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#6366f1', overflow: 'hidden' }}>
+      <div className={styles.userCard}>
+        <div className={styles.userAvatar}>
           <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
+          <div className={styles.statusIndicator}></div>
         </div>
-        <div>
-          <div style={{ fontSize: '0.875rem', fontWeight: '600', color: 'white' }}>ศิริชัย พัฒนา</div>
-          <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>PREMIUM ACCOUNT</div>
+        <div className={styles.userInfo}>
+          <div className={styles.userName}>นพนันท์ เกษอินทร์</div>
+          <div className={styles.userId}>1339200044447</div>
         </div>
+        <button 
+          className={styles.logoutButton} 
+          title="ออกจากระบบ"
+          onClick={() => signOut({ callbackUrl: '/login' })}
+        >
+          <LogoutIcon />
+        </button>
       </div>
     </aside>
   );
 };
 
-const SidebarItem = ({ label, icon, active = false }: { label: string, icon: React.ReactNode, active?: boolean }) => (
-  <li>
-    <a href="#" style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      padding: '12px 16px',
-      borderRadius: '12px',
-      color: active ? 'white' : 'var(--sidebar-text)',
-      backgroundColor: active ? 'var(--sidebar-item-active)' : 'transparent',
-      transition: 'all 0.2s ease',
-      fontSize: '0.925rem',
-      fontWeight: active ? '600' : '500'
-    }}>
-      <span style={{ color: active ? 'var(--primary-color)' : 'inherit' }}>{icon}</span>
-      {label}
-    </a>
-  </li>
-);
+const SidebarItem = ({ 
+  href, 
+  label, 
+  icon, 
+  active = false, 
+  isExternal = false, 
+  onClick 
+}: { 
+  href?: string, 
+  label: string, 
+  icon: React.ReactNode, 
+  active?: boolean, 
+  isExternal?: boolean, 
+  onClick?: () => void 
+}) => {
+  const content = (
+    <>
+      <span className={`${styles.sidebarLinkIcon} ${active ? styles.sidebarLinkIconActive : ''}`}>
+        {icon}
+      </span>
+      <span className={styles.sidebarLinkLabel}>{label}</span>
+      {isExternal && (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+      )}
+    </>
+  );
 
-// Minimal Icon Components
-const HomeIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-);
-const ListIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-);
-const ChartIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
-);
-const SettingsIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-);
+  const className = `${styles.sidebarLink} ${active ? styles.sidebarLinkActive : styles.sidebarLinkInactive}`;
+
+  if (onClick && (!href || href === '#')) {
+    return (
+      <li>
+        <button 
+          onClick={onClick} 
+          className={className} 
+        >
+          {content}
+        </button>
+      </li>
+    );
+  }
+
+  return (
+    <li>
+      <Link
+        href={href || '/'}
+        className={className}
+        onClick={(e) => {
+          if (onClick) {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+      >
+        {content}
+      </Link>
+    </li>
+  );
+};
+
+// Icons
+function MailIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>;
+}
+
+function TaskIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><path d="M9 15l2 2 4-4" /></svg>;
+}
+
+function ListIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>;
+}
+
+function UploadIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>;
+}
+
+function SheetsIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" /></svg>;
+}
+
+function DriveIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19L14.5 6H9.5L2 19H22Z" /><path d="M14.5 6L18 12.5L22 19H14.5L14.5 6Z" /><path d="M9.5 6L14.5 6L11.5 11L9.5 6Z" /></svg>;
+}
+
+function HelpIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+}
+
+function LogoutIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
+}
 
 export default Sidebar;
