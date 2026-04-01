@@ -62,17 +62,18 @@ export async function getUserMonthFolder(userId: string, userName?: string): Pro
   // 1. Find or create User Folder (using Name if provided, otherwise ID)
   const userFolderName = userName ? `${userName} (${userId})` : userId;
   let userFolderId: string | undefined;
-  
+
   try {
     if (!rootFolderId) throw new Error('No root');
     userFolderId = await findOrCreateFolder(userFolderName, rootFolderId);
-  } catch (error: any) {
+  } catch (err: unknown) {
+    const error = err as { code?: number; status?: number; message?: string };
     // If the root folder is missing or inaccessible (404), fall back to root of service account
     if (error.code === 404 || error.status === 404 || error.message?.includes('File not found') || error.message?.includes('No root')) {
       console.warn('Configured GOOGLE_DRIVE_FOLDER_ID is inaccessible or missing. Falling back to service account root directory.');
       userFolderId = await findOrCreateFolder(userFolderName);
     } else {
-      throw error;
+      throw err;
     }
   }
 
@@ -146,7 +147,8 @@ export async function uploadFile(buffer: Buffer, fileName: string, mimeType: str
       fields: 'id, name, webContentLink, webViewLink',
     });
     return response.data;
-  } catch (error: any) {
+  } catch (err: unknown) {
+    const error = err as { code?: number; status?: number; message?: string };
     if (folderId && (error.code === 404 || error.status === 404 || error.message?.includes('File not found'))) {
       console.warn('Configured folder inaccessible during upload. Falling back to root directory.');
       fileMetadata.parents = [];
@@ -158,6 +160,6 @@ export async function uploadFile(buffer: Buffer, fileName: string, mimeType: str
       return retryResponse.data;
     }
     console.error('Upload Error Details:', error);
-    throw new Error(`Failed to upload to Google Drive: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to upload to Google Drive: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
 }
