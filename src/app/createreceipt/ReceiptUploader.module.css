@@ -1,0 +1,119 @@
+.container {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.title {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.uploadButton {
+  padding: 12px 24px;
+  background-color: #10b981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.uploadButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.error {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #FFE5E5;
+  color: #C00;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.previewContainer {
+  margin-top: 16px;
+}
+
+.previewWrapper {
+  width: 100%;
+  max-width: 300px;
+  height: 300px;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #f5f5f5;
+}
+
+.previewImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dataContainer {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #ecfdf5;
+  border-radius: 8px;
+  border: 1px solid #10b981;
+}
+
+.dataTitle {
+  margin-top: 0;
+  color: #10b981;
+}
+
+.dataGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.dataLabel {
+  color: #666;
+}
+
+.dataValue {
+  font-weight: 600;
+  color: #333;
+}
+
+.amountValue {
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+}
+
+.confidenceContainer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ddd;
+}
+
+.confidenceBadge {
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.confidenceHigh {
+  background-color: #E8F5E9;
+  color: #2E7D32;
+}
+
+.confidenceMedium {
+  background-color: #FFF3CD;
+  color: #856404;
+}
+
+.confidenceLow {
+  background-color: #FFE5E5;
+  color: #C00;
+}

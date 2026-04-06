@@ -1,0 +1,93 @@
+.loginWrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+    padding: 1.25rem;
+}
+
+.loginCard {
+    background: white;
+    padding: 2.5rem;
+    border-radius: 1.25rem;
+    box-shadow: 0 1.25rem 1.5rem -0.3rem rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 25rem;
+    text-align: center;
+}
+
+.loginHeader h1 {
+    margin-top: 0.6rem;
+    color: #1a202c;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.loginHeader p {
+    color: #718096;
+    margin-top: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+.loginLogo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 0.6rem;
+}
+
+.lineBtn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: white;
+    color: #2d3748;
+    font-weight: 600;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.lineBtn:hover {
+    background: #f0fdf4;
+    border-color: #00c300;
+    transform: translateY(-0.06rem);
+}
+
+.lineBtn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.loginFooter {
+    margin-top: 2rem;
+    color: #a0aec0;
+    font-size: 0.75rem;
+}
+
+.loader {
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 2px solid #e2e8f0;
+    border-bottom-color: #10b981;
+    border-radius: 50%;
+    display: inline-block;
+    animation: rotation 1s linear infinite;
+}
+
+@keyframes rotation {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 30rem) {
+    .loginCard {
+        padding: 1.5rem 1rem;
+        border-radius: 1rem;
+    }
+}

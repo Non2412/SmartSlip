@@ -47,7 +47,7 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
         const file = e.target.files?.[0];
         if (file) {
             handleFile(file);
-            e.target.value = ''; // Clear for next selection
+            if (e.target) e.target.value = ''; // Clear for next selection
         }
     };
 

@@ -1,4 +1,5 @@
 :root {
+  /* Design Tokens - Using relative units for total scale control */
   --sidebar-bg: #ffffff;
   --sidebar-text: #64748b;
   --sidebar-text-active: #10b981;
@@ -14,16 +15,40 @@
   --text-muted: #64748b;
   --border-color: #e2e8f0;
 
-  --header-height: 70px;
-  --sidebar-width: 260px;
+  --header-height: 4rem;
+  --sidebar-width: 18rem;
+  --mobile-sidebar-width: 18rem;
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
 
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+
+  /* Central UI Scaling Factor */
+  --base-font-size: 14px; 
+  --base-font-size: 16px; 
 }
+
+@media (min-width: 800px) {
+  :root {
+    --base-font-size: 16px; 
+  }
+}
+
+@media (min-width: 1441px) {
+  :root {
+    --base-font-size: 16px; 
+  }
+}
+
+
+
+
+
+
+
 
 * {
   box-sizing: border-box;
@@ -31,13 +56,20 @@
   margin: 0;
 }
 
-html,
+html {
+  font-size: var(--base-font-size);
+  transition: font-size 0.3s ease;
+}
+
 body {
-  max-width: 100vw;
-  overflow-x: hidden;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--main-bg);
   color: var(--text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -58,7 +90,29 @@ ul {
 
 .dashboard-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Compensate for notification-banner if active */
+body:has(.notification-banner) .dashboard-layout {
+  height: calc(100vh - 40px);
+}
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  backdrop-filter: blur(4px);
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+  display: block;
 }
 
 .main-content {
@@ -66,72 +120,42 @@ ul {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  position: relative;
 }
 
 .page-container {
-  padding: 24px;
-  max-width: 1400px;
+  padding: 1.5rem;
+  padding-bottom: 6rem;
+  max-width: 98%; /* More immersive width on high-DPI tablets */
   margin: 0 auto;
   width: 100%;
 }
 
-/* Notification Banner */
-.notification-banner {
-  background-color: #10b981;
-  color: white;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  position: relative;
-  font-size: 14px;
-  font-weight: 500;
-  z-index: 1000;
-}
 
-.banner-content {
-  display: flex;
-  white-space: nowrap;
-  animation: marquee 30s linear infinite;
-}
 
-.banner-text {
-  padding-right: 50px;
-}
-
-.banner-close {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(0, 0, 0, 0.1);
-  color: white;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  transition: background 0.2s;
-  z-index: 1001;
-}
-
-.banner-close:hover {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-@keyframes marquee {
-  0% {
-    transform: translateX(0);
+@media (max-width: 1366px) {
+  :root {
+    --sidebar-width: 0px;
   }
-
-  100% {
-    transform: translateX(-50%);
+  
+  .page-container {
+    padding: 1rem;
   }
 }
 
-.dashboard-layout {
-  display: flex;
-  min-height: calc(100vh - 40px);
+@media (max-width: 640px) {
+  :root {
+    --base-font-size: 16px;
+  }
+
+  .page-container {
+    padding: 0.75rem;
+  }
 }
+
+
+
