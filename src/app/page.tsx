@@ -5,7 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import { StatCard } from '@/components/DashboardItems';
 import ReceiptHistory from '@/app/history/ReceiptHistory';
-import { CreateReceiptModal } from '@/app/createreceipt/CreateReceiptModal';
+import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import { useReceipts } from '@/hooks/useReceipts';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
@@ -114,8 +114,8 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      {/* Modal สร้างใบเสร็จ (Side Panel) */}
-      <CreateReceiptModal
+      {/* Sheet สร้างใบเสร็จ (Premium Sidebar) */}
+      <CreateReceiptSheet
         isOpen={showCreateModal}
         onClose={handleModalClose}
         onSuccess={handleModalSuccess}
