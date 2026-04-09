@@ -36,7 +36,12 @@ const Sidebar = () => {
           <SidebarItem href="/" active={pathname === '/'} label="รายการใบเสร็จ" icon={<ListIcon />} />
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} />
           <SidebarItem href="#" label="Google Sheets" icon={<SheetsIcon />} isExternal />
-          <SidebarItem href="#" label="Google Drive" icon={<DriveIcon />} isExternal />
+          <SidebarItem 
+            href={`https://drive.google.com/drive/folders/${process.env.NEXT_PUBLIC_GOOGLE_DRIVE_FOLDER_ID}`} 
+            label="Google Drive" 
+            icon={<DriveIcon />} 
+            isExternal 
+          />
         </ul>
 
         <div className={styles.navSection}>
