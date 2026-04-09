@@ -1,8 +1,32 @@
+"use client";
+
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
+
 import styles from './how-to-use.module.css';
+import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { CreateReceiptModal } from '@/app/createreceipt/CreateReceiptModal';
+import { useReceipts } from '@/hooks/useReceipts';
 
 export default function HowToUsePage() {
+    const pathname = usePathname();
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const { fetchReceipts } = useReceipts();
+    const userId = 'user123';
+
+    useEffect(() => {
+        setIsSidebarOpen(false);
+    }, [pathname]);
+
+    const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+    const closeSidebar = () => setIsSidebarOpen(false);
+    
+    const handleCreateNew = () => setShowCreateModal(true);
+    const handleModalClose = () => setShowCreateModal(false);
+    const handleModalSuccess = () => fetchReceipts(userId);
+
     const steps = [
         {
             id: 1,
@@ -57,10 +81,26 @@ export default function HowToUsePage() {
 
     return (
         <div className="dashboard-layout">
-            <Sidebar />
+            <div 
+                className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} 
+                onClick={closeSidebar}
+            />
+
+            <Sidebar 
+                isOpen={isSidebarOpen}
+                onClose={closeSidebar}
+                onAddReceipt={() => {
+                  setShowCreateModal(true);
+                  closeSidebar();
+                }}
+            />
 
             <main className="main-content">
-                <TopBar title="วิธีการใช้งาน" />
+                <TopBar 
+                    title="วิธีการใช้งาน" 
+                    onToggleSidebar={toggleSidebar}
+                />
+
 
                 <div className="page-container">
                     <div className={styles.heroSection}>
@@ -96,6 +136,13 @@ export default function HowToUsePage() {
                     </div>
                 </div>
             </main>
+
+            <CreateReceiptModal
+                isOpen={showCreateModal}
+                onClose={handleModalClose}
+                onSuccess={handleModalSuccess}
+                userId={userId}
+            />
         </div>
     );
 }

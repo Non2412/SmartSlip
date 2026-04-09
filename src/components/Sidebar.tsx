@@ -3,13 +3,21 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import styles from './Sidebar.module.css';
 
-const Sidebar = () => {
+interface SidebarProps {
+  onAddReceipt?: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
   const pathname = usePathname();
 
   return (
-    <aside className={styles.sidebar}>
+    <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarActive : ''}`}>
+
       <div className={styles.logoContainer}>
         <Link href="/">
           <img
@@ -34,14 +42,9 @@ const Sidebar = () => {
         </div>
         <ul className={styles.navList}>
           <SidebarItem href="/" active={pathname === '/'} label="รายการใบเสร็จ" icon={<ListIcon />} />
-          <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} />
+          <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} onClick={onAddReceipt} />
           <SidebarItem href="#" label="Google Sheets" icon={<SheetsIcon />} isExternal />
-          <SidebarItem 
-            href={`https://drive.google.com/drive/folders/${process.env.NEXT_PUBLIC_GOOGLE_DRIVE_FOLDER_ID}`} 
-            label="Google Drive" 
-            icon={<DriveIcon />} 
-            isExternal 
-          />
+          <SidebarItem href="/api/drive/redirect/1339200044447" label="Google Drive" icon={<DriveIcon />} isExternal />
         </ul>
 
         <div className={styles.navSection}>
@@ -66,7 +69,11 @@ const Sidebar = () => {
           <div className={styles.userName}>นพนันท์ เกษอินทร์</div>
           <div className={styles.userId}>1339200044447</div>
         </div>
-        <button className={styles.logoutButton} title="ออกจากระบบ">
+        <button 
+          className={styles.logoutButton} 
+          title="ออกจากระบบ"
+          onClick={() => signOut({ callbackUrl: '/login' })}
+        >
           <LogoutIcon />
         </button>
       </div>
@@ -74,12 +81,23 @@ const Sidebar = () => {
   );
 };
 
-const SidebarItem = ({ href, label, icon, active = false, isExternal = false }: { href: string, label: string, icon: React.ReactNode, active?: boolean, isExternal?: boolean }) => (
-  <li>
-    <Link
-      href={href}
-      className={`${styles.sidebarLink} ${active ? styles.sidebarLinkActive : styles.sidebarLinkInactive}`}
-    >
+const SidebarItem = ({ 
+  href, 
+  label, 
+  icon, 
+  active = false, 
+  isExternal = false, 
+  onClick 
+}: { 
+  href?: string, 
+  label: string, 
+  icon: React.ReactNode, 
+  active?: boolean, 
+  isExternal?: boolean, 
+  onClick?: () => void 
+}) => {
+  const content = (
+    <>
       <span className={`${styles.sidebarLinkIcon} ${active ? styles.sidebarLinkIconActive : ''}`}>
         {icon}
       </span>
@@ -87,9 +105,41 @@ const SidebarItem = ({ href, label, icon, active = false, isExternal = false }: 
       {isExternal && (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
       )}
-    </Link>
-  </li>
-);
+    </>
+  );
+
+  const className = `${styles.sidebarLink} ${active ? styles.sidebarLinkActive : styles.sidebarLinkInactive}`;
+
+  if (onClick && (!href || href === '#')) {
+    return (
+      <li>
+        <button 
+          onClick={onClick} 
+          className={className} 
+        >
+          {content}
+        </button>
+      </li>
+    );
+  }
+
+  return (
+    <li>
+      <Link
+        href={href || '/'}
+        className={className}
+        onClick={(e) => {
+          if (onClick) {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+      >
+        {content}
+      </Link>
+    </li>
+  );
+};
 
 // Icons
 function MailIcon() {

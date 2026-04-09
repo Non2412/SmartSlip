@@ -1,57 +1,103 @@
 .header {
   height: var(--header-height);
-  padding: 0 32px;
+  padding: 0 16px;
   display: flex;
   align-items: center;
+  gap: 16px;
   justify-content: space-between;
   background-color: transparent;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .title {
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-main);
+  white-space: nowrap;
 }
 
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.searchContainer {
-  position: relative;
-}
-
-.searchIconWrapper {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-}
-
-.searchInput {
-  padding: 10px 16px 10px 40px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-  width: 280px;
-  font-size: 0.9rem;
-  outline: none;
-  background-color: white;
-}
-
-.iconButton {
-  width: 40px;
-  height: 40px;
-  display: flex;
+.menuButton {
+  display: none;
+  width: 44px;
+  height: 44px;
   align-items: center;
   justify-content: center;
   border-radius: 12px;
   background-color: white;
   border: 1px solid var(--border-color);
   cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.searchContainer {
+  flex: 1;
+  max-width: 400px;
+  margin: 0 24px;
+  position: relative;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 8px 12px 8px 38px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.2s;
+  background-color: white;
+}
+
+.searchInput:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.iconButton {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: var(--text-muted);
+  background-color: white;
+  border: 1px solid var(--border-color);
+  transition: all 0.2s;
+  position: relative;
+  box-shadow: var(--shadow-sm);
+}
+
+.iconButton:hover {
+  background-color: #f8fafc;
+  color: var(--text-main);
+}
+
+.notificationBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 10px;
+  height: 10px;
+  background-color: #ef4444;
+  border: 2px solid white;
+  border-radius: 50%;
 }
 
 .primaryButton {
@@ -63,7 +109,65 @@
   color: white;
   border-radius: 12px;
   font-weight: 600;
-  font-size: 0.9rem;
-  border: none;
-  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
+}
+
+.primaryButton:hover {
+  background-color: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 1366px) {
+  .header {
+    padding: 0 16px;
+  }
+  
+  .menuButton {
+    display: flex;
+    width: 2.2rem;
+    height: 2.2rem;
+  }
+  
+  .title {
+    font-size: 1.4rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .searchContainer {
+    display: none;
+  }
+
+  .primaryButton span {
+    display: none;
+  }
+  
+  .primaryButton, .iconButton {
+    width: 2.2rem;
+    height: 2.2rem;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    background-color: white !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border-color) !important;
+  }
+
+  .actions {
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .actions {
+    gap: 10px;
+  }
+  
+  .title {
+    font-size: 1.25rem;
+  }
 }
