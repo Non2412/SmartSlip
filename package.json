@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@auth/mongodb-adapter": "^3.11.1",
     "@google/generative-ai": "^0.24.1",
     "@line/bot-sdk": "^11.0.0",
     "googleapis": "^171.4.0",

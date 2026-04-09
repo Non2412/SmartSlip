@@ -1,13 +1,55 @@
 import { google } from 'googleapis';
 import { Readable } from 'stream';
+import clientPromise from './mongodb';
 
-const SCOPES = ['https://www.googleapis.com/auth/drive'];
+const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
 
-export async function getGoogleDriveClient() {
+export async function getGoogleDriveClient(userId?: string) {
+  if (userId) {
+    const client = await clientPromise;
+    const db = client.db();
+    
+    // Find the google account for this user
+    const account = await db.collection('accounts').findOne({
+      userId: userId,
+      provider: 'google'
+    });
+
+    if (account && account.access_token) {
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET
+      );
+
+      oauth2Client.setCredentials({
+        access_token: account.access_token as string,
+        refresh_token: account.refresh_token as string,
+      });
+
+      // Handle automatic token refresh
+      oauth2Client.on('tokens', async (tokens) => {
+        if (tokens.access_token) {
+          const client = await clientPromise;
+          const db = client.db();
+          await db.collection('accounts').updateOne(
+            { _id: account._id },
+            { $set: { 
+              access_token: tokens.access_token,
+              expires_at: tokens.expiry_date ? Math.floor(tokens.expiry_date / 1000) : undefined
+            }}
+          );
+        }
+      });
+
+      return google.drive({ version: 'v3', auth: oauth2Client });
+    }
+  }
+
+  // Fallback to service account
   const auth = new google.auth.JWT({
     email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
     key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    scopes: SCOPES,
+    scopes: ['https://www.googleapis.com/auth/drive'],
   });
 
   return google.drive({ version: 'v3', auth });
@@ -16,8 +58,8 @@ export async function getGoogleDriveClient() {
 /**
  * Find a folder by name inside a parent folder, or create it if it doesn't exist.
  */
-export async function findOrCreateFolder(folderName: string, parentId?: string) {
-  const drive = await getGoogleDriveClient();
+export async function findOrCreateFolder(folderName: string, parentId?: string, userId?: string) {
+  const drive = await getGoogleDriveClient(userId);
 
   // Search for the folder
   const query = `mimeType = 'application/vnd.google-apps.folder' and name = '${folderName}' ${parentId ? `and '${parentId}' in parents` : ''} and trashed = false`;
@@ -64,17 +106,14 @@ export async function getUserMonthFolder(userId: string, userName?: string): Pro
   let userFolderId: string | undefined;
 
   try {
-    if (!rootFolderId) throw new Error('No root');
-    userFolderId = await findOrCreateFolder(userFolderName, rootFolderId);
+    // Note: We try to find/create in the user's drive. 
+    // If rootFolderId is provided, we use it as parent (if user has access)
+    // For personal drives, often we just want to create it in the root.
+    userFolderId = await findOrCreateFolder(userFolderName, rootFolderId || undefined, userId);
   } catch (err: unknown) {
     const error = err as { code?: number; status?: number; message?: string };
-    // If the root folder is missing or inaccessible (404), fall back to root of service account
-    if (error.code === 404 || error.status === 404 || error.message?.includes('File not found') || error.message?.includes('No root')) {
-      console.warn('Configured GOOGLE_DRIVE_FOLDER_ID is inaccessible or missing. Falling back to service account root directory.');
-      userFolderId = await findOrCreateFolder(userFolderName);
-    } else {
-      throw err;
-    }
+    // If error, try creating in user's root
+    userFolderId = await findOrCreateFolder(userFolderName, undefined, userId);
   }
 
   if (!userFolderId) throw new Error(`Could not find or create folder for user: ${userFolderName}`);
@@ -84,14 +123,14 @@ export async function getUserMonthFolder(userId: string, userName?: string): Pro
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const monthYearName = `${monthNames[now.getMonth()]}-${now.getFullYear()}`;
 
-  const monthFolderId = await findOrCreateFolder(monthYearName, userFolderId);
+  const monthFolderId = await findOrCreateFolder(monthYearName, userFolderId, userId);
   if (!monthFolderId) throw new Error(`Could not find or create month folder: ${monthYearName}`);
 
   return monthFolderId;
 }
 
-export async function getFileMetadata(fileId: string) {
-  const drive = await getGoogleDriveClient();
+export async function getFileMetadata(fileId: string, userId?: string) {
+  const drive = await getGoogleDriveClient(userId);
   try {
     const response = await drive.files.get({
       fileId: fileId,
@@ -104,8 +143,8 @@ export async function getFileMetadata(fileId: string) {
   }
 }
 
-export async function getFileStream(fileId: string) {
-  const drive = await getGoogleDriveClient();
+export async function getFileStream(fileId: string, userId?: string) {
+  const drive = await getGoogleDriveClient(userId);
   try {
     const response = await drive.files.get(
       { fileId: fileId, alt: 'media' },
@@ -126,8 +165,8 @@ export async function getFileStream(fileId: string) {
  * @param parentFolderId - Optional folder ID to upload to
  * @returns Metadata of the uploaded file
  */
-export async function uploadFile(buffer: Buffer, fileName: string, mimeType: string, parentFolderId?: string) {
-  const drive = await getGoogleDriveClient();
+export async function uploadFile(buffer: Buffer, fileName: string, mimeType: string, parentFolderId?: string, userId?: string) {
+  const drive = await getGoogleDriveClient(userId);
   const folderId = parentFolderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
 
   const fileMetadata = {

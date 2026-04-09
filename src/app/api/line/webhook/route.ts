@@ -66,11 +66,22 @@ export async function POST(req: NextRequest) {
         // (Optional: can't reply twice easily with same token, but can use push message later)
 
         try {
-          // 2. Download Image
+          // 2. Map LINE User to Internal User
+          const client = await clientPromise;
+          const db = client.db();
+          
+          const userAccount = await db.collection('accounts').findOne({
+            provider: 'line',
+            providerAccountId: userId // This is the LINE User ID
+          });
+
+          const internalUserId = userAccount ? userAccount.userId.toString() : userId;
+
+          // 3. Download Image
           const imageBuffer = await getLineContent(messageId);
           const base64Image = imageBuffer.toString('base64');
 
-          // 3. Process with Gemini
+          // 4. Process with Gemini
           const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
           const prompt = `
             คุณคือผู้ช่วยจัดการใบเสร็จระดับมืออาชีพ กรุณาอ่านรูปภาพใบเสร็จนี้และส่งข้อมูลยอดเงินสุทธิและชื่อร้านค้ากลับมาในรูปแบบ JSON ดังนี้:
@@ -99,28 +110,25 @@ export async function POST(req: NextRequest) {
           if (!jsonMatch) throw new Error('AI could not parse structured data');
           const data = JSON.parse(jsonMatch[0]);
 
-          // 4. Upload to Google Drive
-          // For now, using service account root or user folder if mapping exists
-          // Since we don't have OAuth mapping yet, we'll use a specific folder or common root
+          // 5. Upload to Google Drive
           let driveFileId = null;
           try {
             const fileName = `line-receipt-${data.store || 'unknown'}-${Date.now()}.jpg`.replace(/[^a-zA-Z0-9.-]/g, '_');
-            // Try to get user folder (this uses root defined in env if no specific parent)
-            const targetFolderId = await getUserMonthFolder(userId);
+            
+            // Use internalUserId to access user's specific drive
+            const targetFolderId = await getUserMonthFolder(internalUserId, undefined);
 
-            const uploadResult = await uploadFile(imageBuffer, fileName, 'image/jpeg', targetFolderId);
+            const uploadResult = await uploadFile(imageBuffer, fileName, 'image/jpeg', targetFolderId, internalUserId);
             driveFileId = uploadResult.id;
           } catch (driveErr) {
             console.error('Drive upload failed:', driveErr);
           }
 
-          // 5. Save to MongoDB
-          const client = await clientPromise;
-          const db = client.db('smartslip_api');
+          // 6. Save to MongoDB
           const newReceipt = {
             storeName: data.store || 'Unknown Store',
             totalAmount: parseFloat(data.amount) || 0,
-            userId: userId, // Using LINE User ID
+            userId: internalUserId,
             source: 'line',
             extractedData: data,
             imageFileId: driveFileId,

@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -14,6 +14,9 @@ interface SidebarProps {
 
 const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const user = session?.user;
+  const userId = user?.id || 'guest';
 
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarActive : ''}`}>
@@ -44,7 +47,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
           <SidebarItem href="/" active={pathname === '/'} label="รายการใบเสร็จ" icon={<ListIcon />} />
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} onClick={onAddReceipt} />
           <SidebarItem href="#" label="Google Sheets" icon={<SheetsIcon />} isExternal />
-          <SidebarItem href="/api/drive/redirect/1339200044447" label="Google Drive" icon={<DriveIcon />} isExternal />
+          <SidebarItem href={`/api/drive/redirect/${userId}`} label="Google Drive" icon={<DriveIcon />} isExternal />
         </ul>
 
         <div className={styles.navSection}>
@@ -62,12 +65,12 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
 
       <div className={styles.userCard}>
         <div className={styles.userAvatar}>
-          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
+          <img src={user?.image || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="User" />
           <div className={styles.statusIndicator}></div>
         </div>
         <div className={styles.userInfo}>
-          <div className={styles.userName}>นพนันท์ เกษอินทร์</div>
-          <div className={styles.userId}>1339200044447</div>
+          <div className={styles.userName}>{user?.name || 'แขกผู้เข้าชม'}</div>
+          <div className={styles.userId}>{userId}</div>
         </div>
         <button 
           className={styles.logoutButton} 
