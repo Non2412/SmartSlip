@@ -28,9 +28,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         signIn: "/login",
     },
     callbacks: {
-        session({ session, user }) {
-            if (session.user && user) {
-                session.user.id = user.id
+        async jwt({ token, account }) {
+            // Store Google tokens during sign in
+            if (account?.provider === "google" && account?.access_token) {
+                token.googleAccessToken = account.access_token
+                token.googleRefreshToken = account.refresh_token
+                token.googleExpiresAt = account.expires_at
+            }
+            return token
+        },
+        session({ session, token }) {
+            // Pass Google token to session
+            if (session.user) {
+                session.user.id = token.sub
+                ;(session as any).googleAccessToken = token.googleAccessToken
+                ;(session as any).googleRefreshToken = token.googleRefreshToken
+                ;(session as any).googleExpiresAt = token.googleExpiresAt
             }
             return session
         },

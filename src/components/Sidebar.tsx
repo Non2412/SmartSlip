@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import styles from './Sidebar.module.css';
+import { GoogleDriveAuth } from './GoogleDriveAuth';
 
 interface SidebarProps {
   onAddReceipt?: () => void;
@@ -49,6 +50,13 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
           <SidebarItem href="#" label="Google Sheets" icon={<SheetsIcon />} isExternal />
           <SidebarItem href={`/api/drive/redirect/${userId}`} label="Google Drive" icon={<DriveIcon />} isExternal />
         </ul>
+
+        <div className={styles.navSection}>
+          Cloud Storage
+        </div>
+        <div style={{ padding: '8px 16px' }}>
+          <GoogleDriveAuth showText={true} />
+        </div>
 
         <div className={styles.navSection}>
           ช่วยเหลือ

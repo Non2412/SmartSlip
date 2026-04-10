@@ -89,8 +89,39 @@ export const receiptApi = {
   }),
 
   // ประมวลผล OCR และอัปโหลดขึ้น Drive
-  extract: (imageBase64: string, userId?: string) => apiRequest<unknown>('/receipts/extract', {
-    method: 'POST',
-    body: JSON.stringify({ image: imageBase64, userId }),
-  }),
+  extract: (file: File, userId: string, googleAccessToken?: string) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('userId', userId);
+    if (googleAccessToken) {
+      formData.append('googleAccessToken', googleAccessToken);
+    }
+
+    return fetch(`${API_BASE_URL}/receipts/extract`, {
+      method: 'POST',
+      headers: {
+        'x-api-key': API_KEY,
+      },
+      body: formData,
+    })
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) {
+          return {
+            success: false,
+            error: result.error || `HTTP error! status: ${response.status}`,
+          };
+        }
+        return {
+          success: true,
+          data: result.data || result,
+        };
+      })
+      .catch((error: unknown) => {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown network error',
+        };
+      });
+  },
 };
