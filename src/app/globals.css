@@ -27,19 +27,18 @@
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 
   /* Central UI Scaling Factor */
-  --base-font-size: 14px; 
-  --base-font-size: 16px; 
+  --base-font-size: 15px; 
 }
 
 @media (min-width: 800px) {
   :root {
-    --base-font-size: 16px; 
+    --base-font-size: 15px; 
   }
 }
 
 @media (min-width: 1441px) {
   :root {
-    --base-font-size: 16px; 
+    --base-font-size: 15px; 
   }
 }
 
@@ -65,11 +64,12 @@ body {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-anuphan), 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--main-bg);
   color: var(--text-main);
-  line-height: 1.5;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
