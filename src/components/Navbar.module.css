@@ -1,0 +1,84 @@
+.navbar {
+  width: 100%;
+  height: 56px;
+  background-color: #0d1117; /* Dark sleek header */
+  border-bottom: 2px solid #10b981; /* Green accent border */
+  display: flex;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+.logoSection {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.logoText {
+  color: white;
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+}
+
+.ai {
+  color: #10b981;
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background-color: #30363d;
+}
+
+.flowLabel {
+  color: #8b949e;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stepsSection {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  max-width: 900px;
+}
+
+.statusSection {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.statusBadge {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+@media (max-width: 1024px) {
+  .logoSection, .statusSection {
+    display: none;
+  }
+}

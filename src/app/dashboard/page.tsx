@@ -11,6 +11,7 @@ export default function DashboardPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsSidebarOpen(false);
   }, [pathname]);
 
@@ -20,19 +21,19 @@ export default function DashboardPage() {
   return (
     <div className="dashboard-layout">
       {/* Sidebar Overlay for mobile */}
-      <div 
-        className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} 
+      <div
+        className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`}
         onClick={closeSidebar}
       />
 
-      <Sidebar 
+      <Sidebar
         isOpen={isSidebarOpen}
         onClose={closeSidebar}
       />
 
       <main className="main-content">
-        <TopBar 
-          title="ภาพรวมรายจ่าย" 
+        <TopBar
+          title="ภาพรวมรายจ่าย"
           onToggleSidebar={toggleSidebar}
         />
 

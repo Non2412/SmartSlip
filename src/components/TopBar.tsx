@@ -6,7 +6,7 @@ import styles from './TopBar.module.css';
 const TopBar = ({ 
     title, 
     onCreateNew, 
-    onToggleSidebar 
+    onToggleSidebar
 }: { 
     title: string, 
     onCreateNew?: () => void,
@@ -14,10 +14,12 @@ const TopBar = ({
 }) => {
     return (
         <header className={styles.header}>
-            <button className={styles.menuButton} onClick={onToggleSidebar} aria-label="Toggle Sidebar">
-                <MenuIcon />
-            </button>
-            <h1 className={styles.title}>{title}</h1>
+            <div className={styles.leftSection}>
+                <button className={styles.menuButton} onClick={onToggleSidebar} aria-label="Toggle Sidebar">
+                    <MenuIcon />
+                </button>
+                <h1 className={styles.title}>{title}</h1>
+            </div>
 
             <div className={styles.actions}>
                 <div className={styles.searchContainer}>
@@ -31,17 +33,19 @@ const TopBar = ({
                     />
                 </div>
 
-                <button className={styles.iconButton}>
-                    <BellIcon />
-                </button>
+                <div className={styles.buttonGroup}>
+                    <button className={styles.iconButton}>
+                        <BellIcon />
+                    </button>
 
-                <button
-                    onClick={onCreateNew}
-                    className={styles.primaryButton}
-                >
-                    <PlusIcon />
-                    <span>สร้างใบเสร็จ</span>
-                </button>
+                    <button
+                        onClick={onCreateNew}
+                        className={styles.primaryButton}
+                    >
+                        <PlusIcon />
+                        <span>สร้างใบเสร็จ</span>
+                    </button>
+                </div>
             </div>
         </header>
     );
