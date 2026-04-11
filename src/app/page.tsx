@@ -7,24 +7,29 @@ import { StatCard } from '@/components/DashboardItems';
 import ReceiptHistory from '@/app/history/ReceiptHistory';
 import { CreateReceiptModal } from '@/app/createreceipt/CreateReceiptModal';
 import { useReceipts } from '@/hooks/useReceipts';
+import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
 export default function DashboardPage() {
   const pathname = usePathname();
+  const { data: session, status } = useSession();
   const { receipts, fetchReceipts, loading, error } = useReceipts();
 
-  const [userId] = useState<string>('user123'); // ใช้ ID เริ่มต้น
+  const [userId, setUserId] = useState<string>('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
-    // ดึงข้อมูลเมื่อ component mount
-    fetchReceipts(userId);
-  }, [userId, fetchReceipts]);
+    // ดึง user ID จาก session เมื่อ session โหลดเสร็จ
+    if (session?.user?.id) {
+      setUserId(session.user.id)
+      fetchReceipts(session.user.id)
+    }
+  }, [session, fetchReceipts]);
 
-  // ปิด sidebar เมื่อเปลี่ยนหน้า (ถ้ามีการใช้งาน router)
   useEffect(() => {
+    // ปิด sidebar เมื่อเปลี่ยนหน้า
     setIsSidebarOpen(false);
   }, [pathname]);
 
@@ -46,7 +51,9 @@ export default function DashboardPage() {
 
   const handleModalSuccess = () => {
     // รีโหลดข้อมูลหลังจากสร้างใบเสร็จใหม่
-    fetchReceipts(userId);
+    if (userId) {
+      fetchReceipts(userId);
+    }
   };
 
   return (

@@ -22,45 +22,52 @@ export const StatCard = ({ title, value, subValue, trend, status }: StatCardProp
                 </svg>
             </div>
             {trend && (
-                <span className={styles.trendBadge}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#10b981', backgroundColor: '#ecfdf5', padding: '4px 8px', borderRadius: '99px' }}>
                     {trend}
                 </span>
             )}
             {status && (
-                <span className={styles.statusBadge}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#64748b', backgroundColor: '#f1f5f9', padding: '4px 8px', borderRadius: '99px' }}>
                     {status}
                 </span>
             )}
         </div>
         <div>
-            <div className={styles.statLabel}>{title}</div>
-            <div className={styles.statValue}>{value}</div>
-            {subValue && <div className={styles.statSubValue}>{subValue}</div>}
+            <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '500', marginBottom: '4px' }}>{title}</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-main)' }}>{value}</div>
+            {subValue && <div style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-main)', marginTop: '4px' }}>{subValue}</div>}
         </div>
     </div>
 );
 
 export const ExpenseChart = () => (
-    <div className={styles.chartCard}>
-        <div className={styles.chartHeader}>
-            <h3 className={styles.chartTitle}>แนวโน้มค่าใช้จ่าย</h3>
-            <select className={styles.chartSelect}>
+    <div style={{
+        backgroundColor: 'var(--card-bg)',
+        padding: '24px',
+        borderRadius: 'var(--radius-lg)',
+        boxShadow: 'var(--shadow-sm)',
+        flex: 2,
+        minHeight: '400px'
+    }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>แนวโน้มค่าใช้จ่าย</h3>
+            <select style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '0.8rem' }}>
                 <option>7 วันล่าสุด</option>
                 <option>30 วันล่าสุด</option>
             </select>
         </div>
 
-        <div className={styles.chartContainer}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '250px', paddingBottom: '20px' }}>
             {[40, 65, 45, 80, 55, 70, 60].map((height, i) => (
-                <div key={i} className={styles.barWrapper}>
-                    <div
-                        className={styles.bar}
-                        style={{
-                            height: `${height * 2.5}px`,
-                            backgroundColor: i === 6 ? 'var(--primary-color)' : '#f1f5f9'
-                        }}
-                    ></div>
-                    <span className={styles.dayLabel}>{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}</span>
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1 }}>
+                    <div style={{
+                        width: '60%',
+                        height: `${height * 2.5}px`,
+                        backgroundColor: i === 6 ? 'var(--primary-color)' : '#f1f5f9',
+                        borderRadius: '6px',
+                        transition: 'all 0.3s ease'
+                    }}></div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}</span>
                 </div>
             ))}
         </div>
@@ -137,9 +144,9 @@ const UploadItem = ({ name, status, completed = false, iconColor }: UploadItemPr
                 <polyline points="14 2 14 8 20 8" />
             </svg>
         </div>
-        <div className={styles.uploadInfo}>
-            <div className={styles.uploadName}>{name}</div>
-            <div className={`${styles.uploadStatus} ${completed ? styles.completedStatus : styles.processingStatus}`}>{status}</div>
+        <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '0.95rem', fontWeight: '600', color: 'var(--text-main)' }}>{name}</div>
+            <div style={{ fontSize: '0.8rem', color: completed ? '#10b981' : '#f59e0b', fontWeight: '500', marginTop: '2px' }}>{status}</div>
         </div>
         {completed ? (
             <div className={styles.completedIndicator}>
@@ -148,7 +155,13 @@ const UploadItem = ({ name, status, completed = false, iconColor }: UploadItemPr
                 </svg>
             </div>
         ) : (
-            <div className={styles.processingIndicator}></div>
+            <div style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: '#f59e0b',
+                animation: 'pulse 2s infinite'
+            }}></div>
         )}
     </div>
 );

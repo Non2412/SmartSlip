@@ -29,14 +29,24 @@ const TopBar = ({
                     <input
                         type="text"
                         placeholder="ค้นหา..."
-                        className={styles.searchInput}
+                        style={{
+                            padding: '10px 16px 10px 40px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--border-color)',
+                            width: '280px',
+                            fontSize: '0.9rem',
+                            outline: 'none',
+                            backgroundColor: 'white'
+                        }}
                     />
                 </div>
 
-                <div className={styles.buttonGroup}>
-                    <button className={styles.iconButton}>
-                        <BellIcon />
-                    </button>
+                <button style={{
+                    width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    borderRadius: '12px', backgroundColor: 'white', border: '1px solid var(--border-color)'
+                }}>
+                    <BellIcon />
+                </button>
 
                     <button
                         onClick={onCreateNew}
