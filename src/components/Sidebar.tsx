@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import styles from './Sidebar.module.css';
+import { useFlow, FlowStep } from '@/context/FlowContext';
 
 interface SidebarProps {
   onAddReceipt?: () => void;
@@ -15,8 +16,19 @@ interface SidebarProps {
 const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { currentStep } = useFlow();
   const user = session?.user;
   const userId = user?.id || 'guest';
+
+  // Helper to determine status based on currentStep and index
+  const getStepStatus = (stepId: number): 'completed' | 'active' | 'pending' => {
+    // Exception: If session exists, Login (Step 1) is always completed
+    if (stepId === 1 && session) return 'completed';
+    
+    if (stepId < currentStep) return 'completed';
+    if (stepId === currentStep) return 'active';
+    return 'pending';
+  };
 
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarActive : ''}`}>
@@ -66,12 +78,12 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
           ความคืบหน้าโครงการ
         </div>
         <div className={styles.stepsContainer}>
-          <SidebarStep label="Login" status="completed" isLast={false} />
-          <SidebarStep label="Upload" status="completed" isLast={false} />
-          <SidebarStep label="Processing" status="active" isLast={false} />
-          <SidebarStep label="Review" status="pending" isLast={false} />
-          <SidebarStep label="Confirm" status="pending" isLast={false} />
-          <SidebarStep label="Done" status="pending" isLast={true} />
+          <SidebarStep label="Login" status={getStepStatus(1)} isLast={false} />
+          <SidebarStep label="Upload" status={getStepStatus(2)} isLast={false} />
+          <SidebarStep label="Processing" status={getStepStatus(3)} isLast={false} />
+          <SidebarStep label="Review" status={getStepStatus(4)} isLast={false} />
+          <SidebarStep label="Confirm" status={getStepStatus(5)} isLast={false} />
+          <SidebarStep label="Done" status={getStepStatus(6)} isLast={true} />
         </div>
       </nav>
 

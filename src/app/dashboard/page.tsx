@@ -2,6 +2,7 @@
 
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
+import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import { StatCard, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
@@ -9,6 +10,7 @@ import { usePathname } from 'next/navigation';
 export default function DashboardPage() {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -17,6 +19,9 @@ export default function DashboardPage() {
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
+
+  const openCreateSheet = () => setIsCreateSheetOpen(true);
+  const closeCreateSheet = () => setIsCreateSheetOpen(false);
 
   return (
     <div className="dashboard-layout">
@@ -29,12 +34,14 @@ export default function DashboardPage() {
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={closeSidebar}
+        onAddReceipt={openCreateSheet}
       />
 
       <main className="main-content">
         <TopBar
           title="ภาพรวมรายจ่าย"
           onToggleSidebar={toggleSidebar}
+          onCreateNew={openCreateSheet}
         />
 
         <div className="page-container">
@@ -74,6 +81,11 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
+
+      <CreateReceiptSheet 
+        isOpen={isCreateSheetOpen} 
+        onClose={closeCreateSheet} 
+      />
     </div>
   );
 }
