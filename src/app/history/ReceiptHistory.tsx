@@ -106,7 +106,7 @@ const ReceiptHistory = ({ receipts, loading, error }: ReceiptHistoryProps) => {
                                 </tr>
                             ))
                         ) : receipts.length === 0 ? (
-                            <tr>
+                            <tr key="empty-state">
                                 <td colSpan={6} style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
                                     ไม่พบรายการใบเสร็จในขณะนี้
                                 </td>

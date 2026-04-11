@@ -14,8 +14,8 @@ export async function GET(
     }
 
     // Call Backend API to get Folder ID
-    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://smart-slip-api.vercel.app';
-    const response = await fetch(`${backendUrl}/api/drive/folder/${userId}?name=${userName || ''}`, {
+    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://smart-slip-api.vercel.app/api';
+    const response = await fetch(`${backendUrl}/drive/folder/${userId}?name=${userName || ''}`, {
       method: 'GET',
       headers: {
         'x-api-key': process.env.NEXT_PUBLIC_API_KEY || '',
