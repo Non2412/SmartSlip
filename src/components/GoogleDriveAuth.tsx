@@ -2,8 +2,10 @@
 
 import React, { useState } from "react";
 import { useSession, signIn } from "next-auth/react";
-import { useGoogleDrive } from "@/hooks/useGoogleDrive";
 import styles from "./GoogleDriveAuth.module.css";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY || 'super-secret-api-key-12345';
 
 interface GoogleDriveAuthProps {
   onAuthSuccess?: () => void;
@@ -15,34 +17,121 @@ interface GoogleDriveAuthProps {
  * Allows users to connect their Google Drive account for receipt storage
  */
 export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveAuthProps) => {
-  const { data: session } = useSession();
-  const { isGoogleAuthorized } = useGoogleDrive();
+  const { data: session, update: updateSession } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleAuthorize = async () => {
     setIsLoading(true);
     setError(null);
+    
     try {
+      console.log("🔐 Starting Google Drive authorization...");
+      
+      // Step 1: Sign in with Google
       const result = await signIn("google", {
         redirect: false,
-        callbackUrl: window.location.href,
       });
 
       if (result?.error) {
+        console.error("❌ Sign in error:", result.error);
         setError(result.error);
-      } else if (result?.ok) {
-        onAuthSuccess?.();
+        setIsLoading(false);
+        return;
       }
+
+      if (!result?.ok) {
+        console.error("❌ Sign in failed");
+        setError("Sign in failed");
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("✅ Google sign in successful");
+
+      // Step 2: Update session to get the access token from JWT callback
+      console.log("🔄 Updating session...");
+      let updatedSession = null;
+      
+      try {
+        // updateSession() returns updated session data
+        updatedSession = await Promise.race([
+          updateSession() as Promise<any>,
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("Session update timeout")), 5000)
+          ),
+        ]);
+      } catch (sessionErr) {
+        console.error("⚠️ Session update error:", sessionErr);
+        // Try without waiting, use current session
+        updatedSession = session;
+      }
+
+      if (!updatedSession) {
+        console.error("❌ Failed to update session");
+        setError("Failed to update session");
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("✅ Session updated:", updatedSession);
+
+      // Step 3: Extract access token and user ID
+      const accessToken = (updatedSession as any)?.googleAccessToken;
+      const userId = updatedSession?.user?.id;
+
+      if (!accessToken || !userId) {
+        console.warn("⚠️ Missing access token or user ID", { accessToken, userId });
+        onAuthSuccess?.();
+        setIsLoading(false);
+        window.location.href = "/dashboard";
+        return;
+      }
+
+      console.log("🔐 Calling backend setup API...", { userId });
+
+      // Step 4: Call backend to setup Google Drive folder
+      const setupResponse = await fetch(`${API_BASE_URL}/drive/setup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+        },
+        body: JSON.stringify({
+          userId,
+          googleAccessToken: accessToken,
+        }),
+      });
+
+      const setupData = await setupResponse.json();
+
+      if (!setupResponse.ok) {
+        console.error("❌ Drive folder setup failed:", setupData);
+        setError(setupData?.error || "Failed to setup Google Drive");
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("✅ Drive folder created successfully:", setupData);
+      onAuthSuccess?.();
+      setIsLoading(false);
+
+      // Step 5: Redirect to dashboard
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 1000);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Authorization failed");
-    } finally {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error("❌ Authorization error:", errorMsg);
+      setError(errorMsg);
       setIsLoading(false);
     }
   };
 
   // If already authorized, show checkmark and info
-  if (session && isGoogleAuthorized()) {
+  const isAuthorized = (session as any)?.googleAccessToken ? true : false;
+  
+  if (session && isAuthorized) {
     return (
       <div className={styles.authenticatedContainer}>
         <svg className={styles.checkIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">

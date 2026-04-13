@@ -4,7 +4,21 @@ import clientPromise from './mongodb';
 
 const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
 
-export async function getGoogleDriveClient(userId?: string) {
+export async function getGoogleDriveClient(userId?: string, accessToken?: string) {
+  // If access token is provided directly, use it
+  if (accessToken) {
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
+    );
+
+    oauth2Client.setCredentials({
+      access_token: accessToken as string,
+    });
+
+    return google.drive({ version: 'v3', auth: oauth2Client });
+  }
+
   if (userId) {
     const client = await clientPromise;
     const db = client.db();
@@ -58,8 +72,8 @@ export async function getGoogleDriveClient(userId?: string) {
 /**
  * Find a folder by name inside a parent folder, or create it if it doesn't exist.
  */
-export async function findOrCreateFolder(folderName: string, parentId?: string, userId?: string) {
-  const drive = await getGoogleDriveClient(userId);
+export async function findOrCreateFolder(folderName: string, parentId?: string, userId?: string, accessToken?: string) {
+  const drive = await getGoogleDriveClient(userId, accessToken);
 
   // Search for the folder
   const query = `mimeType = 'application/vnd.google-apps.folder' and name = '${folderName}' ${parentId ? `and '${parentId}' in parents` : ''} and trashed = false`;
@@ -98,7 +112,7 @@ export async function findOrCreateFolder(folderName: string, parentId?: string, 
  * Structure: Root -> User Folder -> Month-Year Folder
  * @returns The ID of the Month-Year folder
  */
-export async function getUserMonthFolder(userId: string, userName?: string): Promise<string> {
+export async function getUserMonthFolder(userId: string, userName?: string, accessToken?: string): Promise<string> {
   const rootFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
   // 1. Find or create User Folder (using Name if provided, otherwise ID)
@@ -109,11 +123,11 @@ export async function getUserMonthFolder(userId: string, userName?: string): Pro
     // Note: We try to find/create in the user's drive. 
     // If rootFolderId is provided, we use it as parent (if user has access)
     // For personal drives, often we just want to create it in the root.
-    userFolderId = await findOrCreateFolder(userFolderName, rootFolderId || undefined, userId);
+    userFolderId = await findOrCreateFolder(userFolderName, rootFolderId || undefined, userId, accessToken);
   } catch (err: unknown) {
     const error = err as { code?: number; status?: number; message?: string };
     // If error, try creating in user's root
-    userFolderId = await findOrCreateFolder(userFolderName, undefined, userId);
+    userFolderId = await findOrCreateFolder(userFolderName, undefined, userId, accessToken);
   }
 
   if (!userFolderId) throw new Error(`Could not find or create folder for user: ${userFolderName}`);
@@ -123,7 +137,7 @@ export async function getUserMonthFolder(userId: string, userName?: string): Pro
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const monthYearName = `${monthNames[now.getMonth()]}-${now.getFullYear()}`;
 
-  const monthFolderId = await findOrCreateFolder(monthYearName, userFolderId, userId);
+  const monthFolderId = await findOrCreateFolder(monthYearName, userFolderId, userId, accessToken);
   if (!monthFolderId) throw new Error(`Could not find or create month folder: ${monthYearName}`);
 
   return monthFolderId;
