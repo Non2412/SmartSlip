@@ -1,16 +1,32 @@
 .header {
-  height: var(--header-height);
-  padding: 0 16px;
+  height: auto;
+  min-height: var(--header-height);
+  padding: 8px 16px;
   display: flex;
   align-items: center;
-  gap: 16px;
   justify-content: space-between;
-  background-color: transparent;
+  background-color: white;
   margin-top: 8px;
+  border-bottom: 1px solid var(--border-color);
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.leftSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.middleSection {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-width: 300px;
 }
 
 .title {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-main);
   white-space: nowrap;
@@ -32,8 +48,7 @@
 
 .searchContainer {
   flex: 1;
-  max-width: 400px;
-  margin: 0 24px;
+  max-width: 300px;
   position: relative;
 }
 
@@ -52,14 +67,15 @@
   padding: 8px 12px 8px 38px;
   border-radius: 12px;
   border: 1px solid var(--border-color);
-  font-size: 1rem;
+  font-size: 0.95rem;
   outline: none;
   transition: all 0.2s;
-  background-color: white;
+  background-color: #f8fafc;
 }
 
 .searchInput:focus {
   border-color: var(--primary-color);
+  background-color: white;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
@@ -67,6 +83,13 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-shrink: 0;
+}
+
+.buttonGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .iconButton {
@@ -89,22 +112,12 @@
   color: var(--text-main);
 }
 
-.notificationBadge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 10px;
-  height: 10px;
-  background-color: #ef4444;
-  border: 2px solid white;
-  border-radius: 50%;
-}
-
 .primaryButton {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 0 20px;
+  height: 44px;
   background-color: var(--primary-color);
   color: white;
   border-radius: 12px;
@@ -120,18 +133,13 @@
 }
 
 @media (max-width: 1366px) {
-  .header {
-    padding: 0 16px;
-  }
-  
-  .menuButton {
-    display: flex;
-    width: 2.2rem;
-    height: 2.2rem;
-  }
-  
-  .title {
-    font-size: 1.4rem;
+  .middleSection {
+    order: 3;
+    width: 100%;
+    min-width: 100%;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
   }
 }
 
@@ -139,35 +147,21 @@
   .searchContainer {
     display: none;
   }
+}
 
+@media (max-width: 768px) {
+  .menuButton {
+    display: flex;
+  }
+  
   .primaryButton span {
     display: none;
   }
   
-  .primaryButton, .iconButton {
-    width: 2.2rem;
-    height: 2.2rem;
+  .primaryButton {
+    width: 44px;
     padding: 0;
-    display: flex;
-    align-items: center;
     justify-content: center;
-    border-radius: 0.75rem;
-    background-color: white !important;
-    color: var(--text-main) !important;
-    border: 1px solid var(--border-color) !important;
-  }
-
-  .actions {
-    gap: 1rem;
   }
 }
 
-@media (max-width: 640px) {
-  .actions {
-    gap: 10px;
-  }
-  
-  .title {
-    font-size: 1.25rem;
-  }
-}

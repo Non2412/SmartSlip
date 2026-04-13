@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useFlow } from '@/context/FlowContext';
 
 interface CreateReceiptSheetProps {
     isOpen: boolean;
@@ -8,6 +9,7 @@ interface CreateReceiptSheetProps {
 }
 
 const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
+    const { setStep } = useFlow();
     const [image, setImage] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [results, setResults] = useState<{ label: string; value: string }[]>([]);
@@ -17,7 +19,11 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
 
     // Reset state when closing
     useEffect(() => {
+        if (isOpen) {
+            setStep(2); // Set to Upload step when opened
+        }
         if (!isOpen) {
+            // No reset to 1 here because user is still logged in
             setTimeout(() => {
                 setImage(null);
                 setResults([]);
@@ -25,7 +31,7 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
                 setErrorMsg(null);
             }, 300);
         }
-    }, [isOpen]);
+    }, [isOpen, setStep]);
 
     const handleFile = (file: File) => {
         if (!file.type.startsWith('image/')) {
@@ -68,6 +74,7 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
     const runOCR = async () => {
         if (!image) return;
         setIsProcessing(true);
+        setStep(3); // Set to Processing step
         setErrorMsg(null);
 
         try {
@@ -90,6 +97,7 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
                     { label: 'ยอดรวม', value: `฿ ${data.total_amount || '0.00'}` },
                     { label: 'เลขที่ใบกำกับภาษี', value: data.receipt_no || '-' },
                 ]);
+                setStep(4); // Set to Review step
             } else {
                 throw new Error(res.error || 'Unknown error');
             }
@@ -98,6 +106,7 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
             console.error("OCR Error:", error);
             setErrorMsg(error.message || 'ไม่สามารถติดต่อ OCR Server ได้');
             setResults([]);
+            setStep(2); // Fallback to Upload on error
         } finally {
             setIsProcessing(false);
         }
@@ -307,6 +316,17 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
                         </div>
 
                         <button
+                            onClick={async () => {
+                                setStep(5); // Confirm
+                                // Simulate API call
+                                await new Promise(r => setTimeout(r, 1000));
+                                setStep(6); // Done
+                                setTimeout(() => {
+                                    onClose();
+                                    // Reset to step 1 (logged in) or dashboard view
+                                    setStep(1); 
+                                }, 1500);
+                            }}
                             style={{
                                 width: '100%',
                                 padding: '14px',
@@ -315,7 +335,8 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
                                 border: '1px solid var(--primary-color)',
                                 borderRadius: '12px',
                                 fontWeight: '600',
-                                marginTop: '24px'
+                                marginTop: '24px',
+                                cursor: 'pointer'
                             }}
                         >
                             บันทึกข้อมูลเข้าสู่ระบบ
