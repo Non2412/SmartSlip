@@ -16,19 +16,8 @@ interface SidebarProps {
 const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { currentStep } = useFlow();
   const user = session?.user;
   const userId = user?.id || 'guest';
-
-  // Helper to determine status based on currentStep and index
-  const getStepStatus = (stepId: number): 'completed' | 'active' | 'pending' => {
-    // Exception: If session exists, Login (Step 1) is always completed
-    if (stepId === 1 && session) return 'completed';
-    
-    if (stepId < currentStep) return 'completed';
-    if (stepId === currentStep) return 'active';
-    return 'pending';
-  };
 
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarActive : ''}`}>
@@ -80,18 +69,6 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
             icon={<HelpIcon />}
           />
         </ul>
-
-        <div className={styles.navSection} style={{ marginTop: '24px', color: '#10b981' }}>
-          ความคืบหน้าโครงการ
-        </div>
-        <div className={styles.stepsContainer}>
-          <SidebarStep label="Login" status={getStepStatus(1)} isLast={false} />
-          <SidebarStep label="Upload" status={getStepStatus(2)} isLast={false} />
-          <SidebarStep label="Processing" status={getStepStatus(3)} isLast={false} />
-          <SidebarStep label="Review" status={getStepStatus(4)} isLast={false} />
-          <SidebarStep label="Confirm" status={getStepStatus(5)} isLast={false} />
-          <SidebarStep label="Done" status={getStepStatus(6)} isLast={true} />
-        </div>
       </nav>
 
       <div className={styles.userCard}>

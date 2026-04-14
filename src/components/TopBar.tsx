@@ -48,14 +48,13 @@ const TopBar = ({
                     <BellIcon />
                 </button>
 
-                    <button
-                        onClick={onCreateNew}
-                        className={styles.primaryButton}
-                    >
-                        <PlusIcon />
-                        <span>สร้างใบเสร็จ</span>
-                    </button>
-                </div>
+                <button
+                    onClick={onCreateNew}
+                    className={styles.primaryButton}
+                >
+                    <PlusIcon />
+                    <span>สร้างใบเสร็จ</span>
+                </button>
             </div>
         </header>
     );
