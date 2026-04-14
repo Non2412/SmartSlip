@@ -28,28 +28,57 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         signIn: "/login",
     },
     callbacks: {
-        async jwt({ token, account, user }) {
-            // Store user ID and provider info
+        async signIn({ user, account }) {
+            // Allow sign in
+            return true
+        },
+        async jwt({ token, account, user, trigger, session }) {
+            // Store user ID
             if (user) {
                 token.sub = user.id
             }
-            // Store Google tokens during sign in
+            
+            // Store LINE user info as primary account (preserve it always)
+            if (account?.provider === "line" && user?.name) {
+                token.lineUserName = user.name
+                token.lineUserImage = user.image
+            }
+            
+            // Store Google tokens during sign in (doesn't replace LINE info)
             if (account?.provider === "google" && account?.access_token) {
                 token.googleAccessToken = account.access_token
                 token.googleRefreshToken = account.refresh_token
                 token.googleExpiresAt = account.expires_at
             }
+            
+            // Handle update trigger (called when session is updated)
+            if (trigger === "update" && session) {
+                // If clearing Google, remove Google tokens
+                if (session.clearGoogleTokens) {
+                    token.googleAccessToken = undefined
+                    token.googleRefreshToken = undefined
+                    token.googleExpiresAt = undefined
+                }
+            }
+            
             return token
         },
         session({ session, token }) {
             // Pass token data to session
             if (session.user && token) {
                 session.user.id = token.sub || token.sub || ""
+                ;(session as any).provider = token.provider
+                ;(session as any).lineUserName = token.lineUserName
+                ;(session as any).lineUserImage = token.lineUserImage
                 ;(session as any).googleAccessToken = token.googleAccessToken
                 ;(session as any).googleRefreshToken = token.googleRefreshToken
                 ;(session as any).googleExpiresAt = token.googleExpiresAt
             }
             return session
+        },
+        async signOut() {
+            // Redirect to home page after sign out
+            return "/"
         },
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user

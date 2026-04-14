@@ -18,6 +18,10 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
   const { data: session } = useSession();
   const user = session?.user;
   const userId = user?.id || 'guest';
+  
+  // Show LINE user info as primary account, fallback to current user
+  const displayName = (session as any)?.lineUserName || user?.name || 'แขกผู้เข้าชม';
+  const displayImage = (session as any)?.lineUserImage || user?.image || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix";
 
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarActive : ''}`}>
@@ -58,6 +62,43 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
           <GoogleDriveAuth showText={true} />
         </div>
 
+        <div style={{ padding: '0 8px 16px 8px' }}>
+          <button
+            onClick={async () => {
+              try {
+                // Call API to clear Google tokens
+                const res = await fetch('/api/auth/signout-google', {
+                  method: 'POST',
+                });
+                
+                if (res.ok) {
+                  // Update session to trigger JWT callback and clear Google tokens
+                  const { update } = await import('next-auth/react');
+                  await update({ clearGoogleTokens: true });
+                  
+                  // Refresh page to show updated session
+                  window.location.reload();
+                }
+              } catch (error) {
+                console.error('Error signing out Google:', error);
+              }
+            }}
+            title="ออกจากระบบ Google"
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              fontSize: '0.85rem',
+              backgroundColor: '#f3f4f6',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              color: '#666'
+            }}
+          >
+            🚪 Sign out Google
+          </button>
+        </div>
+
         <div className={styles.navSection}>
           ช่วยเหลือ
         </div>
@@ -73,11 +114,11 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
 
       <div className={styles.userCard}>
         <div className={styles.userAvatar}>
-          <img src={user?.image || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="User" />
+          <img src={displayImage} alt="User" />
           <div className={styles.statusIndicator}></div>
         </div>
         <div className={styles.userInfo}>
-          <div className={styles.userName}>{user?.name || 'แขกผู้เข้าชม'}</div>
+          <div className={styles.userName}>{displayName}</div>
           <div className={styles.userId}>{userId}</div>
         </div>
         <button
