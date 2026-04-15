@@ -21,7 +21,7 @@ export const useReceipts = (): UseReceiptsReturn => {
     setLoading(true);
     setError(null);
     try {
-      const result = await receiptApi.getAll(userId);
+      const result = await receiptApi.getAll(userId) as any;
       if (result.success && result.data) {
         setReceipts(result.data);
       } else {
@@ -38,7 +38,7 @@ export const useReceipts = (): UseReceiptsReturn => {
     setLoading(true);
     setError(null);
     try {
-      const result = await receiptApi.create(data);
+      const result = await receiptApi.create(data) as any;
 
       if (result.success && result.data) {
         setReceipts(prev => [result.data as Receipt, ...prev]);
@@ -53,19 +53,11 @@ export const useReceipts = (): UseReceiptsReturn => {
     }
   }, []);
 
-  const extractFromImage = useCallback(async (file: File, userId?: string) => {
+  const extractFromImage = useCallback(async (file: File, userId?: string, googleAccessToken?: string) => {
     setLoading(true);
     setError(null);
     try {
-      // Convert file to base64
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      const result = await receiptApi.extract(base64, userId);
+      const result = await receiptApi.extract(file, userId || '', googleAccessToken) as any;
 
       if (result.success && result.data) {
         return result.data;

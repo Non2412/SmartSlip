@@ -1,0 +1,65 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: white;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #202124;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.button:hover:not(:disabled) {
+  background-color: #f8f9fa;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+}
+
+.button:active:not(:disabled) {
+  background-color: #f1f3f4;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.googleIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.authenticatedContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #22c55e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.checkIcon {
+  flex-shrink: 0;
+}
+
+.authenticatedText {
+  white-space: nowrap;
+}
+
+.error {
+  color: #ef4444;
+  font-size: 12px;
+  padding: 8px 12px;
+  background-color: #fee2e2;
+  border-radius: 4px;
+}

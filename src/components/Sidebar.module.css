@@ -217,3 +217,101 @@
   background-color: #fee2e2;
   color: #ef4444;
 }
+.stepsContainer {
+  padding: 8px 12px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stepWrapper {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  min-height: 48px;
+  position: relative;
+}
+
+.indicatorWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.stepIndicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #e2e8f0;
+  background-color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  z-index: 2;
+  transition: all 0.3s ease;
+  font-size: 10px;
+}
+
+.stepLine {
+  width: 2px;
+  flex: 1;
+  background-color: #f1f5f9;
+  margin: 2px 0;
+}
+
+.stepLabel {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-weight: 500;
+  padding-top: 2px;
+  transition: all 0.3s ease;
+}
+
+.activeDot {
+  width: 6px;
+  height: 6px;
+  background-color: #10b981;
+  border-radius: 50%;
+  position: absolute;
+  left: 7px;
+  top: 7px;
+  z-index: 3;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* Status variants */
+.completed .stepIndicator {
+  background-color: #10b981;
+  border-color: #10b981;
+}
+
+.completed .stepLine {
+  background-color: #10b981;
+}
+
+.completed .stepLabel {
+  color: #10b981;
+}
+
+.active .stepIndicator {
+  border-color: #10b981;
+  background-color: white;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.active .stepLabel {
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.pending .stepIndicator {
+  background-color: #f8fafc;
+}
