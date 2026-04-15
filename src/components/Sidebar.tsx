@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import styles from './Sidebar.module.css';
 import { GoogleDriveAuth } from './GoogleDriveAuth';
+import { useFlow } from '@/context/FlowContext';
 
 interface SidebarProps {
   onAddReceipt?: () => void;

@@ -20,7 +20,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             },
         }),
         Line({
-            clientId: process.env.LINE_CLIENT_ID,
+            clientId: process.env.LINE_CLIENT_ID || process.env.LINE_CHANNEL_ID,
             clientSecret: process.env.LINE_CLIENT_SECRET || process.env.LINE_CHANNEL_SECRET,
         }),
     ],
@@ -44,10 +44,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session({ session, token }) {
             // Pass token data to session
             if (session.user && token) {
-                session.user.id = token.sub || token.sub || ""
-                ;(session as any).googleAccessToken = token.googleAccessToken
-                ;(session as any).googleRefreshToken = token.googleRefreshToken
-                ;(session as any).googleExpiresAt = token.googleExpiresAt
+                session.user.id = token.sub || ""
+                session.googleAccessToken = token.googleAccessToken as string
+                session.googleRefreshToken = token.googleRefreshToken as string
+                session.googleExpiresAt = token.googleExpiresAt as number
             }
             return session
         },

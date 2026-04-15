@@ -56,7 +56,6 @@ const TopBar = ({
                         <span>สร้างใบเสร็จ</span>
                     </button>
                 </div>
-            </div>
         </header>
     );
 };
