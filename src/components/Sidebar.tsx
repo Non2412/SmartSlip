@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import styles from './Sidebar.module.css';
+import { GoogleDriveAuth } from './GoogleDriveAuth';
+import { useFlow } from '@/context/FlowContext';
 
 interface SidebarProps {
   onAddReceipt?: () => void;
@@ -15,8 +17,19 @@ interface SidebarProps {
 const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { currentStep } = useFlow();
   const user = session?.user;
   const userId = user?.id || 'guest';
+
+  // Helper to determine status based on currentStep and index
+  const getStepStatus = (stepId: number): 'completed' | 'active' | 'pending' => {
+    // Exception: If session exists, Login (Step 1) is always completed
+    if (stepId === 1 && session) return 'completed';
+    
+    if (stepId < currentStep) return 'completed';
+    if (stepId === currentStep) return 'active';
+    return 'pending';
+  };
 
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarActive : ''}`}>
@@ -51,6 +64,13 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
         </ul>
 
         <div className={styles.navSection}>
+          Cloud Storage
+        </div>
+        <div style={{ padding: '8px 16px' }}>
+          <GoogleDriveAuth showText={true} />
+        </div>
+
+        <div className={styles.navSection}>
           ช่วยเหลือ
         </div>
         <ul className={styles.navListNoMargin}>
@@ -61,6 +81,18 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
             icon={<HelpIcon />}
           />
         </ul>
+
+        <div className={styles.navSection} style={{ marginTop: '24px', color: '#10b981' }}>
+          ความคืบหน้าโครงการ
+        </div>
+        <div className={styles.stepsContainer}>
+          <SidebarStep label="Login" status={getStepStatus(1)} isLast={false} />
+          <SidebarStep label="Upload" status={getStepStatus(2)} isLast={false} />
+          <SidebarStep label="Processing" status={getStepStatus(3)} isLast={false} />
+          <SidebarStep label="Review" status={getStepStatus(4)} isLast={false} />
+          <SidebarStep label="Confirm" status={getStepStatus(5)} isLast={false} />
+          <SidebarStep label="Done" status={getStepStatus(6)} isLast={true} />
+        </div>
       </nav>
 
       <div className={styles.userCard}>
@@ -72,8 +104,8 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
           <div className={styles.userName}>{user?.name || 'แขกผู้เข้าชม'}</div>
           <div className={styles.userId}>{userId}</div>
         </div>
-        <button 
-          className={styles.logoutButton} 
+        <button
+          className={styles.logoutButton}
           title="ออกจากระบบ"
           onClick={() => signOut({ callbackUrl: '/login' })}
         >
@@ -84,20 +116,20 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
   );
 };
 
-const SidebarItem = ({ 
-  href, 
-  label, 
-  icon, 
-  active = false, 
-  isExternal = false, 
-  onClick 
-}: { 
-  href?: string, 
-  label: string, 
-  icon: React.ReactNode, 
-  active?: boolean, 
-  isExternal?: boolean, 
-  onClick?: () => void 
+const SidebarItem = ({
+  href,
+  label,
+  icon,
+  active = false,
+  isExternal = false,
+  onClick
+}: {
+  href?: string,
+  label: string,
+  icon: React.ReactNode,
+  active?: boolean,
+  isExternal?: boolean,
+  onClick?: () => void
 }) => {
   const content = (
     <>
@@ -116,9 +148,9 @@ const SidebarItem = ({
   if (onClick && (!href || href === '#')) {
     return (
       <li>
-        <button 
-          onClick={onClick} 
-          className={className} 
+        <button
+          onClick={onClick}
+          className={className}
         >
           {content}
         </button>
@@ -170,11 +202,38 @@ function DriveIcon() {
 }
 
 function HelpIcon() {
-  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>;
 }
 
 function LogoutIcon() {
-  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>;
 }
+
+const SidebarStep = ({
+  label,
+  status,
+  isLast
+}: {
+  label: string,
+  status: 'completed' | 'active' | 'pending',
+  isLast: boolean
+}) => {
+  return (
+    <div className={`${styles.stepWrapper} ${styles[status]}`}>
+      <div className={styles.indicatorWrapper}>
+        <div className={styles.stepIndicator}>
+          {status === 'completed' && (
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
+        </div>
+        {!isLast && <div className={styles.stepLine}></div>}
+      </div>
+      <span className={styles.stepLabel}>{label}</span>
+      {status === 'active' && <div className={styles.activeDot}></div>}
+    </div>
+  );
+};
 
 export default Sidebar;

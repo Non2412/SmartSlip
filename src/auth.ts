@@ -20,7 +20,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             },
         }),
         Line({
-            clientId: process.env.LINE_CLIENT_ID,
+            clientId: process.env.LINE_CLIENT_ID || process.env.LINE_CHANNEL_ID,
             clientSecret: process.env.LINE_CLIENT_SECRET || process.env.LINE_CHANNEL_SECRET,
         }),
     ],
@@ -28,9 +28,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         signIn: "/login",
     },
     callbacks: {
-        session({ session, user }) {
-            if (session.user && user) {
-                session.user.id = user.id
+        async jwt({ token, account, user }) {
+            // Store user ID and provider info
+            if (user) {
+                token.sub = user.id
+            }
+            // Store Google tokens during sign in
+            if (account?.provider === "google" && account?.access_token) {
+                token.googleAccessToken = account.access_token
+                token.googleRefreshToken = account.refresh_token
+                token.googleExpiresAt = account.expires_at
+            }
+            return token
+        },
+        session({ session, token }) {
+            // Pass token data to session
+            if (session.user && token) {
+                session.user.id = token.sub || ""
+                session.googleAccessToken = token.googleAccessToken as string
+                session.googleRefreshToken = token.googleRefreshToken as string
+                session.googleExpiresAt = token.googleExpiresAt as number
             }
             return session
         },

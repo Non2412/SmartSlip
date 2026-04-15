@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserMonthFolder } from '@/lib/googledrive';
 
 export async function GET(
   request: NextRequest,
@@ -14,8 +13,26 @@ export async function GET(
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
-    // Get the folder ID for the user (creates if doesn't exist)
-    const folderId = await getUserMonthFolder(userId, userName);
+    // Call Backend API to get Folder ID
+    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://smart-slip-api.vercel.app/api';
+    const response = await fetch(`${backendUrl}/drive/folder/${userId}?name=${userName || ''}`, {
+      method: 'GET',
+      headers: {
+        'x-api-key': process.env.NEXT_PUBLIC_API_KEY || '',
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Backend returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    const folderId = data.folderId;
+
+    if (!folderId) {
+      return NextResponse.json({ error: 'Failed to get folder ID from backend' }, { status: 500 });
+    }
 
     // Redirect to the Google Drive folder URL
     const folderUrl = `https://drive.google.com/drive/folders/${folderId}`;

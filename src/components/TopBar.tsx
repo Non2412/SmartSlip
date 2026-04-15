@@ -6,7 +6,7 @@ import styles from './TopBar.module.css';
 const TopBar = ({ 
     title, 
     onCreateNew, 
-    onToggleSidebar 
+    onToggleSidebar
 }: { 
     title: string, 
     onCreateNew?: () => void,
@@ -14,10 +14,12 @@ const TopBar = ({
 }) => {
     return (
         <header className={styles.header}>
-            <button className={styles.menuButton} onClick={onToggleSidebar} aria-label="Toggle Sidebar">
-                <MenuIcon />
-            </button>
-            <h1 className={styles.title}>{title}</h1>
+            <div className={styles.leftSection}>
+                <button className={styles.menuButton} onClick={onToggleSidebar} aria-label="Toggle Sidebar">
+                    <MenuIcon />
+                </button>
+                <h1 className={styles.title}>{title}</h1>
+            </div>
 
             <div className={styles.actions}>
                 <div className={styles.searchContainer}>
@@ -27,22 +29,33 @@ const TopBar = ({
                     <input
                         type="text"
                         placeholder="ค้นหา..."
-                        className={styles.searchInput}
+                        style={{
+                            padding: '10px 16px 10px 40px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--border-color)',
+                            width: '280px',
+                            fontSize: '0.9rem',
+                            outline: 'none',
+                            backgroundColor: 'white'
+                        }}
                     />
                 </div>
 
-                <button className={styles.iconButton}>
+                <button style={{
+                    width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    borderRadius: '12px', backgroundColor: 'white', border: '1px solid var(--border-color)'
+                }}>
                     <BellIcon />
                 </button>
 
-                <button
-                    onClick={onCreateNew}
-                    className={styles.primaryButton}
-                >
-                    <PlusIcon />
-                    <span>สร้างใบเสร็จ</span>
-                </button>
-            </div>
+                    <button
+                        onClick={onCreateNew}
+                        className={styles.primaryButton}
+                    >
+                        <PlusIcon />
+                        <span>สร้างใบเสร็จ</span>
+                    </button>
+                </div>
         </header>
     );
 };
