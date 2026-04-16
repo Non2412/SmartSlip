@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
+import { GoogleDriveAuth } from './GoogleDriveAuth';
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -64,6 +65,13 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
             label="วิธีการใช้งาน"
             icon={<HelpIcon />}
           />
+
+        <div className={styles.navSection}>
+          ตั้งค่า Google Drive
+        </div>
+        <div style={{ padding: '8px 12px' }}>
+          <GoogleDriveAuth showText={true} />
+        </div>
         </ul>
       </nav>
 

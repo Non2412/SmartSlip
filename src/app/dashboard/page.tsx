@@ -3,6 +3,7 @@
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import CreateReceiptSheet from '@/components/CreateReceiptSheet';
+import { GoogleDriveAuth } from '@/components/GoogleDriveAuth';
 import { StatCard, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
@@ -16,31 +17,42 @@ export default function DashboardPage() {
 
   // Setup Google Drive folder on first login
   useEffect(() => {
+    console.log('🔍 useEffect ทำงาน, session:', session);
+    console.log('🔍 user ID:', session?.user?.id);
+    
     const setupGoogleDrive = async () => {
-      if (!session?.user?.id) return;
+      if (!session?.user?.id || !session?.user?.email) {
+        console.log('⚠️ รอเซสชัน... ID:', session?.user?.id, 'Email:', session?.user?.email);
+        return;
+      }
 
       try {
-        console.log('📁 Setting up Google Drive folder for user...');
+        console.log('📁 ตั้งค่าโฟลเดอร์ Google Drive สำหรับผู้ใช้:', session.user.id, session.user.email);
         const response = await fetch('/api/drive/setup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            userId: session.user.id,
+            email: session.user.email,
+          }),
         });
 
         if (!response.ok) {
           const error = await response.json();
-          console.error('❌ Setup failed:', error);
+          console.error('❌ ล้มเหลวในการตั้งค่า:', error);
           return;
         }
 
         const data = await response.json();
-        console.log('✅ Google Drive setup complete:', data);
+        console.log('✅ ตั้งค่า Google Drive สำเร็จ:', data);
       } catch (error) {
-        console.error('❌ Setup error:', error);
+        console.error('❌ ข้อผิดพลาดในการตั้งค่า:', error);
       }
     };
 
     setupGoogleDrive();
-  }, [session?.user?.id]);
+  }, [session]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -74,7 +86,21 @@ export default function DashboardPage() {
           onCreateNew={openCreateSheet}
         />
 
-        <div className="page-container">
+        <div cGoogle Drive Auth Section */}
+          <div style={{
+            padding: '16px',
+            marginBottom: '24px',
+            backgroundColor: '#f5f5f5',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <span style={{ fontSize: '14px', color: '#666' }}>ตั้งค่า Google Drive:</span>
+            <GoogleDriveAuth showText={true} />
+          </div>
+
+          {/* lassName="page-container">
           {/* Summary Stats Row */}
           <div style={{
             display: 'flex',

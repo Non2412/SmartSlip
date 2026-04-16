@@ -57,7 +57,7 @@ export default function DriveTestPage() {
             alt="Drive Content"
             style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px' }}
             onError={(e) => {
-              console.error("Image loading error");
+              console.error("❌ ข้อผิดพลาดในการโหลดรูปภาพ");
               alert("ไม่สามารถแสดงรูปได้! ตรวจสอบว่า File ID ถูกต้อง หรือ Share Folder ให้ Service Account หรือยัง?");
             }}
           />

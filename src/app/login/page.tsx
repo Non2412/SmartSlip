@@ -11,7 +11,7 @@ export default function LoginPage() {
     try {
       await signIn("line", { callbackUrl: "/dashboard" })
     } catch (error) {
-      console.error(error)
+      console.error("❌ ข้อผิดพลาดในการเข้าสู่ระบบ:", error)
       setIsLoading(false)
     }
   }

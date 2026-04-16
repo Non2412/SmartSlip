@@ -30,7 +30,7 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
       // Only setup if we have tokens and setup isn't already in progress
       if (googleAccessToken && userId && !setupInProgress) {
         setSetupInProgress(true);
-        console.log("🔐 Google tokens available, calling backend setup API...", { userId });
+        console.log("🔐 พบ Google tokens พร้อมใช้ เรียก backend setup API...", { userId });
 
         try {
           const setupResponse = await fetch("/api/drive/setup", {
@@ -38,7 +38,9 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
             headers: {
               "Content-Type": "application/json",
             },
+            credentials: 'include',
             body: JSON.stringify({
+              userId,
               googleAccessToken,
             }),
           });
@@ -46,18 +48,18 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
           const setupData = await setupResponse.json();
 
           if (!setupResponse.ok) {
-            console.error("❌ Drive folder setup failed:", setupData);
-            setError(setupData?.error || "Failed to setup Google Drive");
+            console.error("❌ ล้มเหลวในการตั้งค่าโฟลเดอร์ Drive:", setupData);
+            setError(setupData?.error || "ล้มเหลวในการตั้งค่า Google Drive");
             setSetupInProgress(false);
             return;
           }
 
-          console.log("✅ Drive folder created successfully:", setupData);
+          console.log("✅ สร้างโฟลเดอร์ Drive สำเร็จ:", setupData);
           onAuthSuccess?.();
           setSetupInProgress(false);
         } catch (err: unknown) {
           const errorMsg = err instanceof Error ? err.message : String(err);
-          console.error("❌ Setup error:", errorMsg);
+          console.error("❌ ข้อผิดพลาดในการตั้งค่า:", errorMsg);
           setError(errorMsg);
           setSetupInProgress(false);
         }
@@ -68,7 +70,7 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
   }, [session?.user?.id, (session as any)?.googleAccessToken, setupInProgress, onAuthSuccess]);
 
   const handleAuthorize = async () => {
-    console.log("🔐 Starting Google Drive authorization...");
+    console.log("🔐 เริ่มการให้สิทธิ์ Google Drive...");
     setError(null);
     
     try {
@@ -81,10 +83,10 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
         callbackUrl: "/dashboard",
       });
 
-      console.log("🔐 OAuth flow initiated, redirecting to Google login...", result);
+      console.log("🔐 เริ่มการไหลของ OAuth แล้ว ลิดไปหน้า Google login...", result);
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error("❌ Authorization error:", errorMsg);
+      console.error("❌ ข้อผิดพลาดในการให้สิทธิ์:", errorMsg);
       setError(errorMsg);
     }
   };
@@ -92,13 +94,15 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
   // If already authorized, show checkmark and info
   const isAuthorized = (session as any)?.googleAccessToken ? true : false;
   
+  console.log('🔷 GoogleDriveAuth render:', { isAuthorized, hasSession: !!session, userId: session?.user?.id });
+  
   if (session && isAuthorized) {
     return (
       <div className={styles.authenticatedContainer}>
         <svg className={styles.checkIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
-        {showText && <span className={styles.authenticatedText}>Google Drive Connected</span>}
+        {showText && <span className={styles.authenticatedText}>✅ Google Drive Connected</span>}
       </div>
     );
   }

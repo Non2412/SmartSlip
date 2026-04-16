@@ -229,48 +229,48 @@ export async function createFolderStructureWithServiceAccount(userId: string, us
   const drive = await getGoogleDriveClient();
 
   try {
-    console.log('📁 Creating folder structure with Service Account for user:', userId);
+    console.log('📁 สร้างโครงสร้างโฟลเดอร์ด้วย Service Account สำหรับผู้ใช้:', userId);
 
     // 1. Create or find SmartSlip_Receipts root folder
     const smartslipFolderId = await findOrCreateFolder('SmartSlip_Receipts');
-    if (!smartslipFolderId) throw new Error('Failed to create SmartSlip_Receipts root folder');
-    console.log('✅ Root folder ready:', smartslipFolderId);
+    if (!smartslipFolderId) throw new Error('ล้มเหลวในการสร้างโฟลเดอร์ราก SmartSlip_Receipts');
+    console.log('✅ โฟลเดอร์รากพร้อมใช้:', smartslipFolderId);
 
     // 2. Create user folder inside SmartSlip_Receipts
     const userFolderName = userName ? `${userName} (${userId})` : userId;
     const userFolderId = await findOrCreateFolder(userFolderName, smartslipFolderId);
-    if (!userFolderId) throw new Error(`Failed to create user folder: ${userFolderName}`);
-    console.log('✅ User folder created:', userFolderId);
+    if (!userFolderId) throw new Error(`ล้มเหลวในการสร้างโฟลเดอร์ผู้ใช้: ${userFolderName}`);
+    console.log('✅ สร้างโฟลเดอร์ผู้ใช้:', userFolderId);
 
     // 3. Create Receipts folder inside user folder
     const receiptsFolderId = await findOrCreateFolder('Receipts', userFolderId);
-    if (!receiptsFolderId) throw new Error('Failed to create Receipts folder');
-    console.log('✅ Receipts folder created:', receiptsFolderId);
+    if (!receiptsFolderId) throw new Error('ล้มเหลวในการสร้างโฟลเดอร์ Receipts');
+    console.log('✅ สร้างโฟลเดอร์ Receipts:', receiptsFolderId);
 
     // 4. Create Year folder (current year)
     const currentYear = new Date().getFullYear().toString();
     const yearFolderId = await findOrCreateFolder(currentYear, receiptsFolderId);
-    if (!yearFolderId) throw new Error(`Failed to create year folder: ${currentYear}`);
-    console.log('✅ Year folder created:', yearFolderId);
+    if (!yearFolderId) throw new Error(`ล้มเหลวในการสร้างโฟลเดอร์ปี: ${currentYear}`);
+    console.log('✅ สร้างโฟลเดอร์ปี:', yearFolderId);
 
     // 5. Create Month folder inside Year folder
     const now = new Date();
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const monthYearName = `${String(now.getMonth() + 1).padStart(2, '0')}-${monthNames[now.getMonth()]} ${currentYear}`;
     const monthFolderId = await findOrCreateFolder(monthYearName, yearFolderId);
-    if (!monthFolderId) throw new Error(`Failed to create month folder: ${monthYearName}`);
-    console.log('✅ Month folder created:', monthFolderId);
+    if (!monthFolderId) throw new Error(`ล้มเหลวในการสร้างโฟลเดอร์เดือน: ${monthYearName}`);
+    console.log('✅ สร้างโฟลเดอร์เดือน:', monthFolderId);
 
     // 6. Share user folder with the user
     await shareFolderWithUser(userFolderId, userEmail, 'writer');
-    console.log('✅ User folder shared with user:', userEmail);
+    console.log('✅ แชร์โฟลเดอร์ผู้ใช้กับผู้ใช้:', userEmail);
 
     return {
       monthFolderId,
       userFolderId
     };
   } catch (error) {
-    console.error('❌ Error creating folder structure:', error);
+    console.error('❌ ข้อผิดพลาดในการสร้างโครงสร้างโฟลเดอร์:', error);
     throw error;
   }
 }
@@ -289,7 +289,7 @@ export async function shareFolderWithUser(
   const drive = await getGoogleDriveClient(); // Uses Service Account fallback
 
   try {
-    console.log(`🔗 Sharing folder ${folderId} with ${userEmail} as ${role}...`);
+    console.log(`🔗 กำลังแชร์โฟลเดอร์ ${folderId} ให้กับ ${userEmail} เป็น ${role}...`);
     
     await drive.permissions.create({
       fileId: folderId,
@@ -301,9 +301,9 @@ export async function shareFolderWithUser(
       fields: 'id',
     });
     
-    console.log(`✅ Successfully shared folder with ${userEmail}`);
+    console.log(`✅ แชร์โฟลเดอร์สำเร็จกับ ${userEmail}`);
   } catch (error) {
-    console.error(`❌ Error sharing folder:`, error);
+    console.error(`❌ ข้อผิดพลาดในการแชร์โฟลเดอร์:`, error);
     throw error;
   }
 }

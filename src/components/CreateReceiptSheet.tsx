@@ -99,11 +99,11 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
                 ]);
                 setStep(4); // Set to Review step
             } else {
-                throw new Error(res.error || 'Unknown error');
+                throw new Error(res.error || 'ข้อผิดพลาดที่ไม่ทราบ');
             }
 
         } catch (error: any) {
-            console.error("OCR Error:", error);
+            console.error("❌ ข้อผิดพลาด OCR:", error);
             setErrorMsg(error.message || 'ไม่สามารถติดต่อ OCR Server ได้');
             setResults([]);
             setStep(2); // Fallback to Upload on error

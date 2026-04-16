@@ -28,7 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     callbacks: {
         async signIn({ user, account }) {
-            console.log("🔐 signIn callback triggered", {
+            console.log("🔐 เข้าสู่ระบบสำเร็จ", {
                 userId: user?.id,
                 provider: account?.provider,
                 hasAccessToken: !!account?.access_token,
@@ -37,24 +37,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return true
         },
         async jwt({ token, account, user, trigger, session }) {
-            console.log("🔐 JWT callback triggered", {
+            console.log("🔐 JWT ตรวจสอบ", {
                 hasPreviousToken: !!token,
                 provider: account?.provider,
                 hasAccessToken: !!account?.access_token,
                 trigger,
             });
 
-            // Store user ID
+            // Store user ID and email
             if (user) {
                 token.sub = user.id
-                console.log("📝 Stored user ID in JWT:", user.id);
+                token.email = user.email  // Store email in JWT
+                console.log("📝 บันทึก ID ผู้ใช้และอีเมล:", user.id, user.email);
             }
             
             // Store LINE user info as primary account (preserve it always)
             if (account?.provider === "line" && user?.name) {
                 token.lineUserName = user.name
                 token.lineUserImage = user.image
-                console.log("📝 Stored LINE user info:", user.name);
+                console.log("📝 บันทึกข้อมูล LINE:", user.name);
             }
             
             // Store Google tokens during sign in (doesn't replace LINE info)
@@ -62,7 +63,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 token.googleAccessToken = account.access_token
                 token.googleRefreshToken = account.refresh_token
                 token.googleExpiresAt = account.expires_at
-                console.log("✅ Stored Google tokens in JWT");
+                console.log("✅ บันทึก Google tokens");
             }
             
             // Handle update trigger (called when session is updated)
@@ -72,7 +73,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     token.googleAccessToken = undefined
                     token.googleRefreshToken = undefined
                     token.googleExpiresAt = undefined
-                    console.log("🗑️ Cleared Google tokens from JWT");
+                    console.log("🗑️ ลบ Google tokens");
                 }
             }
             
@@ -82,6 +83,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             // Pass token data to session
             if (session.user && token) {
                 session.user.id = token.sub || token.sub || ""
+                // Email should already be in session from MongoDB adapter
+                // But ensure it's preserved
+                if (!session.user.email && token.email) {
+                    session.user.email = token.email as string
+                }
                 ;(session as any).provider = token.provider
                 ;(session as any).lineUserName = token.lineUserName
                 ;(session as any).lineUserImage = token.lineUserImage
@@ -89,8 +95,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 ;(session as any).googleRefreshToken = token.googleRefreshToken
                 ;(session as any).googleExpiresAt = token.googleExpiresAt
                 
+                console.log("✅ สร้างเซสชันสำเร็จ อีเมล:", session.user.email);
                 if (token.googleAccessToken) {
-                    console.log("✅ Google access token passed to session");
+                    console.log("✅ ส่ง Google access token ไปยังเซสชัน");
                 }
             }
             return session
