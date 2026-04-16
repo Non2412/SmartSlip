@@ -17,7 +17,7 @@ export async function GET(
     const session = await auth();
     
     // Try to get accessToken from query params (for testing)
-    const { accessToken } = request.nextUrl.searchParams;
+    const accessToken = request.nextUrl.searchParams.get('accessToken');
     const userName = session?.user?.name || undefined;
 
     try {

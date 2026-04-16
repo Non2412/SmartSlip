@@ -15,7 +15,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 params: {
                     scope: "openid email profile https://www.googleapis.com/auth/drive.file",
                     access_type: "offline",
-                    prompt: "consent",
                 },
             },
         }),
@@ -29,19 +28,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     callbacks: {
         async signIn({ user, account }) {
+            console.log("🔐 signIn callback triggered", {
+                userId: user?.id,
+                provider: account?.provider,
+                hasAccessToken: !!account?.access_token,
+            });
             // Allow sign in
             return true
         },
         async jwt({ token, account, user, trigger, session }) {
+            console.log("🔐 JWT callback triggered", {
+                hasPreviousToken: !!token,
+                provider: account?.provider,
+                hasAccessToken: !!account?.access_token,
+                trigger,
+            });
+
             // Store user ID
             if (user) {
                 token.sub = user.id
+                console.log("📝 Stored user ID in JWT:", user.id);
             }
             
             // Store LINE user info as primary account (preserve it always)
             if (account?.provider === "line" && user?.name) {
                 token.lineUserName = user.name
                 token.lineUserImage = user.image
+                console.log("📝 Stored LINE user info:", user.name);
             }
             
             // Store Google tokens during sign in (doesn't replace LINE info)
@@ -49,6 +62,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 token.googleAccessToken = account.access_token
                 token.googleRefreshToken = account.refresh_token
                 token.googleExpiresAt = account.expires_at
+                console.log("✅ Stored Google tokens in JWT");
             }
             
             // Handle update trigger (called when session is updated)
@@ -58,6 +72,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     token.googleAccessToken = undefined
                     token.googleRefreshToken = undefined
                     token.googleExpiresAt = undefined
+                    console.log("🗑️ Cleared Google tokens from JWT");
                 }
             }
             
@@ -73,12 +88,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 ;(session as any).googleAccessToken = token.googleAccessToken
                 ;(session as any).googleRefreshToken = token.googleRefreshToken
                 ;(session as any).googleExpiresAt = token.googleExpiresAt
+                
+                if (token.googleAccessToken) {
+                    console.log("✅ Google access token passed to session");
+                }
             }
             return session
-        },
-        async signOut() {
-            // Redirect to home page after sign out
-            return "/"
         },
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user

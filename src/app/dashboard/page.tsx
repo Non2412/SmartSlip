@@ -6,11 +6,41 @@ import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import { StatCard, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 export default function DashboardPage() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
+
+  // Setup Google Drive folder on first login
+  useEffect(() => {
+    const setupGoogleDrive = async () => {
+      if (!session?.user?.id) return;
+
+      try {
+        console.log('📁 Setting up Google Drive folder for user...');
+        const response = await fetch('/api/drive/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('❌ Setup failed:', error);
+          return;
+        }
+
+        const data = await response.json();
+        console.log('✅ Google Drive setup complete:', data);
+      } catch (error) {
+        console.error('❌ Setup error:', error);
+      }
+    };
+
+    setupGoogleDrive();
+  }, [session?.user?.id]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

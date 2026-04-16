@@ -216,3 +216,94 @@ export async function uploadFile(buffer: Buffer, fileName: string, mimeType: str
     throw new Error(`Failed to upload to Google Drive: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
 }
+
+/**
+ * Create folder structure using Service Account credentials
+ * Structure: SmartSlip_Receipts -> UserId -> Receipts -> Year -> Month
+ * @param userId - User ID
+ * @param userName - User Name (optional)
+ * @returns Object with folder IDs and user email for sharing
+ */
+export async function createFolderStructureWithServiceAccount(userId: string, userEmail: string, userName?: string): Promise<{ monthFolderId: string; userFolderId: string }> {
+  // Use Service Account (no accessToken provided, no userId to search in DB)
+  const drive = await getGoogleDriveClient();
+
+  try {
+    console.log('📁 Creating folder structure with Service Account for user:', userId);
+
+    // 1. Create or find SmartSlip_Receipts root folder
+    const smartslipFolderId = await findOrCreateFolder('SmartSlip_Receipts');
+    if (!smartslipFolderId) throw new Error('Failed to create SmartSlip_Receipts root folder');
+    console.log('✅ Root folder ready:', smartslipFolderId);
+
+    // 2. Create user folder inside SmartSlip_Receipts
+    const userFolderName = userName ? `${userName} (${userId})` : userId;
+    const userFolderId = await findOrCreateFolder(userFolderName, smartslipFolderId);
+    if (!userFolderId) throw new Error(`Failed to create user folder: ${userFolderName}`);
+    console.log('✅ User folder created:', userFolderId);
+
+    // 3. Create Receipts folder inside user folder
+    const receiptsFolderId = await findOrCreateFolder('Receipts', userFolderId);
+    if (!receiptsFolderId) throw new Error('Failed to create Receipts folder');
+    console.log('✅ Receipts folder created:', receiptsFolderId);
+
+    // 4. Create Year folder (current year)
+    const currentYear = new Date().getFullYear().toString();
+    const yearFolderId = await findOrCreateFolder(currentYear, receiptsFolderId);
+    if (!yearFolderId) throw new Error(`Failed to create year folder: ${currentYear}`);
+    console.log('✅ Year folder created:', yearFolderId);
+
+    // 5. Create Month folder inside Year folder
+    const now = new Date();
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const monthYearName = `${String(now.getMonth() + 1).padStart(2, '0')}-${monthNames[now.getMonth()]} ${currentYear}`;
+    const monthFolderId = await findOrCreateFolder(monthYearName, yearFolderId);
+    if (!monthFolderId) throw new Error(`Failed to create month folder: ${monthYearName}`);
+    console.log('✅ Month folder created:', monthFolderId);
+
+    // 6. Share user folder with the user
+    await shareFolderWithUser(userFolderId, userEmail, 'writer');
+    console.log('✅ User folder shared with user:', userEmail);
+
+    return {
+      monthFolderId,
+      userFolderId
+    };
+  } catch (error) {
+    console.error('❌ Error creating folder structure:', error);
+    throw error;
+  }
+}
+
+/**
+ * Share a Google Drive folder with a user
+ * @param folderId - Folder ID to share
+ * @param userEmail - User email address
+ * @param role - Permission level ('reader', 'writer', 'organizer')
+ */
+export async function shareFolderWithUser(
+  folderId: string,
+  userEmail: string,
+  role: 'reader' | 'writer' | 'organizer' = 'writer'
+): Promise<void> {
+  const drive = await getGoogleDriveClient(); // Uses Service Account fallback
+
+  try {
+    console.log(`🔗 Sharing folder ${folderId} with ${userEmail} as ${role}...`);
+    
+    await drive.permissions.create({
+      fileId: folderId,
+      requestBody: {
+        role: role,
+        type: 'user',
+        emailAddress: userEmail,
+      },
+      fields: 'id',
+    });
+    
+    console.log(`✅ Successfully shared folder with ${userEmail}`);
+  } catch (error) {
+    console.error(`❌ Error sharing folder:`, error);
+    throw error;
+  }
+}

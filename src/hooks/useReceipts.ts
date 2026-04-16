@@ -59,12 +59,14 @@ export const useReceipts = (): UseReceiptsReturn => {
     try {
       const result = await receiptApi.extract(file, userId || '', googleAccessToken);
 
-      if (result.success && result.data) {
-        return result.data;
-      } else {
-        setError(result.error || 'Failed to extract data');
-        return null;
+      if (result.success) {
+        const data = (result as any).data;
+        if (data) {
+          return data;
+        }
       }
+      setError(result.error || 'Failed to extract data');
+      return null;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       return null;

@@ -1,75 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { getUserMonthFolder } from '@/lib/googledrive';
+import { createFolderStructureWithServiceAccount } from '@/lib/googledrive';
 
 /**
  * POST /api/drive/setup
- * Create user's Google Drive folder structure for storing receipts
- * Called after user authorizes Google Drive
+ * Create user's Google Drive folder structure using Service Account
+ * No authorization required from user - Service Account handles folder creation
  */
 export async function POST(request: NextRequest) {
   try {
     // Get session with user auth
     const session = await auth();
 
-    if (!session || !session.user?.id) {
+    if (!session || !session.user?.id || !session.user?.email) {
       return NextResponse.json(
-        { error: 'User not authenticated' },
+        { error: 'User not authenticated or email missing' },
         { status: 401 }
       );
     }
 
-    // Get access token from request body
-    const body = await request.json();
-    const { googleAccessToken } = body;
-
-    if (!googleAccessToken) {
-      return NextResponse.json(
-        { error: 'Google access token is required' },
-        { status: 400 }
-      );
-    }
-
     const userId = session.user.id;
+    const userEmail = session.user.email;
     const userName = session.user.name || undefined;
 
-    console.log('🔐 Setting up Google Drive for user:', userId);
+    console.log('📁 Setting up Google Drive folder for user:', userId, userEmail);
 
-    // Create user's folder structure in Google Drive
-    // Structure: Root -> User Folder -> Month-Year Folder
-    // Pass the access token to authenticate the API calls
-    const folderID = await getUserMonthFolder(userId, userName, googleAccessToken);
+    // Create folder structure using Service Account
+    const { monthFolderId, userFolderId } = await createFolderStructureWithServiceAccount(
+      userId,
+      userEmail,
+      userName
+    );
 
-    if (!folderID) {
+    if (!monthFolderId || !userFolderId) {
       return NextResponse.json(
-        { error: 'Failed to create Google Drive folder' },
+        { error: 'Failed to create Google Drive folder structure' },
         { status: 500 }
       );
     }
 
-    console.log('✅ Google Drive folder created:', folderID);
+    console.log('✅ Google Drive setup complete:', { monthFolderId, userFolderId });
 
-    // TODO: Store folderID in database for this user
+    // TODO: Store folder IDs in database for this user
     // db.collection('users').updateOne(
     //   { _id: userId },
-    //   { $set: { googleDriveFolderId: folderID } }
+    //   { $set: { 
+    //     googleDriveFolderId: userFolderId,
+    //     googleDriveMonthFolderId: monthFolderId,
+    //     googleDriveSetupCompleted: true
+    //   }}
     // )
 
     return NextResponse.json({
       success: true,
       data: {
-        folderId: folderID,
-        folderUrl: `https://drive.google.com/drive/folders/${folderID}`,
+        message: 'Google Drive folder structure created and shared successfully',
+        userFolderId,
+        monthFolderId,
       },
-      message: 'Google Drive folder created successfully'
-    });
+    }, { status: 200 });
   } catch (error: unknown) {
-    console.error('Drive Setup Error:', error);
+    console.error('❌ Setup error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to setup Google Drive';
     return NextResponse.json(
-      {
-        error: 'Failed to setup Google Drive folder',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: errorMessage },
       { status: 500 }
     );
   }

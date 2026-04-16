@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
 import styles from "./GoogleDriveAuth.module.css";
 
@@ -18,113 +18,74 @@ interface GoogleDriveAuthProps {
  */
 export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveAuthProps) => {
   const { data: session, update: updateSession } = useSession();
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [setupInProgress, setSetupInProgress] = useState(false);
+
+  // Check if Google is authorized but setup hasn't been completed yet
+  useEffect(() => {
+    const setupGoogleDrive = async () => {
+      const googleAccessToken = (session as any)?.googleAccessToken;
+      const userId = session?.user?.id;
+
+      // Only setup if we have tokens and setup isn't already in progress
+      if (googleAccessToken && userId && !setupInProgress) {
+        setSetupInProgress(true);
+        console.log("🔐 Google tokens available, calling backend setup API...", { userId });
+
+        try {
+          const setupResponse = await fetch("/api/drive/setup", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              googleAccessToken,
+            }),
+          });
+
+          const setupData = await setupResponse.json();
+
+          if (!setupResponse.ok) {
+            console.error("❌ Drive folder setup failed:", setupData);
+            setError(setupData?.error || "Failed to setup Google Drive");
+            setSetupInProgress(false);
+            return;
+          }
+
+          console.log("✅ Drive folder created successfully:", setupData);
+          onAuthSuccess?.();
+          setSetupInProgress(false);
+        } catch (err: unknown) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          console.error("❌ Setup error:", errorMsg);
+          setError(errorMsg);
+          setSetupInProgress(false);
+        }
+      }
+    };
+
+    setupGoogleDrive();
+  }, [session?.user?.id, (session as any)?.googleAccessToken, setupInProgress, onAuthSuccess]);
 
   const handleAuthorize = async () => {
-    setIsLoading(true);
+    console.log("🔐 Starting Google Drive authorization...");
     setError(null);
     
     try {
-      console.log("🔐 Starting Google Drive authorization...");
-      
-      // Step 1: Sign in with Google
+      // For OAuth flows, we MUST allow the redirect to happen
+      // signIn("google") will redirect to Google login page
+      // After user grants permission, Google redirects back to /api/auth/callback/google
+      // NextAuth will automatically update the session with Google tokens
       const result = await signIn("google", {
-        redirect: false,
+        redirect: true,
+        callbackUrl: "/dashboard",
       });
 
-      if (result?.error) {
-        console.error("❌ Sign in error:", result.error);
-        setError(result.error);
-        setIsLoading(false);
-        return;
-      }
-
-      if (!result?.ok) {
-        console.error("❌ Sign in failed");
-        setError("Sign in failed");
-        setIsLoading(false);
-        return;
-      }
-
-      console.log("✅ Google sign in successful");
-
-      // Step 2: Update session to get the access token from JWT callback
-      console.log("🔄 Updating session...");
-      let updatedSession = null;
-      
-      try {
-        // updateSession() returns updated session data
-        updatedSession = await Promise.race([
-          updateSession() as Promise<any>,
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Session update timeout")), 5000)
-          ),
-        ]);
-      } catch (sessionErr) {
-        console.error("⚠️ Session update error:", sessionErr);
-        // Try without waiting, use current session
-        updatedSession = session;
-      }
-
-      if (!updatedSession) {
-        console.error("❌ Failed to update session");
-        setError("Failed to update session");
-        setIsLoading(false);
-        return;
-      }
-
-      console.log("✅ Session updated:", updatedSession);
-
-      // Step 3: Extract access token and user ID
-      const accessToken = (updatedSession as any)?.googleAccessToken;
-      const userId = updatedSession?.user?.id;
-
-      if (!accessToken || !userId) {
-        console.warn("⚠️ Missing access token or user ID", { accessToken, userId });
-        onAuthSuccess?.();
-        setIsLoading(false);
-        window.location.href = "/dashboard";
-        return;
-      }
-
-      console.log("🔐 Calling backend setup API...", { userId });
-
-      // Step 4: Call backend to setup Google Drive folder
-      const setupResponse = await fetch(`${API_BASE_URL}/drive/setup`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": API_KEY,
-        },
-        body: JSON.stringify({
-          userId,
-          googleAccessToken: accessToken,
-        }),
-      });
-
-      const setupData = await setupResponse.json();
-
-      if (!setupResponse.ok) {
-        console.error("❌ Drive folder setup failed:", setupData);
-        setError(setupData?.error || "Failed to setup Google Drive");
-        setIsLoading(false);
-        return;
-      }
-
-      console.log("✅ Drive folder created successfully:", setupData);
-      onAuthSuccess?.();
-      setIsLoading(false);
-
-      // Step 5: Redirect to dashboard
-      setTimeout(() => {
-        window.location.href = "/dashboard";
-      }, 1000);
+      console.log("🔐 OAuth flow initiated, redirecting to Google login...", result);
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error("❌ Authorization error:", errorMsg);
       setError(errorMsg);
-      setIsLoading(false);
     }
   };
 
@@ -146,7 +107,6 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
     <div className={styles.container}>
       <button
         onClick={handleAuthorize}
-        disabled={isLoading}
         className={styles.button}
         title="Authorize Google Drive access for receipt storage"
       >
