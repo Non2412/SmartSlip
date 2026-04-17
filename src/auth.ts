@@ -4,6 +4,7 @@ import Line from "next-auth/providers/line"
 import { MongoDBAdapter } from "@auth/mongodb-adapter"
 import clientPromise from "./lib/mongodb"
 
+import bcrypt from "bcryptjs"
 import Credentials from "next-auth/providers/credentials"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -26,19 +27,55 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             clientSecret: process.env.LINE_CLIENT_SECRET || process.env.LINE_CHANNEL_SECRET || "dummy",
         }),
         Credentials({
-            name: "Guest Mode",
-            credentials: {},
-            async authorize() {
-                // Return a dummy guest user
+            name: "Credentials",
+            credentials: {
+                email: { label: "Email", type: "email" },
+                password: { label: "Password", type: "password" }
+            },
+            async authorize(credentials) {
+                if (!credentials?.email || !credentials?.password) return null
+
+                const client = await clientPromise
+                const db = client.db()
+                
+                // Find user in MongoDB
+                const user = await db.collection("users").findOne({ 
+                    email: (credentials.email as string).toLowerCase() 
+                })
+
+                if (!user || !user.password) {
+                    // Check if it's the guest user for testing
+                    if (credentials.email === "guest@example.com") {
+                        return {
+                            id: "guest-user-123",
+                            name: "นักเข้าชมทั่วไป (Guest)",
+                            email: "guest@example.com",
+                            image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Guest",
+                        }
+                    }
+                    return null
+                }
+
+                // Verify password
+                const isValid = await bcrypt.compare(
+                    credentials.password as string, 
+                    user.password
+                )
+
+                if (!isValid) return null
+
                 return {
-                    id: "guest-user-123",
-                    name: "นักเข้าชมทั่วไป (Guest)",
-                    email: "guest@example.com",
-                    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Guest",
+                    id: user._id.toString(),
+                    name: user.name,
+                    email: user.email,
+                    image: user.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`,
                 }
             }
         })
     ],
+    session: {
+        strategy: "jwt",
+    },
     pages: {
         signIn: "/login",
     },
