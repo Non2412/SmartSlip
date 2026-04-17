@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSession, signIn } from "next-auth/react";
 import styles from "./GoogleDriveAuth.module.css";
 
@@ -19,7 +19,7 @@ interface GoogleDriveAuthProps {
 export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveAuthProps) => {
   const { data: session, update: updateSession } = useSession();
   const [error, setError] = useState<string | null>(null);
-  const [setupInProgress, setSetupInProgress] = useState(false);
+  const setupInProgressRef = useRef(false);
 
   // Check if Google is authorized but setup hasn't been completed yet
   useEffect(() => {
@@ -28,8 +28,8 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
       const userId = session?.user?.id;
 
       // Only setup if we have tokens and setup isn't already in progress
-      if (googleAccessToken && userId && !setupInProgress) {
-        setSetupInProgress(true);
+      if (googleAccessToken && userId && !setupInProgressRef.current) {
+        setupInProgressRef.current = true;
         console.log("🔐 พบ Google tokens พร้อมใช้ เรียก backend setup API...", { userId });
 
         try {
@@ -50,51 +50,36 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
           if (!setupResponse.ok) {
             console.error("❌ ล้มเหลวในการตั้งค่าโฟลเดอร์ Drive:", setupData);
             setError(setupData?.error || "ล้มเหลวในการตั้งค่า Google Drive");
-            setSetupInProgress(false);
+            setupInProgressRef.current = false;
             return;
           }
 
           console.log("✅ สร้างโฟลเดอร์ Drive สำเร็จ:", setupData);
           onAuthSuccess?.();
-          setSetupInProgress(false);
+          setupInProgressRef.current = false;
         } catch (err: unknown) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           console.error("❌ ข้อผิดพลาดในการตั้งค่า:", errorMsg);
           setError(errorMsg);
-          setSetupInProgress(false);
+          setupInProgressRef.current = false;
         }
       }
     };
 
     setupGoogleDrive();
-  }, [session?.user?.id, (session as any)?.googleAccessToken, setupInProgress, onAuthSuccess]);
+  }, [session?.user?.id, (session as any)?.googleAccessToken]);
 
   const handleAuthorize = async () => {
     console.log("🔐 เริ่มการให้สิทธิ์ Google Drive...");
     setError(null);
     
-    try {
-      // For OAuth flows, we MUST allow the redirect to happen
-      // signIn("google") will redirect to Google login page
-      // After user grants permission, Google redirects back to /api/auth/callback/google
-      // NextAuth will automatically update the session with Google tokens
-      const result = await signIn("google", {
-        redirect: true,
-        callbackUrl: "/dashboard",
-      });
-
-      console.log("🔐 เริ่มการไหลของ OAuth แล้ว ลิดไปหน้า Google login...", result);
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error("❌ ข้อผิดพลาดในการให้สิทธิ์:", errorMsg);
-      setError(errorMsg);
-    }
+    // Use NextAuth signIn function to properly handle OAuth flow
+    // This will redirect to Google login, then back to dashboard with tokens
+    await signIn("google", { callbackUrl: "/dashboard" });
   };
 
   // If already authorized, show checkmark and info
   const isAuthorized = (session as any)?.googleAccessToken ? true : false;
-  
-  console.log('🔷 GoogleDriveAuth render:', { isAuthorized, hasSession: !!session, userId: session?.user?.id });
   
   if (session && isAuthorized) {
     return (

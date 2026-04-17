@@ -6,7 +6,10 @@ import clientPromise from "./lib/mongodb"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     adapter: MongoDBAdapter(clientPromise),
-    secret: process.env.AUTH_SECRET,
+    secret: process.env.NEXTAUTH_SECRET,
+    session: {
+        strategy: "jwt",
+    },
     providers: [
         Google({
             clientId: process.env.GOOGLE_CLIENT_ID,
@@ -30,24 +33,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         async signIn({ user, account }) {
             console.log("🔐 เข้าสู่ระบบสำเร็จ", {
                 userId: user?.id,
+                userEmail: user?.email,
                 provider: account?.provider,
                 hasAccessToken: !!account?.access_token,
+                userObject: JSON.stringify(user)
             });
             // Allow sign in
             return true
         },
         async jwt({ token, account, user, trigger, session }) {
-            console.log("🔐 JWT ตรวจสอบ", {
-                hasPreviousToken: !!token,
-                provider: account?.provider,
-                hasAccessToken: !!account?.access_token,
-                trigger,
-            });
+            // Only log on first load or when account changes
+            if (user || account) {
+                console.log("🔐 JWT ตรวจสอบ (user/account change)", {
+                    hasUser: !!user,
+                    provider: account?.provider,
+                    hasAccessToken: !!account?.access_token,
+                });
+            }
 
-            // Store user ID and email
+            // Always ensure user ID and email are in token
             if (user) {
                 token.sub = user.id
-                token.email = user.email  // Store email in JWT
+                token.email = user.email
                 console.log("📝 บันทึก ID ผู้ใช้และอีเมล:", user.id, user.email);
             }
             
@@ -58,12 +65,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 console.log("📝 บันทึกข้อมูล LINE:", user.name);
             }
             
-            // Store Google tokens during sign in (doesn't replace LINE info)
+            // Store Google tokens during sign in
             if (account?.provider === "google" && account?.access_token) {
                 token.googleAccessToken = account.access_token
                 token.googleRefreshToken = account.refresh_token
                 token.googleExpiresAt = account.expires_at
-                console.log("✅ บันทึก Google tokens");
+                console.log("✅ บันทึก Google tokens (new):", { hasAccessToken: !!account.access_token });
+            }
+            // Keep existing Google tokens if not being updated
+            else if (token.googleAccessToken && !account) {
+                // Silently preserve tokens, don't log
             }
             
             // Handle update trigger (called when session is updated)
@@ -82,23 +93,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session({ session, token }) {
             // Pass token data to session
             if (session.user && token) {
-                session.user.id = token.sub || token.sub || ""
-                // Email should already be in session from MongoDB adapter
-                // But ensure it's preserved
-                if (!session.user.email && token.email) {
-                    session.user.email = token.email as string
-                }
+                session.user.id = token.sub || ""
+                // Always use email from token (JWT strategy source of truth)
+                session.user.email = (token.email as string) || session.user.email
                 ;(session as any).provider = token.provider
                 ;(session as any).lineUserName = token.lineUserName
                 ;(session as any).lineUserImage = token.lineUserImage
                 ;(session as any).googleAccessToken = token.googleAccessToken
                 ;(session as any).googleRefreshToken = token.googleRefreshToken
                 ;(session as any).googleExpiresAt = token.googleExpiresAt
-                
-                console.log("✅ สร้างเซสชันสำเร็จ อีเมล:", session.user.email);
-                if (token.googleAccessToken) {
-                    console.log("✅ ส่ง Google access token ไปยังเซสชัน");
-                }
             }
             return session
         },

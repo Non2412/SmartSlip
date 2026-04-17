@@ -50,14 +50,54 @@ export async function POST(request: NextRequest) {
       }, { status: 200 });
     }
 
-    // Create folder structure using Service Account
-    const { monthFolderId, userFolderId } = await createFolderStructureWithServiceAccount(
-      userId,
-      userEmail,
-      userName
-    );
+    // Get googleAccessToken from request body
+    let googleAccessToken: string | undefined;
+    
+    try {
+      const body = await request.json();
+      googleAccessToken = body.googleAccessToken;
+    } catch (e) {
+      console.error('❌ Failed to parse request body:', e);
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
+
+    if (!googleAccessToken) {
+      console.error('❌ No googleAccessToken provided');
+      return NextResponse.json(
+        { error: 'Google access token required' },
+        { status: 400 }
+      );
+    }
+
+    console.log('✅ Received googleAccessToken, creating folder structure...');
+
+    // Create folder structure using user's Google access token
+    let monthFolderId: string | undefined;
+    let userFolderId: string | undefined;
+
+    try {
+      const result = await createFolderStructureWithServiceAccount(
+        userId,
+        userEmail,
+        userName,
+        googleAccessToken  // Pass user's access token
+      );
+      monthFolderId = result.monthFolderId;
+      userFolderId = result.userFolderId;
+    } catch (folderError: unknown) {
+      const errorMsg = folderError instanceof Error ? folderError.message : String(folderError);
+      console.error('❌ Failed to create folder structure:', errorMsg);
+      return NextResponse.json(
+        { error: `Failed to create folder structure: ${errorMsg}` },
+        { status: 500 }
+      );
+    }
 
     if (!monthFolderId || !userFolderId) {
+      console.error('❌ Folder IDs are undefined');
       return NextResponse.json(
         { error: 'ล้มเหลวในการสร้างโครงสร้างโฟลเดอร์ Google Drive' },
         { status: 500 }

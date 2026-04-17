@@ -86,21 +86,21 @@ export default function DashboardPage() {
           onCreateNew={openCreateSheet}
         />
 
-        <div cGoogle Drive Auth Section */}
-          <div style={{
-            padding: '16px',
-            marginBottom: '24px',
-            backgroundColor: '#f5f5f5',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            <span style={{ fontSize: '14px', color: '#666' }}>ตั้งค่า Google Drive:</span>
-            <GoogleDriveAuth showText={true} />
-          </div>
+        {/* Google Drive Auth Section */}
+        <div style={{
+          padding: '16px',
+          marginBottom: '24px',
+          backgroundColor: '#f5f5f5',
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <span style={{ fontSize: '14px', color: '#666' }}>ตั้งค่า Google Drive:</span>
+          <GoogleDriveAuth showText={true} />
+        </div>
 
-          {/* lassName="page-container">
+        <div className="page-container">
           {/* Summary Stats Row */}
           <div style={{
             display: 'flex',

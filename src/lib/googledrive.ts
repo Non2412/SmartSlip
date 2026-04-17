@@ -224,9 +224,9 @@ export async function uploadFile(buffer: Buffer, fileName: string, mimeType: str
  * @param userName - User Name (optional)
  * @returns Object with folder IDs and user email for sharing
  */
-export async function createFolderStructureWithServiceAccount(userId: string, userEmail: string, userName?: string): Promise<{ monthFolderId: string; userFolderId: string }> {
-  // Use Service Account (no accessToken provided, no userId to search in DB)
-  const drive = await getGoogleDriveClient();
+export async function createFolderStructureWithServiceAccount(userId: string, userEmail: string, userName?: string, accessToken?: string): Promise<{ monthFolderId: string; userFolderId: string }> {
+  // Use user's access token if provided, otherwise fall back to Service Account
+  const drive = await getGoogleDriveClient(undefined, accessToken);
 
   try {
     console.log('📁 สร้างโครงสร้างโฟลเดอร์ด้วย Service Account สำหรับผู้ใช้:', userId);
@@ -261,9 +261,20 @@ export async function createFolderStructureWithServiceAccount(userId: string, us
     if (!monthFolderId) throw new Error(`ล้มเหลวในการสร้างโฟลเดอร์เดือน: ${monthYearName}`);
     console.log('✅ สร้างโฟลเดอร์เดือน:', monthFolderId);
 
-    // 6. Share user folder with the user
-    await shareFolderWithUser(userFolderId, userEmail, 'writer');
-    console.log('✅ แชร์โฟลเดอร์ผู้ใช้กับผู้ใช้:', userEmail);
+    // 6. Skip sharing if email is not a real Google Account
+    // User has googleAccessToken and can upload files directly
+    if (!userEmail.includes('@') || userEmail.includes('@smartslip.local')) {
+      console.log('⏭️ ข้ามการแชร์ (email ไม่ใช่ Google Account จริง):', userEmail);
+    } else {
+      // Only share if it's a real Google email
+      try {
+        await shareFolderWithUser(userFolderId, userEmail, 'writer');
+        console.log('✅ แชร์โฟลเดอร์ผู้ใช้กับผู้ใช้:', userEmail);
+      } catch (shareError) {
+        console.warn('⚠️ ไม่สามารถแชร์โฟลเดอร์ได้ แต่โฟลเดอร์ถูกสร้างสำเร็จ:', shareError);
+        // Don't throw - sharing is optional, folders are already created
+      }
+    }
 
     return {
       monthFolderId,
