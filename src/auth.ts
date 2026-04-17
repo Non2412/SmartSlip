@@ -4,13 +4,15 @@ import Line from "next-auth/providers/line"
 import { MongoDBAdapter } from "@auth/mongodb-adapter"
 import clientPromise from "./lib/mongodb"
 
+import Credentials from "next-auth/providers/credentials"
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
     adapter: MongoDBAdapter(clientPromise),
     secret: process.env.AUTH_SECRET,
     providers: [
         Google({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            clientId: process.env.GOOGLE_CLIENT_ID || "dummy",
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET || "dummy",
             authorization: {
                 params: {
                     scope: "openid email profile https://www.googleapis.com/auth/drive.file",
@@ -20,9 +22,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             },
         }),
         Line({
-            clientId: process.env.LINE_CLIENT_ID || process.env.LINE_CHANNEL_ID,
-            clientSecret: process.env.LINE_CLIENT_SECRET || process.env.LINE_CHANNEL_SECRET,
+            clientId: process.env.LINE_CLIENT_ID || process.env.LINE_CHANNEL_ID || "dummy",
+            clientSecret: process.env.LINE_CLIENT_SECRET || process.env.LINE_CHANNEL_SECRET || "dummy",
         }),
+        Credentials({
+            name: "Guest Mode",
+            credentials: {},
+            async authorize() {
+                // Return a dummy guest user
+                return {
+                    id: "guest-user-123",
+                    name: "นักเข้าชมทั่วไป (Guest)",
+                    email: "guest@example.com",
+                    image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Guest",
+                }
+            }
+        })
     ],
     pages: {
         signIn: "/login",

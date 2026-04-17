@@ -16,6 +16,19 @@ export default function LoginPage() {
     }
   }
 
+  const handleGuestLogin = async () => {
+    setIsLoading(true)
+    try {
+      await signIn("credentials", { 
+        callbackUrl: "/dashboard",
+        redirect: true
+      })
+    } catch (error) {
+      console.error(error)
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className={styles.loginWrapper}>
       <div className={styles.loginCard}>
@@ -40,6 +53,18 @@ export default function LoginPage() {
                 Continue with LINE
               </>
             )}
+          </button>
+
+          <div className={styles.divider}>
+            <span>หรือ</span>
+          </div>
+
+          <button
+            className={styles.guestBtn}
+            onClick={handleGuestLogin}
+            disabled={isLoading}
+          >
+            เข้าใช้งานในฐานะผู้มาเยือน (Guest Mode)
           </button>
         </div>
 

@@ -70,6 +70,44 @@
     font-size: 0.75rem;
 }
 
+.divider {
+    display: flex;
+    align-items: center;
+    margin: 1.5rem 0;
+    color: #a0aec0;
+    font-size: 0.875rem;
+}
+
+.divider::before,
+.divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #e2e8f0;
+}
+
+.divider span {
+    padding: 0 1rem;
+}
+
+.guestBtn {
+    width: 100%;
+    padding: 1rem 1.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: #f8fafc;
+    color: #64748b;
+    font-weight: 500;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.guestBtn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
 .loader {
     width: 1.25rem;
     height: 1.25rem;
