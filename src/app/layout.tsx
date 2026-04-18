@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Anuphan } from "next/font/google";
-import NotificationBanner from "@/app/notification/NotificationBanner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -35,7 +34,6 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} ${anuphan.variable}`}>
         <Providers>
-          <NotificationBanner />
           {children}
         </Providers>
       </body>

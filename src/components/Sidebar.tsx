@@ -57,7 +57,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
           เมนูธุรกิจ
         </div>
         <ul className={styles.navList}>
-          <SidebarItem href="/" active={pathname === '/'} label="รายการใบเสร็จ" icon={<ListIcon />} />
+          <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="รายการใบเสร็จ" icon={<ListIcon />} />
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} onClick={onAddReceipt} />
           <SidebarItem href="#" label="Google Sheets" icon={<SheetsIcon />} isExternal />
           <SidebarItem href={`/api/drive/redirect/${userId}`} label="Google Drive" icon={<DriveIcon />} isExternal />
@@ -101,7 +101,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
           <div className={styles.statusIndicator}></div>
         </div>
         <div className={styles.userInfo}>
-          <div className={styles.userName}>{user?.name || 'แขกผู้เข้าชม'}</div>
+          <div className={styles.userName}>{user?.name || 'นักเข้าชมทั่วไป'}</div>
           <div className={styles.userId}>{userId}</div>
         </div>
         <button
