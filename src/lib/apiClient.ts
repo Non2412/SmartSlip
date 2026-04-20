@@ -89,13 +89,10 @@ export const receiptApi = {
   }),
 
   // ประมวลผล OCR และอัปโหลดขึ้น Drive
-  extract: (file: File, userId: string, googleAccessToken?: string) => {
+  extract: (file: File, userId: string) => {
     const formData = new FormData();
     formData.append('image', file);
     formData.append('userId', userId);
-    if (googleAccessToken) {
-      formData.append('googleAccessToken', googleAccessToken);
-    }
 
     return fetch(`${API_BASE_URL}/receipts/extract`, {
       method: 'POST',

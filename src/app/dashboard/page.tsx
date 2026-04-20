@@ -15,20 +15,21 @@ export default function DashboardPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
 
-  // Setup Google Drive folder on first login
+  // Setup Google Drive folder on first login (for both Google and LINE users)
   useEffect(() => {
-    console.log('🔍 useEffect ทำงาน, session:', session);
-    console.log('🔍 user ID:', session?.user?.id);
+    console.log('🔍 Dashboard loaded, session:', session?.user?.id);
     
-    const setupGoogleDrive = async () => {
+    const autoSetupGoogleDrive = async () => {
       if (!session?.user?.id || !session?.user?.email) {
-        console.log('⚠️ รอเซสชัน... ID:', session?.user?.id, 'Email:', session?.user?.email);
+        console.log('⚠️ Waiting for session... ID:', session?.user?.id);
         return;
       }
 
       try {
-        console.log('📁 ตั้งค่าโฟลเดอร์ Google Drive สำหรับผู้ใช้:', session.user.id, session.user.email);
-        const response = await fetch('/api/drive/setup', {
+        const isLineUser = (session as any)?.lineUserName ? true : false;
+        console.log(`📁 Auto-setting up Google Drive for ${isLineUser ? 'LINE' : 'Google'} user:`, session.user.id);
+        
+        const response = await fetch('/api/drive/auto-setup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -40,18 +41,18 @@ export default function DashboardPage() {
 
         if (!response.ok) {
           const error = await response.json();
-          console.error('❌ ล้มเหลวในการตั้งค่า:', error);
+          console.error('❌ Failed to setup:', error);
           return;
         }
 
         const data = await response.json();
-        console.log('✅ ตั้งค่า Google Drive สำเร็จ:', data);
+        console.log('✅ Google Drive auto-setup successful:', data);
       } catch (error) {
-        console.error('❌ ข้อผิดพลาดในการตั้งค่า:', error);
+        console.error('❌ Setup error:', error);
       }
     };
 
-    setupGoogleDrive();
+    autoSetupGoogleDrive();
   }, [session]);
 
   useEffect(() => {

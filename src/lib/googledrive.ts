@@ -261,18 +261,31 @@ export async function createFolderStructureWithServiceAccount(userId: string, us
     if (!monthFolderId) throw new Error(`ล้มเหลวในการสร้างโฟลเดอร์เดือน: ${monthYearName}`);
     console.log('✅ สร้างโฟลเดอร์เดือน:', monthFolderId);
 
-    // 6. Skip sharing if email is not a real Google Account
-    // User has googleAccessToken and can upload files directly
+    // 6. Transfer ownership to user or share with "Anyone with link"
     if (!userEmail.includes('@') || userEmail.includes('@smartslip.local')) {
-      console.log('⏭️ ข้ามการแชร์ (email ไม่ใช่ Google Account จริง):', userEmail);
-    } else {
-      // Only share if it's a real Google email
+      // For synthetic emails, share with anyone with link
+      console.log('⏭️ Skipping ownership transfer (not a real Google Account):', userEmail);
+      console.log('📤 Sharing user folder with "Anyone with link" instead...');
       try {
-        await shareFolderWithUser(userFolderId, userEmail, 'writer');
-        console.log('✅ แชร์โฟลเดอร์ผู้ใช้กับผู้ใช้:', userEmail);
-      } catch (shareError) {
-        console.warn('⚠️ ไม่สามารถแชร์โฟลเดอร์ได้ แต่โฟลเดอร์ถูกสร้างสำเร็จ:', shareError);
-        // Don't throw - sharing is optional, folders are already created
+        await shareWithAnyoneWithLink(userFolderId);
+        console.log('✅ Shared user folder publicly with "Anyone with link"');
+      } catch (linkError) {
+        console.warn('⚠️ Could not share publicly but folder structure was created:', linkError);
+      }
+    } else {
+      // Try to transfer ownership first (best option - no permission prompts)
+      try {
+        await transferOwnershipToUser(userFolderId, userEmail);
+        console.log('✅ Successfully transferred folder ownership to:', userEmail);
+      } catch (transferError) {
+        console.warn('⚠️ Could not transfer ownership, trying "Anyone with link" instead:', transferError);
+        // Fallback to anyone with link if transfer fails
+        try {
+          await shareWithAnyoneWithLink(userFolderId);
+          console.log('✅ Shared user folder with "Anyone with link" as fallback');
+        } catch (linkError) {
+          console.warn('⚠️ Could not share with anyone with link either, but folders were created:', linkError);
+        }
       }
     }
 
@@ -300,21 +313,83 @@ export async function shareFolderWithUser(
   const drive = await getGoogleDriveClient(); // Uses Service Account fallback
 
   try {
-    console.log(`🔗 กำลังแชร์โฟลเดอร์ ${folderId} ให้กับ ${userEmail} เป็น ${role}...`);
+    console.log(`🔗 Sharing folder ${folderId} with ${userEmail} as ${role}...`);
     
-    await drive.permissions.create({
+    const permission = await drive.permissions.create({
       fileId: folderId,
       requestBody: {
         role: role,
         type: 'user',
         emailAddress: userEmail,
       },
-      fields: 'id',
+      fields: 'id,emailAddress,role',
+      supportsAllDrives: true,
     });
     
-    console.log(`✅ แชร์โฟลเดอร์สำเร็จกับ ${userEmail}`);
+    console.log(`✅ Folder shared successfully with ${userEmail} (${role}):`, permission.data);
   } catch (error) {
-    console.error(`❌ ข้อผิดพลาดในการแชร์โฟลเดอร์:`, error);
+    console.error(`❌ Error sharing folder with ${userEmail}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Transfer folder ownership to a user
+ * @param folderId - Folder ID to transfer
+ * @param userEmail - User email address to become owner
+ */
+export async function transferOwnershipToUser(
+  folderId: string,
+  userEmail: string
+): Promise<void> {
+  const drive = await getGoogleDriveClient(); // Uses user's access token from ServiceAccount context
+
+  try {
+    console.log(`🔄 Attempting to transfer ownership of folder ${folderId} to ${userEmail}...`);
+    
+    // First, grant organizer role
+    await drive.permissions.create({
+      fileId: folderId,
+      requestBody: {
+        role: 'organizer',
+        type: 'user',
+        emailAddress: userEmail,
+      },
+      fields: 'id,emailAddress,role',
+      supportsAllDrives: true,
+    });
+    
+    console.log(`✅ Transferred ownership of folder ${folderId} to ${userEmail}`);
+  } catch (error) {
+    console.error(`❌ Error transferring ownership to ${userEmail}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Share folder with "Anyone with link" (public link, no permission needed)
+ * @param folderId - Folder ID to share
+ */
+export async function shareWithAnyoneWithLink(folderId: string): Promise<string> {
+  const drive = await getGoogleDriveClient(); // Uses Service Account fallback
+
+  try {
+    console.log(`🔗 Sharing folder ${folderId} with "Anyone with link"...`);
+    
+    const permission = await drive.permissions.create({
+      fileId: folderId,
+      requestBody: {
+        role: 'viewer', // Anyone can view
+        type: 'anyone',
+      },
+      fields: 'id,role,type',
+      supportsAllDrives: true,
+    });
+    
+    console.log(`✅ Folder shared with "Anyone with link" (${folderId})`);
+    return folderId;
+  } catch (error) {
+    console.error(`❌ Error sharing with anyone with link:`, error);
     throw error;
   }
 }

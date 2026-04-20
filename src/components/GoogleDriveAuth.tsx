@@ -19,6 +19,7 @@ interface GoogleDriveAuthProps {
 export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveAuthProps) => {
   const { data: session, update: updateSession } = useSession();
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const setupInProgressRef = useRef(false);
 
   // Check if Google is authorized but setup hasn't been completed yet
@@ -70,16 +71,116 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
   }, [session?.user?.id, (session as any)?.googleAccessToken]);
 
   const handleAuthorize = async () => {
-    console.log("🔐 เริ่มการให้สิทธิ์ Google Drive...");
+    // Prevent multiple clicks
+    if (isLoading || setupInProgressRef.current) {
+      console.log("⏳ Already authorizing, please wait...");
+      return;
+    }
+
+    // If already has Google tokens, don't ask again
+    const googleAccessToken = (session as any)?.googleAccessToken;
+    if (googleAccessToken) {
+      console.log("✅ Google Drive already authorized");
+      // But still try to fix permissions
+      await fixFolderPermissions();
+      return;
+    }
+
+    console.log("🔐 Starting Google Drive authorization...");
     setError(null);
-    
-    // Use NextAuth signIn function to properly handle OAuth flow
-    // This will redirect to Google login, then back to dashboard with tokens
-    await signIn("google", { callbackUrl: "/dashboard" });
+    setIsLoading(true);
+    setupInProgressRef.current = true;
+
+    try {
+      // Call NextAuth signIn - this will redirect to Google OAuth
+      const result = await signIn("google", { 
+        redirect: false, // Don't auto-redirect, we'll handle it
+        callbackUrl: "/dashboard" 
+      });
+
+      if (result?.error) {
+        console.error("❌ Google authorization failed:", result.error);
+        setError(result.error || "Failed to authorize Google Drive");
+        setIsLoading(false);
+        setupInProgressRef.current = false;
+        return;
+      }
+
+      if (result?.ok) {
+        console.log("✅ Google sign-in successful, refreshing session...");
+        
+        // Wait a moment for NextAuth to update the JWT
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Manually refresh the session to get the updated JWT with Google tokens
+        const updatedSession = await updateSession();
+        
+        if ((updatedSession as any)?.googleAccessToken) {
+          console.log("✅ Google tokens successfully stored in session");
+          
+          // Now fix the folder permissions
+          await fixFolderPermissions();
+          onAuthSuccess?.();
+        } else {
+          console.warn("⚠️ Session updated but Google tokens not found, may need manual refresh");
+          onAuthSuccess?.();
+        }
+      } else {
+        // If result is ok but not confirmed, redirect manually
+        window.location.href = "/dashboard";
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error("❌ Authorization error:", errorMsg);
+      setError(errorMsg);
+    } finally {
+      setIsLoading(false);
+      setupInProgressRef.current = false;
+    }
+  };
+
+  const fixFolderPermissions = async () => {
+    try {
+      console.log("🔧 Fixing folder permissions...");
+      const response = await fetch("/api/drive/fix-permissions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("❌ Failed to fix permissions:", data);
+        setError(data?.error || "Failed to fix folder permissions");
+        return;
+      }
+
+      console.log("✅ Folder permissions fixed:", data);
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error("❌ Error fixing permissions:", errorMsg);
+      // Don't set error here - this is secondary operation
+    }
   };
 
   // If already authorized, show checkmark and info
   const isAuthorized = (session as any)?.googleAccessToken ? true : false;
+  const isLineUser = (session as any)?.lineUserName ? true : false;
+  
+  // Don't show button for LINE users - they get auto-setup with Service Account
+  if (isLineUser) {
+    return (
+      <div className={styles.authenticatedContainer}>
+        <svg className={styles.checkIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        {showText && <span className={styles.authenticatedText}>✅ Google Drive Ready (Service Account)</span>}
+      </div>
+    );
+  }
   
   if (session && isAuthorized) {
     return (
@@ -96,8 +197,10 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
     <div className={styles.container}>
       <button
         onClick={handleAuthorize}
+        disabled={isLoading}
         className={styles.button}
-        title="Authorize Google Drive access for receipt storage"
+        style={{ opacity: isLoading ? 0.6 : 1, cursor: isLoading ? 'not-allowed' : 'pointer' }}
+        title={isLoading ? "Authorizing Google Drive..." : "Authorize Google Drive access for receipt storage"}
       >
         <svg className={styles.googleIcon} width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
           <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -105,7 +208,7 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
           <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
           <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
         </svg>
-        {showText && ("Authorize Google Drive")}
+        {showText && (isLoading ? "Authorizing..." : "Authorize Google Drive")}
       </button>
       {error && (
         <div className={styles.error}>
