@@ -22,16 +22,15 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
   const [isLoading, setIsLoading] = useState(false);
   const setupInProgressRef = useRef(false);
 
-  // Check if Google is authorized but setup hasn't been completed yet
+  // Auto-setup Google Drive folder using Service Account (no user auth required)
   useEffect(() => {
     const setupGoogleDrive = async () => {
-      const googleAccessToken = (session as any)?.googleAccessToken;
       const userId = session?.user?.id;
 
-      // Only setup if we have tokens and setup isn't already in progress
-      if (googleAccessToken && userId && !setupInProgressRef.current) {
+      // Setup automatically when user is logged in (ไม่ต้องให้ user authorize)
+      if (userId && !setupInProgressRef.current) {
         setupInProgressRef.current = true;
-        console.log("🔐 พบ Google tokens พร้อมใช้ เรียก backend setup API...", { userId });
+        console.log("📁 Setting up Google Drive folder with Service Account...", { userId });
 
         try {
           const setupResponse = await fetch("/api/drive/setup", {
@@ -42,7 +41,8 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
             credentials: 'include',
             body: JSON.stringify({
               userId,
-              googleAccessToken,
+              email: session?.user?.email,
+              // ไม่ต้องส่ง googleAccessToken - Service Account ทำเอง!
             }),
           });
 
@@ -55,7 +55,7 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
             return;
           }
 
-          console.log("✅ สร้างโฟลเดอร์ Drive สำเร็จ:", setupData);
+          console.log("✅ Google Drive folder created with Service Account:", setupData);
           onAuthSuccess?.();
           setupInProgressRef.current = false;
         } catch (err: unknown) {
@@ -68,127 +68,28 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
     };
 
     setupGoogleDrive();
-  }, [session?.user?.id, (session as any)?.googleAccessToken]);
+  }, [session?.user?.id]);
 
   const handleAuthorize = async () => {
-    // Prevent multiple clicks
-    if (isLoading || setupInProgressRef.current) {
-      console.log("⏳ Already authorizing, please wait...");
-      return;
-    }
-
-    // If already has Google tokens, don't ask again
-    const googleAccessToken = (session as any)?.googleAccessToken;
-    if (googleAccessToken) {
-      console.log("✅ Google Drive already authorized");
-      // But still try to fix permissions
-      await fixFolderPermissions();
-      return;
-    }
-
-    console.log("🔐 Starting Google Drive authorization...");
-    setError(null);
-    setIsLoading(true);
-    setupInProgressRef.current = true;
-
-    try {
-      // Call NextAuth signIn - this will redirect to Google OAuth
-      const result = await signIn("google", { 
-        redirect: false, // Don't auto-redirect, we'll handle it
-        callbackUrl: "/dashboard" 
-      });
-
-      if (result?.error) {
-        console.error("❌ Google authorization failed:", result.error);
-        setError(result.error || "Failed to authorize Google Drive");
-        setIsLoading(false);
-        setupInProgressRef.current = false;
-        return;
-      }
-
-      if (result?.ok) {
-        console.log("✅ Google sign-in successful, refreshing session...");
-        
-        // Wait a moment for NextAuth to update the JWT
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Manually refresh the session to get the updated JWT with Google tokens
-        const updatedSession = await updateSession();
-        
-        if ((updatedSession as any)?.googleAccessToken) {
-          console.log("✅ Google tokens successfully stored in session");
-          
-          // Now fix the folder permissions
-          await fixFolderPermissions();
-          onAuthSuccess?.();
-        } else {
-          console.warn("⚠️ Session updated but Google tokens not found, may need manual refresh");
-          onAuthSuccess?.();
-        }
-      } else {
-        // If result is ok but not confirmed, redirect manually
-        window.location.href = "/dashboard";
-      }
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error("❌ Authorization error:", errorMsg);
-      setError(errorMsg);
-    } finally {
-      setIsLoading(false);
-      setupInProgressRef.current = false;
-    }
+    // Service Account ทำการ setup อัตโนมัติแล้ว - ไม่ต้องแสดง button นี้
+    console.log("✅ Google Drive is already set up via Service Account");
   };
 
   const fixFolderPermissions = async () => {
-    try {
-      console.log("🔧 Fixing folder permissions...");
-      const response = await fetch("/api/drive/fix-permissions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: 'include',
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error("❌ Failed to fix permissions:", data);
-        setError(data?.error || "Failed to fix folder permissions");
-        return;
-      }
-
-      console.log("✅ Folder permissions fixed:", data);
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      console.error("❌ Error fixing permissions:", errorMsg);
-      // Don't set error here - this is secondary operation
-    }
+    // Service Account ทำการ setup อัตโนมัติแล้ว
+    console.log("✅ Folder already set up via Service Account");
   };
 
-  // If already authorized, show checkmark and info
-  const isAuthorized = (session as any)?.googleAccessToken ? true : false;
+  // ✅ Show "Ready" status for all logged-in users (Service Account handles setup automatically)
   const isLineUser = (session as any)?.lineUserName ? true : false;
   
-  // Don't show button for LINE users - they get auto-setup with Service Account
-  if (isLineUser) {
+  if (session && session.user?.id) {
     return (
       <div className={styles.authenticatedContainer}>
         <svg className={styles.checkIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
         {showText && <span className={styles.authenticatedText}>✅ Google Drive Ready (Service Account)</span>}
-      </div>
-    );
-  }
-  
-  if (session && isAuthorized) {
-    return (
-      <div className={styles.authenticatedContainer}>
-        <svg className={styles.checkIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-        {showText && <span className={styles.authenticatedText}>✅ Google Drive Connected</span>}
       </div>
     );
   }

@@ -71,9 +71,10 @@ export async function getGoogleDriveClient(userId?: string, accessToken?: string
 
 /**
  * Find a folder by name inside a parent folder, or create it if it doesn't exist.
+ * Uses Service Account for folder operations
  */
-export async function findOrCreateFolder(folderName: string, parentId?: string, userId?: string, accessToken?: string) {
-  const drive = await getGoogleDriveClient(userId, accessToken);
+export async function findOrCreateFolder(folderName: string, parentId?: string, userId?: string) {
+  const drive = await getGoogleDriveClient(userId);
 
   // Search for the folder
   const query = `mimeType = 'application/vnd.google-apps.folder' and name = '${folderName}' ${parentId ? `and '${parentId}' in parents` : ''} and trashed = false`;
@@ -90,7 +91,7 @@ export async function findOrCreateFolder(folderName: string, parentId?: string, 
       return listResponse.data.files[0].id || undefined;
     }
 
-    // Create folder if it doesn't exist
+    // Create folder if it doesn't exist (Service Account handles this)
     const createResponse = await drive.files.create({
       requestBody: {
         name: folderName,
@@ -112,22 +113,22 @@ export async function findOrCreateFolder(folderName: string, parentId?: string, 
  * Structure: Root -> User Folder -> Month-Year Folder
  * @returns The ID of the Month-Year folder
  */
-export async function getUserMonthFolder(userId: string, userName?: string, accessToken?: string): Promise<string> {
+export async function getUserMonthFolder(userId: string, userName?: string): Promise<string> {
   const rootFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
   // 1. Find or create User Folder (using Name if provided, otherwise ID)
+  // Uses Service Account - no user access token needed
   const userFolderName = userName ? `${userName} (${userId})` : userId;
   let userFolderId: string | undefined;
 
   try {
-    // Note: We try to find/create in the user's drive. 
-    // If rootFolderId is provided, we use it as parent (if user has access)
-    // For personal drives, often we just want to create it in the root.
-    userFolderId = await findOrCreateFolder(userFolderName, rootFolderId || undefined, userId, accessToken);
+    // Note: Service Account creates folder in shared drive
+    // If rootFolderId is provided, we use it as parent
+    userFolderId = await findOrCreateFolder(userFolderName, rootFolderId || undefined, userId);
   } catch (err: unknown) {
     const error = err as { code?: number; status?: number; message?: string };
     // If error, try creating in user's root
-    userFolderId = await findOrCreateFolder(userFolderName, undefined, userId, accessToken);
+    userFolderId = await findOrCreateFolder(userFolderName, undefined, userId);
   }
 
   if (!userFolderId) throw new Error(`Could not find or create folder for user: ${userFolderName}`);
@@ -137,7 +138,7 @@ export async function getUserMonthFolder(userId: string, userName?: string, acce
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const monthYearName = `${monthNames[now.getMonth()]}-${now.getFullYear()}`;
 
-  const monthFolderId = await findOrCreateFolder(monthYearName, userFolderId, userId, accessToken);
+  const monthFolderId = await findOrCreateFolder(monthYearName, userFolderId, userId);
   if (!monthFolderId) throw new Error(`Could not find or create month folder: ${monthYearName}`);
 
   return monthFolderId;
@@ -224,9 +225,9 @@ export async function uploadFile(buffer: Buffer, fileName: string, mimeType: str
  * @param userName - User Name (optional)
  * @returns Object with folder IDs and user email for sharing
  */
-export async function createFolderStructureWithServiceAccount(userId: string, userEmail: string, userName?: string, accessToken?: string): Promise<{ monthFolderId: string; userFolderId: string }> {
-  // Use user's access token if provided, otherwise fall back to Service Account
-  const drive = await getGoogleDriveClient(undefined, accessToken);
+export async function createFolderStructureWithServiceAccount(userId: string, userEmail: string, userName?: string): Promise<{ monthFolderId: string; userFolderId: string }> {
+  // Service Account creates folder structure automatically (no user access token needed)
+  const drive = await getGoogleDriveClient(undefined);
 
   try {
     console.log('📁 สร้างโครงสร้างโฟลเดอร์ด้วย Service Account สำหรับผู้ใช้:', userId);

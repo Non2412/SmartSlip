@@ -22,8 +22,23 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    const userEmail = session.user.email;
     const userName = session.user.name || undefined;
+
+    // Parse request body to get email (can be provided by client or use from session)
+    let userEmail = session.user.email;
+    try {
+      const body = await request.json();
+      if (body.email) {
+        userEmail = body.email;  // Use email from request if provided
+      }
+      console.log('✅ Setup request received for userId:', body.userId);
+    } catch (e) {
+      console.error('❌ Failed to parse request body:', e);
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
 
     console.log('📁 กำลังตั้งค่าโฟลเดอร์ Google Drive สำหรับผู้ใช้:', userId, userEmail);
 
@@ -50,31 +65,9 @@ export async function POST(request: NextRequest) {
       }, { status: 200 });
     }
 
-    // Get googleAccessToken from request body
-    let googleAccessToken: string | undefined;
-    
-    try {
-      const body = await request.json();
-      googleAccessToken = body.googleAccessToken;
-    } catch (e) {
-      console.error('❌ Failed to parse request body:', e);
-      return NextResponse.json(
-        { error: 'Invalid request body' },
-        { status: 400 }
-      );
-    }
+    console.log('✅ Creating folder structure using Service Account (no user token required)...');
 
-    if (!googleAccessToken) {
-      console.error('❌ No googleAccessToken provided');
-      return NextResponse.json(
-        { error: 'Google access token required' },
-        { status: 400 }
-      );
-    }
-
-    console.log('✅ Received googleAccessToken, creating folder structure...');
-
-    // Create folder structure using user's Google access token
+    // Create folder structure using Service Account
     let monthFolderId: string | undefined;
     let userFolderId: string | undefined;
 
@@ -82,8 +75,8 @@ export async function POST(request: NextRequest) {
       const result = await createFolderStructureWithServiceAccount(
         userId,
         userEmail,
-        userName,
-        googleAccessToken  // Pass user's access token
+        userName
+        // Service Account handles authentication - no user token needed
       );
       monthFolderId = result.monthFolderId;
       userFolderId = result.userFolderId;
