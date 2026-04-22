@@ -140,18 +140,30 @@ const SidebarItem = ({
 
   return (
     <li>
-      <Link
-        href={href || '/'}
-        className={className}
-        onClick={(e) => {
-          if (onClick) {
-            e.preventDefault();
-            onClick();
-          }
-        }}
-      >
-        {content}
-      </Link>
+      {isExternal ? (
+        // Use plain <a> for external/redirect links to avoid Next.js RSC fetch + CORS issue
+        <a
+          href={href || '/'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={className}
+        >
+          {content}
+        </a>
+      ) : (
+        <Link
+          href={href || '/'}
+          className={className}
+          onClick={(e) => {
+            if (onClick) {
+              e.preventDefault();
+              onClick();
+            }
+          }}
+        >
+          {content}
+        </Link>
+      )}
     </li>
   );
 };

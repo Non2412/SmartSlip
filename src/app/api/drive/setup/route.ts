@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { createFolderStructureWithServiceAccount } from '@/lib/googledrive';
+import { createFolderStructureWithServiceAccount, shareFolderWithUser, shareWithAnyoneWithLink } from '@/lib/googledrive';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
@@ -11,12 +11,12 @@ import { ObjectId } from 'mongodb';
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get session with user auth
+    // Get session - only require userId, email is optional (LINE users may not have email)
     const session = await auth();
 
-    if (!session || !session.user?.id || !session.user?.email) {
+    if (!session || !session.user?.id) {
       return NextResponse.json(
-        { error: 'ผู้ใช้ไม่ได้รับการยืนยันตัวตนหรือไม่มีอีเมล' },
+        { error: 'ผู้ใช้ไม่ได้รับการยืนยันตัวตน' },
         { status: 401 }
       );
     }
@@ -24,20 +24,17 @@ export async function POST(request: NextRequest) {
     const userId = session.user.id;
     const userName = session.user.name || undefined;
 
-    // Parse request body to get email (can be provided by client or use from session)
-    let userEmail = session.user.email;
+    // Parse request body - email optional (LINE users may not have real email)
+    let userEmail: string | null = session.user.email ?? null;
     try {
       const body = await request.json();
       if (body.email) {
         userEmail = body.email;  // Use email from request if provided
       }
-      console.log('✅ Setup request received for userId:', body.userId);
+      console.log('✅ Setup request received for userId:', body.userId || userId);
     } catch (e) {
-      console.error('❌ Failed to parse request body:', e);
-      return NextResponse.json(
-        { error: 'Invalid request body' },
-        { status: 400 }
-      );
+      // Body parsing failed - that's OK, use session email (or null for LINE users)
+      console.log('ℹ️ No request body, using session data');
     }
 
     console.log('📁 กำลังตั้งค่าโฟลเดอร์ Google Drive สำหรับผู้ใช้:', userId, userEmail);
@@ -54,13 +51,52 @@ export async function POST(request: NextRequest) {
     }
 
     if (existingUser?.googleDriveFolderId) {
-      console.log('✅ Google Drive ตั้งค่าแล้วสำหรับผู้ใช้:', userId);
+      console.log('✅ Google Drive ตั้งค่าแล้วสำหรับผู้ใช้:', userId, '- Re-sharing to ensure access...');
+      const folderId = existingUser.googleDriveFolderId;
+
+      // Re-share the folder to ensure user has access (idempotent - safe to call every time)
+      const isRealGoogleAccount = userEmail && userEmail.includes('@') && !userEmail.includes('@smartslip.local');
+      let shareSuccess = false;
+      let shareError: string | null = null;
+
+      if (isRealGoogleAccount) {
+        try {
+          await shareFolderWithUser(folderId, userEmail!, 'writer');
+          console.log('✅ Re-shared folder with Google user:', userEmail);
+          shareSuccess = true;
+        } catch (shareErr: any) {
+          console.warn('⚠️ Could not share with user directly, trying Anyone with link:', shareErr?.message || shareErr);
+          shareError = shareErr?.message || String(shareErr);
+          try {
+            await shareWithAnyoneWithLink(folderId);
+            console.log('✅ Shared with Anyone with link (fallback)');
+            shareSuccess = true;
+            shareError = null;
+          } catch (linkErr: any) {
+            console.warn('⚠️ Could not share folder:', linkErr?.message || linkErr);
+            shareError = `Direct: ${shareError} | Link: ${linkErr?.message || String(linkErr)}`;
+          }
+        }
+      } else {
+        // LINE user - share with Anyone with link
+        try {
+          await shareWithAnyoneWithLink(folderId);
+          console.log('✅ Shared folder with Anyone with link for LINE user');
+          shareSuccess = true;
+        } catch (linkErr: any) {
+          console.warn('⚠️ Could not share with Anyone with link:', linkErr?.message || linkErr);
+          shareError = linkErr?.message || String(linkErr);
+        }
+      }
+
       return NextResponse.json({
         success: true,
         data: {
           message: 'Google Drive folder ตั้งค่าแล้วสำหรับผู้ใช้นี้',
-          userFolderId: existingUser.googleDriveFolderId,
+          userFolderId: folderId,
           monthFolderId: existingUser.googleDriveMonthFolderId,
+          shareSuccess,
+          shareError,
         },
       }, { status: 200 });
     }
@@ -74,9 +110,8 @@ export async function POST(request: NextRequest) {
     try {
       const result = await createFolderStructureWithServiceAccount(
         userId,
-        userEmail,
+        userEmail ?? `${userId}@smartslip.local`,  // LINE users get synthetic email
         userName
-        // Service Account handles authentication - no user token needed
       );
       monthFolderId = result.monthFolderId;
       userFolderId = result.userFolderId;

@@ -262,25 +262,23 @@ export async function createFolderStructureWithServiceAccount(userId: string, us
     if (!monthFolderId) throw new Error(`ล้มเหลวในการสร้างโฟลเดอร์เดือน: ${monthYearName}`);
     console.log('✅ สร้างโฟลเดอร์เดือน:', monthFolderId);
 
-    // 6. Transfer ownership to user or share with "Anyone with link"
+    // 6. Share folder with user as writer (Service Account grants access directly)
     if (!userEmail.includes('@') || userEmail.includes('@smartslip.local')) {
-      // For synthetic emails, share with anyone with link
-      console.log('⏭️ Skipping ownership transfer (not a real Google Account):', userEmail);
-      console.log('📤 Sharing user folder with "Anyone with link" instead...');
+      // For synthetic emails (LINE users), share with anyone with link
+      console.log('⏭️ Skipping user share (not a real Google Account):', userEmail);
       try {
         await shareWithAnyoneWithLink(userFolderId);
-        console.log('✅ Shared user folder publicly with "Anyone with link"');
+        console.log('✅ Shared user folder with "Anyone with link" for LINE user');
       } catch (linkError) {
         console.warn('⚠️ Could not share publicly but folder structure was created:', linkError);
       }
     } else {
-      // Try to transfer ownership first (best option - no permission prompts)
+      // Share directly with user's Google email as writer
       try {
-        await transferOwnershipToUser(userFolderId, userEmail);
-        console.log('✅ Successfully transferred folder ownership to:', userEmail);
-      } catch (transferError) {
-        console.warn('⚠️ Could not transfer ownership, trying "Anyone with link" instead:', transferError);
-        // Fallback to anyone with link if transfer fails
+        await shareFolderWithUser(userFolderId, userEmail, 'writer');
+        console.log('✅ Successfully shared folder with user:', userEmail);
+      } catch (shareError) {
+        console.warn('⚠️ Could not share with user directly, trying "Anyone with link" fallback:', shareError);
         try {
           await shareWithAnyoneWithLink(userFolderId);
           console.log('✅ Shared user folder with "Anyone with link" as fallback');
@@ -325,10 +323,16 @@ export async function shareFolderWithUser(
       },
       fields: 'id,emailAddress,role',
       supportsAllDrives: true,
+      sendNotificationEmail: false,
     });
     
     console.log(`✅ Folder shared successfully with ${userEmail} (${role}):`, permission.data);
-  } catch (error) {
+  } catch (error: any) {
+    // Handle 'already shared' duplicate error gracefully
+    if (error?.code === 409 || error?.message?.includes('already exists') || error?.errors?.[0]?.reason === 'duplicatePermission') {
+      console.log(`ℹ️ Folder already shared with ${userEmail} - no action needed`);
+      return;
+    }
     console.error(`❌ Error sharing folder with ${userEmail}:`, error);
     throw error;
   }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { transferOwnershipToUser, shareWithAnyoneWithLink } from '@/lib/googledrive';
+import { shareFolderWithUser, shareWithAnyoneWithLink } from '@/lib/googledrive';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
@@ -67,27 +67,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Try to transfer ownership (best option)
+    // Share folder directly with user as writer (works with personal Google Drive)
     try {
-      await transferOwnershipToUser(userFolderId, userEmail);
-      console.log('✅ Successfully transferred folder ownership to:', userEmail);
+      await shareFolderWithUser(userFolderId, userEmail, 'writer');
+      console.log('✅ Successfully shared folder with user:', userEmail);
       return NextResponse.json({
         success: true,
-        message: 'Folder ownership transferred',
+        message: 'Folder shared with user as writer',
         folderId: userFolderId,
-        owner: userEmail
+        sharedWith: userEmail
       });
-    } catch (transferError) {
-      console.warn('⚠️ Could not transfer ownership:', transferError);
+    } catch (shareError) {
+      console.warn('⚠️ Could not share with user directly, trying "Anyone with link" fallback:', shareError);
       
-      // Fallback to anyone with link
-      console.log('📤 Attempting fallback: "Anyone with link"...');
       try {
         await shareWithAnyoneWithLink(userFolderId);
-        console.log('✅ Shared user folder publicly with "Anyone with link" (fallback)');
+        console.log('✅ Shared user folder with "Anyone with link" (fallback)');
         return NextResponse.json({
           success: true,
-          message: 'Folder shared with "Anyone with link" (ownership transfer failed)',
+          message: 'Folder shared with "Anyone with link" (direct share failed)',
           folderId: userFolderId
         });
       } catch (linkError) {
