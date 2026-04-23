@@ -54,38 +54,29 @@ export async function POST(request: NextRequest) {
       console.log('✅ Google Drive ตั้งค่าแล้วสำหรับผู้ใช้:', userId, '- Re-sharing to ensure access...');
       const folderId = existingUser.googleDriveFolderId;
 
-      // Re-share the folder to ensure user has access (idempotent - safe to call every time)
-      const isRealGoogleAccount = userEmail && userEmail.includes('@') && !userEmail.includes('@smartslip.local');
+      // Re-share the folder to ensure user has access
+      // ALWAYS share with Anyone-with-link first (guarantees URL works), then try email as bonus
       let shareSuccess = false;
       let shareError: string | null = null;
 
+      // Step 1: Always share with Anyone-with-link (this is what makes the URL accessible)
+      try {
+        await shareWithAnyoneWithLink(folderId);
+        console.log('✅ Shared folder with Anyone with link');
+        shareSuccess = true;
+      } catch (linkErr: any) {
+        console.warn('⚠️ Could not share with Anyone with link:', linkErr?.message || linkErr);
+        shareError = linkErr?.message || String(linkErr);
+      }
+
+      // Step 2: Additionally share by email for Google users (so it appears in their Drive)
+      const isRealGoogleAccount = userEmail && userEmail.includes('@') && !userEmail.includes('@smartslip.local');
       if (isRealGoogleAccount) {
         try {
-          await shareFolderWithUser(folderId, userEmail!, 'writer');
-          console.log('✅ Re-shared folder with Google user:', userEmail);
-          shareSuccess = true;
+          await shareFolderWithUser(folderId, userEmail!, 'reader');
+          console.log('✅ Also shared folder with Google user email:', userEmail);
         } catch (shareErr: any) {
-          console.warn('⚠️ Could not share with user directly, trying Anyone with link:', shareErr?.message || shareErr);
-          shareError = shareErr?.message || String(shareErr);
-          try {
-            await shareWithAnyoneWithLink(folderId);
-            console.log('✅ Shared with Anyone with link (fallback)');
-            shareSuccess = true;
-            shareError = null;
-          } catch (linkErr: any) {
-            console.warn('⚠️ Could not share folder:', linkErr?.message || linkErr);
-            shareError = `Direct: ${shareError} | Link: ${linkErr?.message || String(linkErr)}`;
-          }
-        }
-      } else {
-        // LINE user - share with Anyone with link
-        try {
-          await shareWithAnyoneWithLink(folderId);
-          console.log('✅ Shared folder with Anyone with link for LINE user');
-          shareSuccess = true;
-        } catch (linkErr: any) {
-          console.warn('⚠️ Could not share with Anyone with link:', linkErr?.message || linkErr);
-          shareError = linkErr?.message || String(linkErr);
+          console.log('ℹ️ Could not share by email (non-critical, link sharing already done):', shareErr?.message);
         }
       }
 

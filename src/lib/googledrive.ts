@@ -262,29 +262,22 @@ export async function createFolderStructureWithServiceAccount(userId: string, us
     if (!monthFolderId) throw new Error(`ล้มเหลวในการสร้างโฟลเดอร์เดือน: ${monthYearName}`);
     console.log('✅ สร้างโฟลเดอร์เดือน:', monthFolderId);
 
-    // 6. Share folder with user as writer (Service Account grants access directly)
-    if (!userEmail.includes('@') || userEmail.includes('@smartslip.local')) {
-      // For synthetic emails (LINE users), share with anyone with link
-      console.log('⏭️ Skipping user share (not a real Google Account):', userEmail);
+    // 6. Share folder - ALWAYS use Anyone-with-link first, then try email as bonus
+    try {
+      await shareWithAnyoneWithLink(userFolderId);
+      console.log('✅ Shared user folder with "Anyone with link"');
+    } catch (linkError) {
+      console.warn('⚠️ Could not share with Anyone with link:', linkError);
+    }
+
+    // Additionally share by email for real Google accounts (non-critical)
+    const isRealGoogleAccount = userEmail.includes('@') && !userEmail.includes('@smartslip.local');
+    if (isRealGoogleAccount) {
       try {
-        await shareWithAnyoneWithLink(userFolderId);
-        console.log('✅ Shared user folder with "Anyone with link" for LINE user');
-      } catch (linkError) {
-        console.warn('⚠️ Could not share publicly but folder structure was created:', linkError);
-      }
-    } else {
-      // Share directly with user's Google email as writer
-      try {
-        await shareFolderWithUser(userFolderId, userEmail, 'writer');
-        console.log('✅ Successfully shared folder with user:', userEmail);
+        await shareFolderWithUser(userFolderId, userEmail, 'reader');
+        console.log('✅ Also shared folder with user email:', userEmail);
       } catch (shareError) {
-        console.warn('⚠️ Could not share with user directly, trying "Anyone with link" fallback:', shareError);
-        try {
-          await shareWithAnyoneWithLink(userFolderId);
-          console.log('✅ Shared user folder with "Anyone with link" as fallback');
-        } catch (linkError) {
-          console.warn('⚠️ Could not share with anyone with link either, but folders were created:', linkError);
-        }
+        console.log('ℹ️ Could not share by email (non-critical):', shareError);
       }
     }
 
@@ -384,7 +377,7 @@ export async function shareWithAnyoneWithLink(folderId: string): Promise<string>
     const permission = await drive.permissions.create({
       fileId: folderId,
       requestBody: {
-        role: 'viewer', // Anyone can view
+        role: 'reader', // Anyone can view
         type: 'anyone',
       },
       fields: 'id,role,type',
