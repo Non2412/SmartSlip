@@ -21,7 +21,7 @@ export const useReceipts = (): UseReceiptsReturn => {
     setLoading(true);
     setError(null);
     try {
-      const result = await receiptApi.getAll(userId);
+      const result = await receiptApi.getAll(userId) as any;
       if (result.success && result.data) {
         setReceipts(result.data);
       } else {
@@ -38,7 +38,7 @@ export const useReceipts = (): UseReceiptsReturn => {
     setLoading(true);
     setError(null);
     try {
-      const result = await receiptApi.create(data);
+      const result = await receiptApi.create(data) as any;
 
       if (result.success && result.data) {
         setReceipts(prev => [result.data as Receipt, ...prev]);
