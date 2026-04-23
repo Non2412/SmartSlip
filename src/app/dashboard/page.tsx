@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
-import { StatCard, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
+import { StatCard, FilterBar, ReceiptTable } from '@/components/DashboardItems';
 
 export default function DashboardPage() {
   const pathname = usePathname();
@@ -23,7 +23,6 @@ export default function DashboardPage() {
   }, [session, fetchReceipts]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsSidebarOpen(false);
   }, [pathname]);
 
@@ -40,7 +39,6 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard-layout">
-      {/* Sidebar Overlay for mobile */}
       <div
         className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`}
         onClick={closeSidebar}
@@ -69,49 +67,43 @@ export default function DashboardPage() {
           }}>
             <StatCard
               title="ยอดใช้จ่ายรวม"
-              subValue="฿ 425,000.00"
-              value=""
+              value={`฿ ${totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`}
               trend="+12.5%"
               icon={
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="1" x2="12" y2="23"></line>
-                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="5" width="20" height="14" rx="2" />
+                  <line x1="2" y1="10" x2="22" y2="10" />
                 </svg>
               }
             />
             <StatCard
               title="รอตรวจสอบ"
-              value="15 รายการ"
+              value={`${pendingCount} รายการ`}
               status="รออนุมัติ"
+              iconBg="#fff7ed"
               icon={
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
                 </svg>
               }
             />
             <StatCard
               title="อนุมัติแล้ว"
-              value="128 รายการ"
+              value={`${approvedCount} รายการ`}
               trend="+5%"
               icon={
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
                 </svg>
               }
             />
           </div>
 
-          {/* Charts and Lists Row */}
-          <div style={{
-            display: 'flex',
-            gap: '24px',
-            flexWrap: 'wrap'
-          }}>
-            <ExpenseChart />
-            <RecentUploads userId={session?.user?.id} />
-          </div>
+          <FilterBar />
+          
+          <ReceiptTable loading={loading} />
         </div>
       </main>
 
@@ -122,4 +114,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
