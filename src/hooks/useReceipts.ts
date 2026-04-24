@@ -53,18 +53,20 @@ export const useReceipts = (): UseReceiptsReturn => {
     }
   }, []);
 
-  const extractFromImage = useCallback(async (file: File, userId?: string, googleAccessToken?: string) => {
+  const extractFromImage = useCallback(async (file: File, userId?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await receiptApi.extract(file, userId || '', googleAccessToken) as any;
+      const result = await receiptApi.extract(file, userId || '');
 
-      if (result.success && result.data) {
-        return result.data;
-      } else {
-        setError(result.error || 'Failed to extract data');
-        return null;
+      if (result.success) {
+        const data = (result as any).data;
+        if (data) {
+          return data;
+        }
       }
+      setError(result.error || 'Failed to extract data');
+      return null;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       return null;

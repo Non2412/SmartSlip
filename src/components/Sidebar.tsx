@@ -4,8 +4,8 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import styles from './Sidebar.module.css';
 import { GoogleDriveAuth } from './GoogleDriveAuth';
+import styles from './Sidebar.module.css';
 
 interface SidebarProps {
   onAddReceipt?: () => void;
@@ -18,6 +18,10 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
   const { data: session } = useSession();
   const user = session?.user;
   const userId = user?.id || 'guest';
+  
+  // Show LINE user info as primary account, fallback to current user
+  const displayName = (session as any)?.lineUserName || user?.name || 'แขกผู้เข้าชม';
+  const displayImage = (session as any)?.lineUserImage || user?.image || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix";
 
   return (
     <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarActive : ''}`}>
@@ -51,10 +55,6 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
           <SidebarItem href={`/api/drive/redirect/${userId}`} label="Google Drive" icon={<DriveIcon />} isExternal />
         </ul>
 
-        <div style={{ padding: '8px 16px', marginTop: 'auto' }}>
-          <GoogleDriveAuth showText={true} />
-        </div>
-
         <div className={styles.navSection}>
           ช่วยเหลือ
         </div>
@@ -65,16 +65,23 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
             label="วิธีการใช้งาน"
             icon={<HelpIcon />}
           />
+
+        <div className={styles.navSection}>
+          ตั้งค่า Google Drive
+        </div>
+        <div style={{ padding: '8px 12px' }}>
+          <GoogleDriveAuth showText={true} />
+        </div>
         </ul>
       </nav>
 
       <div className={styles.userCard}>
         <div className={styles.userAvatar}>
-          <img src={user?.image || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} alt="User" />
+          <img src={displayImage} alt="User" />
           <div className={styles.statusIndicator}></div>
         </div>
         <div className={styles.userInfo}>
-          <div className={styles.userName}>{user?.name || 'นักเข้าชมทั่วไป'}</div>
+          <div className={styles.userName}>{displayName}</div>
           <div className={styles.userId}>{userId}</div>
         </div>
         <button
@@ -133,18 +140,30 @@ const SidebarItem = ({
 
   return (
     <li>
-      <Link
-        href={href || '/'}
-        className={className}
-        onClick={(e) => {
-          if (onClick) {
-            e.preventDefault();
-            onClick();
-          }
-        }}
-      >
-        {content}
-      </Link>
+      {isExternal ? (
+        // Use plain <a> for external/redirect links to avoid Next.js RSC fetch + CORS issue
+        <a
+          href={href || '/'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={className}
+        >
+          {content}
+        </a>
+      ) : (
+        <Link
+          href={href || '/'}
+          className={className}
+          onClick={(e) => {
+            if (onClick) {
+              e.preventDefault();
+              onClick();
+            }
+          }}
+        >
+          {content}
+        </Link>
+      )}
     </li>
   );
 };

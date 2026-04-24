@@ -37,49 +37,7 @@ export default function LoginPage() {
     try {
       await signIn("line", { callbackUrl: "/dashboard" })
     } catch (error) {
-      console.error(error)
-      setError('เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย LINE')
-      setIsLoading(false)
-    }
-  }
-
-  const handleNormalLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      })
-
-      if (result?.error) {
-        setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง')
-        setIsLoading(false)
-      } else {
-        window.location.href = '/dashboard'
-      }
-    } catch (error) {
-      console.error(error)
-      setError('เกิดข้อผิดพลาดทางเทคนิค')
-      setIsLoading(false)
-    }
-  }
-
-  const handleGuestLogin = async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      await signIn("credentials", { 
-        email: "guest@example.com",
-        password: "guest",
-        callbackUrl: "/dashboard",
-        redirect: true
-      })
-    } catch (error) {
-      console.error(error)
+      console.error("❌ ข้อผิดพลาดในการเข้าสู่ระบบ:", error)
       setIsLoading(false)
     }
   }
