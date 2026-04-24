@@ -70,12 +70,14 @@ export const useReceipts = (): UseReceiptsReturn => {
       if (result.success && result.data) {
         return result.data;
       } else {
-        setError(result.error || 'Failed to extract data');
-        return null;
+        const errorMsg = result.error || 'Failed to extract data';
+        setError(errorMsg);
+        throw new Error(errorMsg);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      return null;
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMsg);
+      throw new Error(errorMsg);
     } finally {
       setLoading(false);
     }
