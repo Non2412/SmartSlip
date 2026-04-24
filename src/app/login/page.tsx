@@ -47,7 +47,7 @@ export default function LoginPage() {
       <div className={styles.loginCard}>
         <div className={styles.loginHeader}>
           <div className={styles.loginLogo}>
-            <img src="/logo.png" alt="SmartSlip AI Logo" width={450} height={180} style={{ objectFit: 'contain' }} />
+            <img src="/logo.png" alt="SmartSlip AI Logo" width={450} height={180} />
           </div>
           <p>Login to your account to continue</p>
         </div>

@@ -69,7 +69,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
         <div className={styles.navSection}>
           ตั้งค่า Google Drive
         </div>
-        <div style={{ padding: '8px 12px' }}>
+        <div className={styles.driveAuthWrapper}>
           <GoogleDriveAuth showText={true} />
         </div>
         </ul>

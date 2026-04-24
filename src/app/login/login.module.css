@@ -37,6 +37,10 @@
     margin-bottom: 0.6rem;
 }
 
+.loginLogo img {
+    object-fit: contain;
+}
+
 .googleBtn {
     width: 100%;
     display: flex;

@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
+import styles from './Dashboard.module.css';
 
 export default function DashboardPage() {
   const pathname = usePathname();
@@ -20,7 +21,7 @@ export default function DashboardPage() {
   // Setup Google Drive folder on first login (for both Google and LINE users)
   useEffect(() => {
     console.log('🔍 Dashboard loaded, session:', session?.user?.id);
-    
+
     const autoSetupGoogleDrive = async () => {
       if (!session?.user?.id || !session?.user?.email) {
         console.log('⚠️ Waiting for session... ID:', session?.user?.id);
@@ -28,9 +29,9 @@ export default function DashboardPage() {
       }
 
       try {
-        const isLineUser = (session as any)?.lineUserName ? true : false;
+        const isLineUser = (session as unknown as { lineUserName: string })?.lineUserName ? true : false;
         console.log(`📁 Auto-setting up Google Drive for ${isLineUser ? 'LINE' : 'Google'} user:`, session.user.id);
-        
+
         const response = await fetch('/api/drive/auto-setup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -45,7 +46,7 @@ export default function DashboardPage() {
           const errorData = await response.json().catch(() => null);
           console.error(`❌ Failed to setup (Status ${response.status}):`, errorData);
           if (errorData?.error) {
-             console.error('Error detail:', errorData.error);
+            console.error('Error detail:', errorData.error);
           }
           return;
         }
@@ -67,6 +68,7 @@ export default function DashboardPage() {
   }, [session, fetchReceipts]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsSidebarOpen(false);
   }, [pathname]);
 
@@ -101,28 +103,15 @@ export default function DashboardPage() {
           onCreateNew={openCreateSheet}
         />
 
-        {/* Google Drive Auth Section */}
-        <div style={{
-          padding: '16px',
-          marginBottom: '24px',
-          backgroundColor: '#f5f5f5',
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}>
-          <span style={{ fontSize: '14px', color: '#666' }}>ตั้งค่า Google Drive:</span>
-          <GoogleDriveAuth showText={true} />
-        </div>
-
         <div className="page-container">
+          {/* Google Drive Auth Section */}
+          <div className={styles.driveSection}>
+            <span className={styles.driveLabel}>ตั้งค่า Google Drive:</span>
+            <GoogleDriveAuth showText={true} />
+          </div>
+
           {/* Summary Stats Row */}
-          <div style={{
-            display: 'flex',
-            gap: '24px',
-            marginBottom: '32px',
-            flexWrap: 'wrap'
-          }}>
+          <div className={styles.summaryStatsRow}>
             <StatCard
               title="ยอดใช้จ่ายรวม"
               value={`฿ ${totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`}
@@ -160,25 +149,22 @@ export default function DashboardPage() {
           </div>
 
           {/* Charts Row */}
-          <div style={{
-            display: 'flex',
-            gap: '24px',
-            marginBottom: '32px',
-            flexWrap: 'wrap'
-          }}>
-            <ExpenseChart />
+          <div className={styles.chartsRow}>
+            <div className={styles.chartColSpan2}>
+              <ExpenseChart />
+            </div>
             <RecentUploads />
           </div>
 
           <FilterBar />
-          
+
           <ReceiptTable loading={loading} receipts={receipts} />
         </div>
       </main>
 
-      <CreateReceiptSheet 
-        isOpen={isCreateSheetOpen} 
-        onClose={closeCreateSheet} 
+      <CreateReceiptSheet
+        isOpen={isCreateSheetOpen}
+        onClose={closeCreateSheet}
       />
     </div>
   );

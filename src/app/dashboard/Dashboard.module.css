@@ -1,0 +1,34 @@
+.driveSection {
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  background-color: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.driveLabel {
+  font-size: 14px;
+  color: #666;
+}
+
+.summaryStatsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.chartsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.chartColSpan2 {
+  grid-column: span 2;
+}

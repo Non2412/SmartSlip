@@ -57,7 +57,7 @@ export function ReceiptUploader({ onOCRSuccess, userId }: ReceiptUploaderProps) 
         type="file"
         accept="image/*"
         onChange={handleFileSelect}
-        style={{ display: 'none' }}
+        className={styles.hiddenInput}
       />
 
       <button

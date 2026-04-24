@@ -25,11 +25,11 @@ const ReceiptHistory = ({ receipts, loading, error }: ReceiptHistoryProps) => {
     };
 
     return (
-        <div style={{ flex: 1, minWidth: 0, paddingBottom: '40px' }}>
+        <div className={styles.container}>
             {/* Filter Bar */}
             <div className={styles.filterBar}>
                 <div className={styles.searchInputWrapper}>
-                    <span style={{ position: 'absolute', left: '14px', top: '10px', color: '#94a3b8' }}>
+                    <span className={styles.searchIcon}>
                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
                     </span>
                     <input type="text" className={styles.searchInput} placeholder="ค้นหาร้านค้า, วันที่, ยอดเงิน..." />
@@ -70,15 +70,7 @@ const ReceiptHistory = ({ receipts, loading, error }: ReceiptHistoryProps) => {
 
             {/* Error State */}
             {error && (
-                <div style={{ 
-                    padding: '16px', 
-                    background: '#fef2f2', 
-                    border: '1px solid #fee2e2', 
-                    borderRadius: '12px', 
-                    color: '#dc2626',
-                    marginBottom: '24px',
-                    fontSize: '0.9rem'
-                }}>
+                <div className={styles.errorBox}>
                     <strong>⚠️ เกิดข้อผิดพลาด:</strong> {error}
                 </div>
             )}
@@ -99,15 +91,15 @@ const ReceiptHistory = ({ receipts, loading, error }: ReceiptHistoryProps) => {
                     <tbody>
                         {loading ? (
                             Array.from({ length: 4 }).map((_, i) => (
-                                <tr key={i} style={{ opacity: 0.5 }}>
-                                    <td colSpan={6} style={{ textAlign: 'center', padding: '32px' }}>
+                                <tr key={i} className={styles.loadingRow}>
+                                    <td colSpan={6} className={styles.loadingCell}>
                                         <div className={styles.loadingPulse}>กำลังดึงข้อมูล...</div>
                                     </td>
                                 </tr>
                             ))
                         ) : receipts.length === 0 ? (
                             <tr key="empty-state">
-                                <td colSpan={6} style={{ textAlign: 'center', padding: '60px', color: '#94a3b8' }}>
+                                <td colSpan={6} className={styles.emptyCell}>
                                     ไม่พบรายการใบเสร็จในขณะนี้
                                 </td>
                             </tr>
@@ -154,7 +146,7 @@ const TableRow = ({ store, category, amount, method, status, date, time, color }
                 <div className={styles.storeIcon} style={{ background: `${color}15`, color: color }}>
                     {store ? store.charAt(0).toUpperCase() : '?'}
                 </div>
-                <span style={{ fontWeight: 600 }}>{store}</span>
+                <span className={styles.storeName}>{store}</span>
             </div>
         </td>
         <td>
@@ -163,13 +155,11 @@ const TableRow = ({ store, category, amount, method, status, date, time, color }
         <td>
             <span className={styles.amountText}>฿ {amount}</span>
         </td>
-        <td style={{ color: '#64748b', fontSize: '0.85rem' }}>{method}</td>
+        <td className={styles.methodCell}>{method}</td>
         <td>
             <div className={styles.statusWrapper}>
                 <div className={styles.statusDot} style={{ background: color }}></div>
-                <span style={{ 
-                    fontSize: '0.85rem', 
-                    fontWeight: 600, 
+                <span className={styles.statusText} style={{ 
                     color: color === '#10b981' ? '#059669' : '#d97706' 
                 }}>
                     {status}

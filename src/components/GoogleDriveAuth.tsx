@@ -84,7 +84,7 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
             <button
               onClick={() => runSetup(session.user!.id!, session.user?.email)}
               title="ซิงค์สิทธิ์โฟลเดอร์ Google Drive อีกครั้ง"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', color: '#64748b', fontSize: '12px' }}
+              className={styles.syncButton}
             >
               🔄
             </button>
@@ -97,7 +97,7 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
 
   return (
     <div className={styles.container}>
-      <span style={{ fontSize: '13px', color: '#94a3b8' }}>กรุณาเข้าสู่ระบบ</span>
+      <span className={styles.loginPrompt}>กรุณาเข้าสู่ระบบ</span>
     </div>
   );
 };
