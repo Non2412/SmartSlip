@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       const result = await createFolderStructureWithServiceAccount(
         userId,
         userEmail ?? `${userId}@smartslip.local`,  // LINE users get synthetic email
-        userName
+        userName ?? undefined
       );
       monthFolderId = result.monthFolderId;
       userFolderId = result.userFolderId;

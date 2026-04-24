@@ -66,8 +66,8 @@ export async function POST(request: NextRequest) {
     try {
       const result = await createFolderStructureWithServiceAccount(
         userId,
-        userEmail,
-        userName
+        userEmail ?? undefined,
+        userName ?? undefined
         // No access token - will use Service Account
       );
       monthFolderId = result.monthFolderId;
