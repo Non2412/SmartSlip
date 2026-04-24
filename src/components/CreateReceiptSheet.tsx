@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useFlow } from '@/context/FlowContext';
+import styles from './CreateReceiptSheet.module.css';
 
 interface CreateReceiptSheetProps {
     isOpen: boolean;
@@ -99,11 +100,11 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
                 ]);
                 setStep(4); // Set to Review step
             } else {
-                throw new Error(res.error || 'Unknown error');
+                throw new Error(res.error || 'ข้อผิดพลาดที่ไม่ทราบ');
             }
 
         } catch (error: any) {
-            console.error("OCR Error:", error);
+            console.error("❌ ข้อผิดพลาด OCR:", error);
             setErrorMsg(error.message || 'ไม่สามารถติดต่อ OCR Server ได้');
             setResults([]);
             setStep(2); // Fallback to Upload on error
@@ -116,75 +117,38 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
         <>
             {/* Backdrop */}
             <div
+                className={styles.backdrop}
                 style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                    backdropFilter: 'blur(4px)',
-                    zIndex: 999,
                     opacity: isOpen ? 1 : 0,
                     pointerEvents: isOpen ? 'auto' : 'none',
-                    transition: 'opacity 0.3s ease-in-out'
                 }}
                 onClick={onClose}
             />
 
             {/* Sidebar Sheet */}
             <div
+                className={styles.sheet}
                 style={{
-                    position: 'fixed',
-                    top: 0,
-                    right: 0,
-                    width: '500px',
-                    height: '100%',
-                    backgroundColor: 'white',
-                    zIndex: 1000,
-                    boxShadow: '-10px 0 30px rgba(0, 0, 0, 0.1)',
-                    padding: '32px',
-                    display: 'flex',
-                    flexDirection: 'column',
                     transform: isOpen ? 'translateX(0)' : 'translateX(100%)',
-                    transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-                    overflowY: 'auto'
                 }}
             >
                 {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                    <h2 style={{ fontSize: '1.4rem', fontWeight: '700', color: 'var(--text-main)' }}>สร้างใบเสร็จด้วย AI</h2>
+                <div className={styles.header}>
+                    <h2 className={styles.title}>สร้างใบเสร็จด้วย AI</h2>
                     <button
                         onClick={onClose}
-                        style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: '#f1f5f9',
-                            color: '#64748b'
-                        }}
+                        className={styles.closeButton}
                     >
                         ✕
                     </button>
                 </div>
 
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
-                    อัปโหลดรูปภาพใบเสร็จของคุณ ระบบจะใช้ <strong style={{ color: 'var(--primary-color)' }}>EasyOCR</strong> ในการดึงข้อมูลโดยอัตโนมัติ
+                <p className={styles.description}>
+                    อัปโหลดรูปภาพใบเสร็จของคุณ ระบบจะใช้ <strong>EasyOCR</strong> ในการดึงข้อมูลโดยอัตโนมัติ
                 </p>
 
                 {errorMsg && (
-                    <div style={{
-                        padding: '12px 16px',
-                        backgroundColor: '#fef2f2',
-                        color: '#dc2626',
-                        borderRadius: '12px',
-                        fontSize: '0.85rem',
-                        marginBottom: '20px',
-                        border: '1px solid #fee2e2'
-                    }}>
+                    <div className={styles.errorBox}>
                         ⚠️ {errorMsg}
                     </div>
                 )}
@@ -195,66 +159,37 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
+                    className={styles.uploadArea}
                     style={{
-                        width: '100%',
-                        height: '240px',
-                        border: '2px dashed',
                         borderColor: isDragging || (image === null && !errorMsg) ? 'var(--primary-color)' : errorMsg ? '#ef4444' : 'var(--border-color)',
-                        borderRadius: '16px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
                         backgroundColor: isDragging ? 'var(--sidebar-item-active)' : '#f8fafc',
                         cursor: image ? 'default' : 'pointer',
-                        overflow: 'hidden',
-                        position: 'relative',
-                        transition: 'all 0.2s ease'
                     }}
                 >
                     {image ? (
-                        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-                            <img src={image} alt="Receipt Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        <div className={styles.previewContainer}>
+                            <img src={image} alt="Receipt Preview" className={styles.previewImage} />
                             <button
                                 onClick={(e) => { e.stopPropagation(); setImage(null); setResults([]); }}
-                                style={{
-                                    position: 'absolute',
-                                    top: '12px',
-                                    right: '12px',
-                                    backgroundColor: 'rgba(0,0,0,0.6)',
-                                    color: 'white',
-                                    padding: '6px 12px',
-                                    borderRadius: '8px',
-                                    fontSize: '0.75rem',
-                                    backdropFilter: 'blur(4px)'
-                                }}
+                                className={styles.changeImageButton}
                             >
                                 เปลี่ยนรูป
                             </button>
                         </div>
                     ) : (
-                        <>
-                            <div style={{
-                                width: '48px',
-                                height: '48px',
-                                borderRadius: '12px',
-                                backgroundColor: 'var(--sidebar-item-active)',
-                                color: 'var(--primary-color)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                marginBottom: '16px'
-                            }}>
+                        <div className={styles.uploadPlaceholder}>
+                            <div className={styles.uploadIcon}>
                                 <UploadIcon />
                             </div>
-                            <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>คลิกเพื่ออัปโหลด หรือลากไฟล์มาวาง</span>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>PNG, JPG, WEBP (ไม่เกิน 10MB)</span>
-                        </>
+                            <span className={styles.uploadText}>คลิกเพื่ออัปโหลด หรือลากไฟล์มาวาง</span>
+                            <span className={styles.uploadSubtext}>PNG, JPG, WEBP (ไม่เกิน 10MB)</span>
+                        </div>
                     )}
                     <input
                         type="file"
                         ref={fileInputRef}
                         onChange={handleFileChange}
+                        className={styles.hiddenInput}
                         style={{ display: 'none' }}
                         accept="image/*"
                     />
@@ -264,26 +199,15 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
                 <button
                     onClick={runOCR}
                     disabled={!image || isProcessing}
+                    className={styles.actionButton}
                     style={{
-                        width: '100%',
-                        padding: '16px',
                         backgroundColor: image && !isProcessing ? 'var(--primary-color)' : '#94a3b8',
-                        color: 'white',
-                        borderRadius: '12px',
-                        fontWeight: '600',
-                        fontSize: '1rem',
-                        marginTop: '24px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '12px',
                         cursor: image && !isProcessing ? 'pointer' : 'not-allowed',
-                        transition: 'all 0.2s ease'
                     }}
                 >
                     {isProcessing ? (
                         <>
-                            <LoadingSpinner />
+                            <div className={styles.spinner}></div>
                             <span>กำลังประมวลผล...</span>
                         </>
                     ) : (
@@ -296,21 +220,13 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
 
                 {/* Results Section */}
                 {results.length > 0 && (
-                    <div style={{ marginTop: '32px' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '16px', color: 'var(--text-main)' }}>ผลลัพธ์ที่ได้</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div className={styles.resultsSection}>
+                        <h3 className={styles.resultsTitle}>ผลลัพธ์ที่ได้</h3>
+                        <div className={styles.resultsList}>
                             {results.map((item, idx) => (
-                                <div key={idx} style={{
-                                    padding: '12px 16px',
-                                    backgroundColor: '#f8fafc',
-                                    borderRadius: '12px',
-                                    border: '1px solid var(--border-color)',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center'
-                                }}>
-                                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{item.label}</span>
-                                    <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-main)' }}>{item.value}</span>
+                                <div key={idx} className={styles.resultItem}>
+                                    <span className={styles.resultLabel}>{item.label}</span>
+                                    <span className={styles.resultValue}>{item.value}</span>
                                 </div>
                             ))}
                         </div>
@@ -327,17 +243,7 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
                                     setStep(1); 
                                 }, 1500);
                             }}
-                            style={{
-                                width: '100%',
-                                padding: '14px',
-                                backgroundColor: 'white',
-                                color: 'var(--primary-color)',
-                                border: '1px solid var(--primary-color)',
-                                borderRadius: '12px',
-                                fontWeight: '600',
-                                marginTop: '24px',
-                                cursor: 'pointer'
-                            }}
+                            className={styles.saveButton}
                         >
                             บันทึกข้อมูลเข้าสู่ระบบ
                         </button>
@@ -354,23 +260,6 @@ const UploadIcon = () => (
 
 const MagicIcon = () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" /><path d="M5 3v4" /><path d="M19 17v4" /><path d="M3 5h4" /><path d="M17 19h4" /></svg>
-);
-
-const LoadingSpinner = () => (
-    <div style={{
-        width: '18px',
-        height: '18px',
-        border: '2px solid rgba(255,255,255,0.3)',
-        borderRadius: '50%',
-        borderTopColor: 'white',
-        animation: 'spin 0.8s linear infinite'
-    }}>
-        <style>{`
-            @keyframes spin {
-                to { transform: rotate(360deg); }
-            }
-        `}</style>
-    </div>
 );
 
 export default CreateReceiptSheet;

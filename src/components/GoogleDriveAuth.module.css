@@ -63,3 +63,16 @@
   background-color: #fee2e2;
   border-radius: 4px;
 }
+.syncButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 4px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.loginPrompt {
+  font-size: 13px;
+  color: #94a3b8;
+}
