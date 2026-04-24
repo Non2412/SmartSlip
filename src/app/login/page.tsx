@@ -42,6 +42,34 @@ export default function LoginPage() {
     }
   }
 
+  const handleNormalLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
+    try {
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      })
+
+      if (res?.error) {
+        setError("Email หรือ Password ไม่ถูกต้อง")
+      } else {
+        window.location.href = "/dashboard"
+      }
+    } catch (err) {
+      setError("เกิดข้อผิดพลาดในการเข้าสู่ระบบ")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleGuestLogin = () => {
+    setIsLoading(true)
+    window.location.href = "/dashboard"
+  }
+
   return (
     <div className={styles.loginWrapper}>
       <div className={styles.loginCard}>
