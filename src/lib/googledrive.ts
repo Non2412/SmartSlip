@@ -60,6 +60,10 @@ export async function getGoogleDriveClient(userId?: string, accessToken?: string
   }
 
   // Fallback to service account
+  console.log('🔑 Using Service Account auth for Google Drive');
+  if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
+    console.error('❌ Missing Service Account credentials in environment variables');
+  }
   const auth = new google.auth.JWT({
     email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
     key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
@@ -103,7 +107,7 @@ export async function findOrCreateFolder(folderName: string, parentId?: string, 
 
     return createResponse.data.id || undefined;
   } catch (error) {
-    console.error(`Error in findOrCreateFolder (${folderName}):`, error);
+    console.error(`❌ Error in findOrCreateFolder (${folderName}):`, error);
     throw error;
   }
 }

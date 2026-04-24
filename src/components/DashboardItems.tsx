@@ -74,7 +74,7 @@ export const FilterBar = () => (
     </div>
 );
 
-export const ReceiptTable = ({ loading }: { loading?: boolean }) => (
+export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, receipts?: any[] }) => (
     <div className={styles.tableContainer}>
         <table className={styles.receiptTable}>
             <thead>
@@ -88,10 +88,26 @@ export const ReceiptTable = ({ loading }: { loading?: boolean }) => (
                 </tr>
             </thead>
             <tbody>
-                {/* Empty state for now as seen in screenshot */}
+                {receipts.map((receipt) => (
+                    <tr key={receipt.id}>
+                        <td className={styles.storeCell}>
+                            <div className={styles.storeIcon}>
+                                {receipt.storeName?.charAt(0) || 'R'}
+                            </div>
+                            {receipt.storeName || 'ไม่ระบุ'}
+                        </td>
+                        <td>อาหารและเครื่องดื่ม</td>
+                        <td className={styles.amountCell}>฿ {receipt.totalAmount?.toLocaleString()}</td>
+                        <td>{receipt.extractedData?.method || 'เงินสด'}</td>
+                        <td>
+                            <span className={styles.statusSuccess}>สำเร็จ</span>
+                        </td>
+                        <td>{receipt.extractedData?.date || new Date(receipt.createdAt).toLocaleDateString('th-TH')}</td>
+                    </tr>
+                ))}
             </tbody>
         </table>
-        {!loading && (
+        {!loading && receipts.length === 0 && (
             <div className={styles.emptyState}>
                 ไม่พบรายการใบเสร็จในขณะนี้
             </div>
@@ -101,5 +117,42 @@ export const ReceiptTable = ({ loading }: { loading?: boolean }) => (
                 กำลังโหลด...
             </div>
         )}
+    </div>
+);
+
+export const ExpenseChart = () => (
+    <div className={styles.chartCard}>
+        <div className={styles.chartTitle}>แนวโน้มรายจ่าย</div>
+        <div className={styles.chartContainer}>
+            {['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'].map((day, i) => (
+                <div key={day} className={styles.barWrapper}>
+                    <div 
+                        className={`${styles.bar} ${i === 3 ? styles.barActive : ''}`} 
+                        style={{ height: `${[40, 70, 45, 90, 65, 30, 50][i]}%` }}
+                    />
+                    <span className={styles.barLabel}>{day}</span>
+                </div>
+            ))}
+        </div>
+    </div>
+);
+
+export const RecentUploads = () => (
+    <div className={styles.recentCard}>
+        <div className={styles.recentTitle}>การอัปโหลดล่าสุด</div>
+        <div className={styles.uploadList}>
+            {[1, 2, 3].map((i) => (
+                <div key={i} className={styles.uploadItem}>
+                    <div className={styles.uploadIconWrapper}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>ใบเสร็จ {i === 1 ? '7-Eleven' : i === 2 ? 'Starbucks' : 'Grab'}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>24 เม.ย. 2026 • 12:30</div>
+                    </div>
+                </div>
+            ))}
+        </div>
+        <button className={styles.viewAllButton}>ดูทั้งหมด</button>
     </div>
 );

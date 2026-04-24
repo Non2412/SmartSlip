@@ -24,7 +24,8 @@ export async function POST(request: NextRequest) {
     const userEmail = session.user.email;
     const userName = session.user.name;
     const isLineUser = (session as any)?.lineUserName ? true : false;
-
+    
+    console.log('🔧 Auto-setup Google Drive for user:', userId);
     console.log('🔧 Auto-setup Google Drive for user:', userId, userEmail, 'isLineUser:', isLineUser);
 
     // Get or create folder structure
@@ -38,6 +39,15 @@ export async function POST(request: NextRequest) {
       user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
     }
 
+    if (!user && userEmail) {
+      user = await db.collection('users').findOne({ email: userEmail.toLowerCase() });
+      if (user) {
+        console.log('💡 User found by email instead of ID:', user._id);
+      }
+    }
+    
+    console.log('🔍 User found in DB:', !!user, 'Current folderId:', user?.googleDriveFolderId);
+    
     if (user?.googleDriveFolderId) {
       console.log('✅ Google Drive already setup for user:', userId);
       return NextResponse.json({
@@ -93,9 +103,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Store folder IDs in database
-    const updateQuery = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { _id: userId };
+    // Use the actual user ID from the database if we found it via email fallback
+    const targetUserId = user?._id || userId;
+    const updateQuery = ObjectId.isValid(targetUserId as string) 
+      ? { _id: new ObjectId(targetUserId as string) } 
+      : { _id: targetUserId };
     
-    await db.collection('users').updateOne(
+    const updateResult = await db.collection('users').updateOne(
       updateQuery as any,
       {
         $set: {
@@ -106,10 +120,16 @@ export async function POST(request: NextRequest) {
           googleDriveSetupMethod: isLineUser ? 'service-account' : 'user-auth',
         },
       },
-      { upsert: true }
+      { upsert: false } // Disable upsert to avoid duplicate key errors
     );
 
-    console.log('💾 Saved folder IDs to database');
+    if (updateResult.matchedCount === 0) {
+      console.warn(`⚠️ User ${targetUserId} not found in database, could not save folder IDs.`);
+    } else {
+      console.log('💾 Saved folder IDs to database');
+    }
+
+
 
     return NextResponse.json({
       success: true,
@@ -119,8 +139,13 @@ export async function POST(request: NextRequest) {
       method: isLineUser ? 'service-account' : 'user-auth'
     });
 
-  } catch (error: unknown) {
-    console.error('❌ Auto-setup error:', error);
+  } catch (error: any) {
+    console.error('❌ Auto-setup error details:', {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
+      error: error
+    });
     const errorMessage = error instanceof Error ? error.message : 'Failed to setup Google Drive';
     return NextResponse.json(
       { error: errorMessage },

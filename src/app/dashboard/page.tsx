@@ -4,16 +4,18 @@ import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import { GoogleDriveAuth } from '@/components/GoogleDriveAuth';
-import { StatCard, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
+import { StatCard, FilterBar, ReceiptTable, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { useReceipts } from '@/hooks/useReceipts';
 
 export default function DashboardPage() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
+  const { receipts, fetchReceipts, loading } = useReceipts();
 
   // Setup Google Drive folder on first login (for both Google and LINE users)
   useEffect(() => {
@@ -40,8 +42,11 @@ export default function DashboardPage() {
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          console.error('❌ Failed to setup:', error);
+          const errorData = await response.json().catch(() => null);
+          console.error(`❌ Failed to setup (Status ${response.status}):`, errorData);
+          if (errorData?.error) {
+             console.error('Error detail:', errorData.error);
+          }
           return;
         }
 
@@ -154,9 +159,20 @@ export default function DashboardPage() {
             />
           </div>
 
+          {/* Charts Row */}
+          <div style={{
+            display: 'flex',
+            gap: '24px',
+            marginBottom: '32px',
+            flexWrap: 'wrap'
+          }}>
+            <ExpenseChart />
+            <RecentUploads />
+          </div>
+
           <FilterBar />
           
-          <ReceiptTable loading={loading} />
+          <ReceiptTable loading={loading} receipts={receipts} />
         </div>
       </main>
 
