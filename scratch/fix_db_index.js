@@ -1,5 +1,11 @@
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { MongoClient } = require('mongodb');
-const uri = "mongodb+srv://suppachai454_db_user:AKdid33i3GeVfZMB@cluster0.hydec5g.mongodb.net/smartslip_api?retryWrites=true&w=majority&appName=Cluster0";
+const uri = process.env.MONGODB_URI;
+
+if (!uri) {
+  console.error('❌ MONGODB_URI environment variable is not defined.');
+  process.exit(1);
+}
 
 async function run() {
   const client = new MongoClient(uri);
@@ -8,11 +14,11 @@ async function run() {
     await client.connect();
     const db = client.db('smartslip_api');
     const users = db.collection('users');
-    
+
     console.log('Checking indexes for collection: users');
     const indexes = await users.listIndexes().toArray();
     console.log('Current indexes:', JSON.stringify(indexes, null, 2));
-    
+
     const lineUserIdIndex = indexes.find(idx => idx.name === 'lineUserId_1');
     if (lineUserIdIndex) {
       console.log('Dropping lineUserId_1 index...');
