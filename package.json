@@ -12,6 +12,7 @@
     "@auth/mongodb-adapter": "^3.11.1",
     "@google/generative-ai": "^0.24.1",
     "@line/bot-sdk": "^11.0.0",
+    "bcryptjs": "^3.0.3",
     "googleapis": "^171.4.0",
     "mongodb": "^6.21.0",
     "next": "16.1.6",
@@ -20,6 +21,7 @@
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

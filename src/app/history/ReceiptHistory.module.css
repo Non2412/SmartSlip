@@ -191,6 +191,68 @@
   color: #94a3b8;
   margin-top: 4px;
 }
+.container {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 40px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 14px;
+  top: 10px;
+  color: #94a3b8;
+}
+
+.errorBox {
+  padding: 16px;
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+  border-radius: 12px;
+  color: #dc2626;
+  margin-bottom: 24px;
+  font-size: 0.9rem;
+}
+
+.loadingRow {
+  opacity: 0.5;
+}
+
+.loadingCell {
+  text-align: center;
+  padding: 32px;
+}
+
+.loadingPulse {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.emptyCell {
+  text-align: center;
+  padding: 60px;
+  color: #94a3b8;
+}
+
+.storeName {
+  font-weight: 600;
+}
+
+.methodCell {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.statusText {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 @media (max-width: 1200px) {
   .filterBar {
     flex-wrap: wrap;

@@ -64,10 +64,10 @@
 
 .searchInput {
   width: 100%;
-  padding: 8px 12px 8px 38px;
+  padding: 10px 16px 10px 40px;
   border-radius: 12px;
   border: 1px solid var(--border-color);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   outline: none;
   transition: all 0.2s;
   background-color: #f8fafc;
@@ -93,8 +93,8 @@
 }
 
 .iconButton {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -103,8 +103,7 @@
   background-color: white;
   border: 1px solid var(--border-color);
   transition: all 0.2s;
-  position: relative;
-  box-shadow: var(--shadow-sm);
+  cursor: pointer;
 }
 
 .iconButton:hover {

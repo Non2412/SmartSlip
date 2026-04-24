@@ -217,6 +217,11 @@
   background-color: #fee2e2;
   color: #ef4444;
 }
+
+.driveAuthWrapper {
+  padding: 8px 12px;
+}
+
 .stepsContainer {
   padding: 8px 12px 16px;
   display: flex;
