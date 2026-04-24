@@ -2,6 +2,7 @@
 
 import React from 'react';
 import styles from './DashboardItems.module.css';
+import { TableRowSkeleton } from './Skeleton';
 
 interface StatCardProps {
     title: string;
@@ -88,23 +89,33 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                 </tr>
             </thead>
             <tbody>
-                {receipts.map((receipt) => (
-                    <tr key={receipt.id}>
-                        <td className={styles.storeCell}>
-                            <div className={styles.storeIcon}>
-                                {receipt.storeName?.charAt(0) || 'R'}
-                            </div>
-                            {receipt.storeName || 'ไม่ระบุ'}
-                        </td>
-                        <td>อาหารและเครื่องดื่ม</td>
-                        <td className={styles.amountCell}>฿ {receipt.totalAmount?.toLocaleString()}</td>
-                        <td>{receipt.extractedData?.method || 'เงินสด'}</td>
-                        <td>
-                            <span className={styles.statusSuccess}>สำเร็จ</span>
-                        </td>
-                        <td>{receipt.extractedData?.date || new Date(receipt.createdAt).toLocaleDateString('th-TH')}</td>
-                    </tr>
-                ))}
+                {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                        <tr key={i}>
+                            <td colSpan={6} style={{ padding: '12px 0' }}>
+                                <TableRowSkeleton />
+                            </td>
+                        </tr>
+                    ))
+                ) : (
+                    receipts.map((receipt) => (
+                        <tr key={receipt.id}>
+                            <td className={styles.storeCell}>
+                                <div className={styles.storeIcon}>
+                                    {receipt.storeName?.charAt(0) || 'R'}
+                                </div>
+                                {receipt.storeName || 'ไม่ระบุ'}
+                            </td>
+                            <td>อาหารและเครื่องดื่ม</td>
+                            <td className={styles.amountCell}>฿ {receipt.totalAmount?.toLocaleString()}</td>
+                            <td>{receipt.extractedData?.method || 'เงินสด'}</td>
+                            <td>
+                                <span className={styles.statusSuccess}>สำเร็จ</span>
+                            </td>
+                            <td>{receipt.extractedData?.date || new Date(receipt.createdAt).toLocaleDateString('th-TH')}</td>
+                        </tr>
+                    ))
+                )}
             </tbody>
         </table>
         {!loading && receipts.length === 0 && (

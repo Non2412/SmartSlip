@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
+import { StatCardSkeleton, ChartSkeleton, RecentUploadsSkeleton } from '@/components/Skeleton';
 import styles from './Dashboard.module.css';
 
 export default function DashboardPage() {
@@ -112,48 +113,69 @@ export default function DashboardPage() {
 
           {/* Summary Stats Row */}
           <div className={styles.summaryStatsRow}>
-            <StatCard
-              title="ยอดใช้จ่ายรวม"
-              value={`฿ ${totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`}
-              trend="+12.5%"
-              icon={
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="5" width="20" height="14" rx="2" />
-                  <line x1="2" y1="10" x2="22" y2="10" />
-                </svg>
-              }
-            />
-            <StatCard
-              title="รอตรวจสอบ"
-              value={`${pendingCount} รายการ`}
-              status="รออนุมัติ"
-              iconBg="#fff7ed"
-              icon={
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
-                </svg>
-              }
-            />
-            <StatCard
-              title="อนุมัติแล้ว"
-              value={`${approvedCount} รายการ`}
-              trend="+5%"
-              icon={
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22 4 12 14.01 9 11.01" />
-                </svg>
-              }
-            />
+            {loading ? (
+              <>
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+              </>
+            ) : (
+              <>
+                <StatCard
+                  title="ยอดใช้จ่ายรวม"
+                  value={`฿ ${totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`}
+                  trend="+12.5%"
+                  icon={
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="5" width="20" height="14" rx="2" />
+                      <line x1="2" y1="10" x2="22" y2="10" />
+                    </svg>
+                  }
+                />
+                <StatCard
+                  title="รอตรวจสอบ"
+                  value={`${pendingCount} รายการ`}
+                  status="รออนุมัติ"
+                  iconBg="#fff7ed"
+                  icon={
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                  }
+                />
+                <StatCard
+                  title="อนุมัติแล้ว"
+                  value={`${approvedCount} รายการ`}
+                  trend="+5%"
+                  icon={
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                  }
+                />
+              </>
+            )}
           </div>
 
           {/* Charts Row */}
           <div className={styles.chartsRow}>
-            <div className={styles.chartColSpan2}>
-              <ExpenseChart />
-            </div>
-            <RecentUploads />
+            {loading ? (
+              <>
+                <div className={styles.chartColSpan2}>
+                  <ChartSkeleton />
+                </div>
+                <RecentUploadsSkeleton />
+              </>
+            ) : (
+              <>
+                <div className={styles.chartColSpan2}>
+                  <ExpenseChart />
+                </div>
+                <RecentUploads />
+              </>
+            )}
           </div>
 
           <FilterBar />

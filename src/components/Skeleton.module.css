@@ -1,0 +1,43 @@
+.skeleton {
+  background: #f1f5f9;
+  background-image: linear-gradient(
+    90deg,
+    #f1f5f9 0px,
+    #f8fafc 40px,
+    #f1f5f9 80px
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 8px;
+  width: 100%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.statCardSkeleton {
+  height: 140px;
+  border-radius: 12px;
+}
+
+.chartSkeleton {
+  height: 350px;
+  border-radius: 12px;
+}
+
+.recentSkeleton {
+  height: 350px;
+  border-radius: 12px;
+}
+
+.rowSkeleton {
+  height: 60px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+}
