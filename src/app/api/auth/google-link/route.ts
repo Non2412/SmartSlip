@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import clientPromise from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 /**
  * Endpoint to link Google account to existing user
@@ -32,8 +33,12 @@ export async function POST(request: NextRequest) {
     const client = await clientPromise;
     const db = client.db();
     
+    // Determine the query ID (Convert to ObjectId if it's a valid hex string)
+    const userId = session.user.id;
+    const queryId = ObjectId.isValid(userId) ? new ObjectId(userId) : userId;
+    
     const result = await db.collection('users').updateOne(
-      { _id: session.user.id },
+      { _id: queryId as any },
       {
         $set: {
           googleAccessToken,
