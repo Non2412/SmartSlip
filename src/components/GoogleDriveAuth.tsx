@@ -80,7 +80,7 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
             <svg className={styles.checkIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            {showText && <span className={styles.authenticatedText}>✅ Google Drive Ready (Service Account)</span>}
+            {showText && <span className={styles.authenticatedText}>เชื่อมต่อแล้ว</span>}
             <button
               onClick={() => runSetup(session.user!.id!, session.user?.email)}
               title="ซิงค์สิทธิ์โฟลเดอร์ Google Drive อีกครั้ง"
