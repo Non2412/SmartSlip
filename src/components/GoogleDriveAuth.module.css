@@ -42,9 +42,9 @@
 .authenticatedContainer {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   color: #22c55e;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
 }
 
