@@ -171,9 +171,9 @@ export default function DashboardPage() {
             ) : (
               <>
                 <div className={styles.chartColSpan2}>
-                  <ExpenseChart />
+                  <ExpenseChart receipts={receipts} />
                 </div>
-                <RecentUploads />
+                <RecentUploads receipts={receipts} />
               </>
             )}
           </div>

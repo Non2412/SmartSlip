@@ -293,3 +293,23 @@
     color: #94a3b8;
     font-size: 0.95rem;
 }
+
+.statusSuccess {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #10b981;
+    background-color: #ecfdf5;
+    padding: 4px 10px;
+    border-radius: 99px;
+    display: inline-block;
+}
+
+.statusWarning {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #f59e0b;
+    background-color: #fef3c7;
+    padding: 4px 10px;
+    border-radius: 99px;
+    display: inline-block;
+}
