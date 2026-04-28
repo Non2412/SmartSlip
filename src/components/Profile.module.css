@@ -103,3 +103,9 @@
   max-width: 60%;
   word-break: break-word;
 }
+
+@media (max-width: 400px) {
+  .card {
+    min-width: 100%;
+  }
+}

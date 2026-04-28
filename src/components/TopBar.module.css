@@ -140,6 +140,10 @@
     padding-top: 8px;
     border-top: 1px solid #f1f5f9;
   }
+  
+  .menuButton {
+    display: flex;
+  }
 }
 
 @media (max-width: 1024px) {
@@ -149,10 +153,6 @@
 }
 
 @media (max-width: 768px) {
-  .menuButton {
-    display: flex;
-  }
-  
   .primaryButton span {
     display: none;
   }
@@ -163,4 +163,3 @@
     justify-content: center;
   }
 }
-

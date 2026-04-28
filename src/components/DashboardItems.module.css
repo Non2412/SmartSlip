@@ -263,12 +263,14 @@
     border-radius: 16px;
     border: 1px solid var(--border-color);
     overflow: hidden;
+    overflow-x: auto;
 }
 
 .receiptTable {
     width: 100%;
     border-collapse: collapse;
     text-align: left;
+    min-width: 800px;
 }
 
 .receiptTable th {
@@ -312,4 +314,27 @@
     padding: 4px 10px;
     border-radius: 99px;
     display: inline-block;
+}
+
+@media (max-width: 768px) {
+    .filterBar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+    
+    .searchWrapper {
+        min-width: 100%;
+    }
+    
+    .filterGroup {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .filterChips {
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
 }
