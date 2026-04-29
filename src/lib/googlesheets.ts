@@ -49,10 +49,45 @@ export async function createUserSpreadsheet(
   }
 
   // Step 1: Create spreadsheet file via Drive API
-  // When using SA token with a user-owned folder, SA may not have write access.
-  // Try with parent first; if it fails due to permissions, retry without parent.
+  // The folder is owned by the Service Account, so:
+  // - SA token: try with parent folder, fallback to no parent on permission error
+  // - User token: create in user's root first (SA-owned folder rejects user writes),
+  //   then try to move via SA. If move fails, sheet stays in root (still usable).
   let file;
-  if (folderId && !userAccessToken) {
+  if (folderId && userAccessToken) {
+    // User token path: create in root first (avoids SA-folder permission error)
+    file = await drive.files.create({
+      requestBody: {
+        name: title,
+        mimeType: 'application/vnd.google-apps.spreadsheet',
+      },
+      fields: 'id',
+    });
+    const spreadsheetIdTemp = file.data.id!;
+    console.log('✅ Spreadsheet created in user root:', spreadsheetIdTemp);
+    // Try to move into the SA-owned folder using the Service Account
+    try {
+      const saAuth = new google.auth.JWT({
+        email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        scopes: ['https://www.googleapis.com/auth/drive'],
+      });
+      const saDrive = google.drive({ version: 'v3', auth: saAuth });
+      // SA needs to move the file: add parent then remove 'root'
+      const currentParents = await drive.files.get({ fileId: spreadsheetIdTemp, fields: 'parents' });
+      const prevParents = (currentParents.data.parents || []).join(',');
+      await saDrive.files.update({
+        fileId: spreadsheetIdTemp,
+        addParents: folderId,
+        removeParents: prevParents || undefined,
+        requestBody: {},
+        fields: 'id, parents',
+      });
+      console.log('✅ Spreadsheet moved into SA folder:', folderId);
+    } catch (moveErr: any) {
+      console.warn('⚠️ Could not move spreadsheet into folder (sheet stays in root):', moveErr?.message);
+    }
+  } else if (folderId && !userAccessToken) {
     try {
       file = await drive.files.create({
         requestBody: {
@@ -78,7 +113,6 @@ export async function createUserSpreadsheet(
       requestBody: {
         name: title,
         mimeType: 'application/vnd.google-apps.spreadsheet',
-        ...(folderId ? { parents: [folderId] } : {}),
       },
       fields: 'id',
     });

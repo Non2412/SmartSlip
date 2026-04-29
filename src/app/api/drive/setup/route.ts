@@ -4,6 +4,7 @@ import { createFolderStructureWithServiceAccount, shareFolderWithUser, shareWith
 import { createUserSpreadsheet } from '@/lib/googlesheets';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { google } from 'googleapis';
 
 /**
  * POST /api/drive/setup
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id;
     const userName = session.user.name || undefined;
-    const googleAccessToken = (session as any).googleAccessToken as string | undefined;
+    let googleAccessToken = (session as any).googleAccessToken as string | undefined;
 
     // Parse request body - email optional (LINE users may not have real email)
     let userEmail: string | null = session.user.email ?? null;
@@ -44,6 +45,38 @@ export async function POST(request: NextRequest) {
     // Check if already set up
     const client = await clientPromise;
     const db = client.db();
+
+    // If no Google token in session (LINE login), check DB accounts for linked Google token
+    if (!googleAccessToken) {
+      const googleAccount = await db.collection('accounts').findOne({
+        $or: [
+          { userId: userId, provider: 'google' },
+          { userId: ObjectId.isValid(userId) ? new ObjectId(userId) : userId, provider: 'google' },
+        ],
+      });
+      if (googleAccount?.refresh_token || googleAccount?.access_token) {
+        console.log('🔑 Found stored Google account in DB for LINE user - refreshing token...');
+        try {
+          const oauth2Client = new google.auth.OAuth2(
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_CLIENT_SECRET,
+          );
+          oauth2Client.setCredentials({
+            access_token: googleAccount.access_token as string,
+            refresh_token: googleAccount.refresh_token as string,
+          });
+          const { credentials } = await oauth2Client.refreshAccessToken();
+          googleAccessToken = credentials.access_token!;
+          const accountFilter = googleAccount._id ? { _id: googleAccount._id } : { userId: userId, provider: 'google' };
+          await db.collection('accounts').updateOne(accountFilter, { $set: { access_token: credentials.access_token, expires_at: credentials.expiry_date } });
+          console.log('🔑 Google token refreshed successfully');
+        } catch (refreshErr: any) {
+          console.error('❌ Token refresh failed:', refreshErr?.message);
+        }
+      } else {
+        console.log('ℹ️ No linked Google account found in DB for user:', userId);
+      }
+    }
     
     // Try to find by userId as string, or as ObjectId if valid
     let existingUser = await db.collection('users').findOne({ _id: userId as any });
