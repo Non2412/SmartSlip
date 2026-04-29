@@ -110,18 +110,41 @@ export async function POST(req: NextRequest) {
           if (!jsonMatch) throw new Error('AI could not parse structured data');
           const data = JSON.parse(jsonMatch[0]);
 
-          // 5. Upload to Google Drive
+          // 5. Upload to Google Drive (ใช้โฟลเดอร์จาก DB เดียวกับที่ผู้ใช้เห็นใน Drive)
           let driveFileId = null;
           try {
             const fileName = `line-receipt-${data.store || 'unknown'}-${Date.now()}.jpg`.replace(/[^a-zA-Z0-9.-]/g, '_');
-            
-            // Use internalUserId to access user's specific drive
-            const targetFolderId = await getUserMonthFolder(internalUserId, undefined);
+
+            // หาโฟลเดอร์ของผู้ใช้จาก DB (สร้างโดย /api/drive/setup)
+            const { ObjectId } = await import('mongodb');
+            let userDoc = await db.collection('users').findOne({ _id: internalUserId as any });
+            if (!userDoc && ObjectId.isValid(internalUserId)) {
+              userDoc = await db.collection('users').findOne({ _id: new ObjectId(internalUserId) });
+            }
+
+            let targetFolderId: string | undefined;
+            if (userDoc?.googleDriveFolderId) {
+              // สร้าง/หาโฟลเดอร์เดือนปัจจุบันใน user folder
+              const { findOrCreateFolder } = await import('@/lib/googledrive');
+              const now = new Date();
+              const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+              const yearFolderId = await findOrCreateFolder(now.getFullYear().toString(), userDoc.googleDriveFolderId);
+              targetFolderId = yearFolderId
+                ? await findOrCreateFolder(
+                    `${String(now.getMonth() + 1).padStart(2, '0')}-${monthNames[now.getMonth()]} ${now.getFullYear()}`,
+                    yearFolderId
+                  ) ?? undefined
+                : userDoc.googleDriveFolderId;
+            } else {
+              // fallback: ใช้ getUserMonthFolder ถ้ายังไม่เคย setup
+              targetFolderId = await getUserMonthFolder(internalUserId, undefined);
+            }
 
             const uploadResult = await uploadFile(imageBuffer, fileName, 'image/jpeg', targetFolderId, internalUserId);
             driveFileId = uploadResult.id;
+            console.log('✅ LINE receipt uploaded to Drive:', driveFileId, 'folder:', targetFolderId);
           } catch (driveErr) {
-            console.error('Drive upload failed:', driveErr);
+            console.error('❌ Drive upload failed:', driveErr);
           }
 
           // 6. Save to MongoDB

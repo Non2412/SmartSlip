@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { createFolderStructureWithServiceAccount, shareFolderWithUser, shareWithAnyoneWithLink } from '@/lib/googledrive';
+import { createUserSpreadsheet } from '@/lib/googlesheets';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id;
     const userName = session.user.name || undefined;
+    const googleAccessToken = (session as any).googleAccessToken as string | undefined;
 
     // Parse request body - email optional (LINE users may not have real email)
     let userEmail: string | null = session.user.email ?? null;
@@ -80,12 +82,40 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // If user doesn't have a Sheet yet, create one now
+      // Only attempt if: has Google token (LINE users without token will always fail SA quota)
+      // If googleAccessToken is present, always try regardless of googleSheetSkipped (user may have linked Google later)
+      let googleSheetId: string | null = existingUser.googleSheetId || null;
+      const shouldTrySheet = !googleSheetId && (googleAccessToken ? true : !existingUser.googleSheetSkipped);
+      if (shouldTrySheet) {
+        if (!googleAccessToken) {
+          // No Google token (LINE user) - skip to prevent SA quota errors on every load
+          console.log('ℹ️ No Google token for sheet creation - skipping for LINE user');
+          const updateQuery = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { _id: userId };
+          await db.collection('users').updateOne(updateQuery as any, { $set: { googleSheetSkipped: true } });
+        } else {
+          try {
+            const sheet = await createUserSpreadsheet(userId, userName, folderId, googleAccessToken);
+            googleSheetId = sheet.spreadsheetId;
+            console.log('✅ Google Sheet created for existing user:', googleSheetId);
+            const updateQuery = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { _id: userId };
+            await db.collection('users').updateOne(updateQuery as any, { $set: { googleSheetId, googleSheetSkipped: false } });
+          } catch (sheetErr: any) {
+            console.error('❌ SHEET CREATION ERROR:', sheetErr?.message || sheetErr);
+            // Mark as skipped to prevent infinite retries
+            const updateQuery = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { _id: userId };
+            await db.collection('users').updateOne(updateQuery as any, { $set: { googleSheetSkipped: true } });
+          }
+        }
+      }
+
       return NextResponse.json({
         success: true,
         data: {
           message: 'Google Drive folder ตั้งค่าแล้วสำหรับผู้ใช้นี้',
           userFolderId: folderId,
           monthFolderId: existingUser.googleDriveMonthFolderId,
+          googleSheetId,
           shareSuccess,
           shareError,
         },
@@ -125,6 +155,20 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ ตั้งค่า Google Drive สำเร็จ:', { monthFolderId, userFolderId });
 
+    // Create Google Sheet only if user has a Google token (avoids SA quota issues)
+    let googleSheetId: string | undefined;
+    if (googleAccessToken) {
+      try {
+        const sheet = await createUserSpreadsheet(userId, userName, userFolderId, googleAccessToken);
+        googleSheetId = sheet.spreadsheetId;
+        console.log('✅ Google Sheet created:', googleSheetId);
+      } catch (sheetErr: any) {
+        console.warn('⚠️ Could not create spreadsheet (non-critical):', sheetErr?.message);
+      }
+    } else {
+      console.log('ℹ️ No Google token - skipping sheet creation for LINE user');
+    }
+
     // Store folder IDs in database for this user
     const updateQuery = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { _id: userId };
     
@@ -136,12 +180,13 @@ export async function POST(request: NextRequest) {
           googleDriveMonthFolderId: monthFolderId,
           googleDriveSetupCompleted: true,
           googleDriveSetupDate: new Date(),
+          ...(googleSheetId ? { googleSheetId } : {}),
         },
       },
       { upsert: true }
     );
 
-    console.log('💾 บันทึก ID โฟลเดอร์ลงฐานข้อมูล:', { userFolderId, monthFolderId });
+    console.log('💾 บันทึก ID โฟลเดอร์ลงฐานข้อมูล:', { userFolderId, monthFolderId, googleSheetId });
 
     return NextResponse.json({
       success: true,
@@ -149,6 +194,7 @@ export async function POST(request: NextRequest) {
         message: 'สร้างและแชร์โครงสร้างโฟลเดอร์ Google Drive สำเร็จ',
         userFolderId,
         monthFolderId,
+        googleSheetId: googleSheetId || null,
       },
     }, { status: 200 });
   } catch (error: unknown) {

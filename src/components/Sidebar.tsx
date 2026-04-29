@@ -51,7 +51,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
         <ul className={styles.navList}>
           <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="รายการใบเสร็จ" icon={<ListIcon />} />
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} onClick={onAddReceipt} />
-          <SidebarItem href="#" label="Google Sheets" icon={<SheetsIcon />} isExternal />
+          <SidebarItem href={`/api/drive/sheets/redirect/${userId}`} label="Google Sheets" icon={<SheetsIcon />} isExternal />
           <SidebarItem href={`/api/drive/redirect/${userId}`} label="Google Drive" icon={<DriveIcon />} isExternal />
         </ul>
 

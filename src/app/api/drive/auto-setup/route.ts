@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { createFolderStructureWithServiceAccount, shareWithAnyoneWithLink } from '@/lib/googledrive';
+import { createUserSpreadsheet } from '@/lib/googlesheets';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session?.user?.id || !session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
@@ -21,8 +22,9 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    const userEmail = session.user.email;
+    const userEmail = session.user.email || null;  // LINE users may not have email
     const userName = session.user.name;
+    const googleAccessToken = (session as any).googleAccessToken as string | undefined;
     const isLineUser = (session as any)?.lineUserName ? true : false;
     
     console.log('🔧 Auto-setup Google Drive for user:', userId);
@@ -50,10 +52,40 @@ export async function POST(request: NextRequest) {
     
     if (user?.googleDriveFolderId) {
       console.log('✅ Google Drive already setup for user:', userId);
+
+      // If user doesn't have a Sheet yet, try to create one now
+      // Only attempt if: user has a Google token (LINE users without token will always fail SA quota)
+      // If googleAccessToken is present, always try regardless of googleSheetSkipped (user may have linked Google later)
+      let googleSheetId: string | null = user.googleSheetId || null;
+      const shouldTrySheet = !googleSheetId && (googleAccessToken ? true : !user.googleSheetSkipped);
+      if (shouldTrySheet) {
+        if (!googleAccessToken) {
+          // No Google token available (LINE user) - skip to avoid SA quota errors
+          console.log('ℹ️ No Google token for sheet creation (LINE user) - skipping');
+          const updateQuery = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { _id: userId };
+          await db.collection('users').updateOne(updateQuery as any, { $set: { googleSheetSkipped: true } });
+        } else {
+          try {
+            console.log('📊 Creating Sheet with user Google token...');
+            const sheet = await createUserSpreadsheet(userId, userName ?? undefined, user.googleDriveFolderId, googleAccessToken);
+            googleSheetId = sheet.spreadsheetId;
+            console.log('✅ Google Sheet created for existing user:', googleSheetId);
+            const updateQuery = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { _id: userId };
+            await db.collection('users').updateOne(updateQuery as any, { $set: { googleSheetId, googleSheetSkipped: false } });
+          } catch (sheetErr: any) {
+            console.error('❌ SHEET CREATION ERROR:', sheetErr?.message || sheetErr);
+            // Only set skipped if no Google token (SA failure) - if user token failed, retry next time
+            const updateQuery = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { _id: userId };
+            await db.collection('users').updateOne(updateQuery as any, { $set: { googleSheetSkipped: true } });
+          }
+        }
+      }
+
       return NextResponse.json({
         success: true,
         message: 'Google Drive already setup',
-        folderId: user.googleDriveFolderId
+        folderId: user.googleDriveFolderId,
+        googleSheetId,
       });
     }
 
@@ -91,6 +123,20 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ Folder structure created:', { monthFolderId, userFolderId });
 
+    // Create Google Sheet only if user has a Google token (avoids SA quota issues for LINE users)
+    let googleSheetId: string | undefined;
+    if (googleAccessToken) {
+      try {
+        const sheet = await createUserSpreadsheet(userId, userName ?? undefined, userFolderId, googleAccessToken);
+        googleSheetId = sheet.spreadsheetId;
+        console.log('✅ Google Sheet created:', googleSheetId);
+      } catch (sheetErr: any) {
+        console.warn('⚠️ Could not create spreadsheet (non-critical):', sheetErr?.message);
+      }
+    } else {
+      console.log('ℹ️ No Google token - skipping sheet creation for LINE user');
+    }
+
     // For LINE users, ensure folder is shared with "Anyone with link"
     if (isLineUser) {
       console.log('👤 Setting up LINE user folder with "Anyone with link"...');
@@ -118,6 +164,7 @@ export async function POST(request: NextRequest) {
           googleDriveSetupCompleted: true,
           googleDriveSetupDate: new Date(),
           googleDriveSetupMethod: isLineUser ? 'service-account' : 'user-auth',
+          ...(googleSheetId ? { googleSheetId } : {}),
         },
       },
       { upsert: false } // Disable upsert to avoid duplicate key errors
@@ -136,6 +183,7 @@ export async function POST(request: NextRequest) {
       message: `Google Drive auto-setup complete (${isLineUser ? 'Service Account' : 'User Auth'})`,
       folderId: userFolderId,
       monthFolderId: monthFolderId,
+      googleSheetId: googleSheetId || null,
       method: isLineUser ? 'service-account' : 'user-auth'
     });
 
