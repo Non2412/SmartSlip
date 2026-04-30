@@ -136,7 +136,7 @@ export async function createUserSpreadsheet(
     console.warn('⚠️ Could not add headers (non-critical):', headerErr?.message);
   }
 
-  // Step 3: Share with "Anyone with link" (reader)
+  // Step 3: Share with "Anyone with link" (reader) + share SA as writer so it can append rows
   try {
     await drive.permissions.create({
       fileId: spreadsheetId,
@@ -145,6 +145,23 @@ export async function createUserSpreadsheet(
     console.log('✅ Spreadsheet shared with Anyone with link');
   } catch (shareErr: any) {
     console.warn('⚠️ Could not share spreadsheet (non-critical):', shareErr?.message);
+  }
+
+  // Share with Service Account as writer (so SA can append receipt rows from LINE webhook)
+  if (userAccessToken && process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
+    try {
+      await drive.permissions.create({
+        fileId: spreadsheetId,
+        requestBody: {
+          role: 'writer',
+          type: 'user',
+          emailAddress: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        },
+      });
+      console.log('✅ Spreadsheet shared with Service Account as writer');
+    } catch (saShareErr: any) {
+      console.warn('⚠️ Could not share spreadsheet with SA (non-critical):', saShareErr?.message);
+    }
   }
 
   return {
@@ -173,7 +190,7 @@ export async function appendReceiptToUserSheet(
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: 'Receipts!A:H',
+    range: 'Sheet1!A:H',
     valueInputOption: 'USER_ENTERED',
     requestBody: {
       values: [

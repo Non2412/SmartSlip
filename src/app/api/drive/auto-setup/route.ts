@@ -106,6 +106,31 @@ export async function POST(request: NextRequest) {
             console.log('✅ Google Sheet created for existing user:', googleSheetId);
             const updateQuery = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { _id: userId };
             await db.collection('users').updateOne(updateQuery as any, { $set: { googleSheetId, googleSheetSkipped: false } });
+            // Sync googleSheetId to backend User document via API
+            try {
+              const lineAccount = await db.collection('accounts').findOne({
+                $or: [
+                  { userId: userId, provider: 'line' },
+                  { userId: ObjectId.isValid(userId) ? new ObjectId(userId) : userId, provider: 'line' },
+                ],
+              });
+              if (lineAccount?.providerAccountId && process.env.BACKEND_API_URL && process.env.ADMIN_SECRET_KEY) {
+                await fetch(`${process.env.BACKEND_API_URL}/api/user/update-sheet`, {
+                  method: 'PATCH',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'x-admin-key': process.env.ADMIN_SECRET_KEY,
+                  },
+                  body: JSON.stringify({
+                    lineUserId: lineAccount.providerAccountId,
+                    googleSheetId,
+                  }),
+                });
+                console.log('✅ Synced googleSheetId to backend via API');
+              }
+            } catch (syncErr: any) {
+              console.warn('⚠️ Could not sync googleSheetId to backend:', syncErr?.message);
+            }
           } catch (sheetErr: any) {
             console.error('❌ SHEET CREATION ERROR:', sheetErr?.message || sheetErr);
             // Only set skipped if no Google token (SA failure) - if user token failed, retry next time
