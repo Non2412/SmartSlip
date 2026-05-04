@@ -26,6 +26,8 @@ export async function POST(request: NextRequest) {
     const userEmail = session.user.email || null;  // LINE users may not have email
     const userName = session.user.name;
     let googleAccessToken = (session as any).googleAccessToken as string | undefined;
+    let googleRefreshToken: string | undefined;
+    let googleTokenExpiry: Date | undefined;
     const isLineUser = (session as any)?.lineUserName ? true : false;
     
     console.log('🔧 Auto-setup Google Drive for user:', userId);
@@ -56,6 +58,8 @@ export async function POST(request: NextRequest) {
           });
           const { credentials } = await oauth2Client.refreshAccessToken();
           googleAccessToken = credentials.access_token!;
+          googleRefreshToken = (googleAccount.refresh_token as string) || undefined;
+          googleTokenExpiry = credentials.expiry_date ? new Date(credentials.expiry_date) : undefined;
           // Update token in DB for next time
           const accountFilter = googleAccount._id ? { _id: googleAccount._id } : { userId: userId, provider: 'google' };
           await db.collection('accounts').updateOne(accountFilter, { $set: { access_token: credentials.access_token, expires_at: credentials.expiry_date } });
@@ -127,6 +131,21 @@ export async function POST(request: NextRequest) {
                   }),
                 });
                 console.log('✅ Synced googleSheetId to backend via API');
+                // Also sync Google tokens to backend so Drive upload works
+                if (googleAccessToken) {
+                  await fetch(`${process.env.BACKEND_API_URL}/api/user/link-line`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      userId,
+                      lineUserId: lineAccount.providerAccountId,
+                      googleAccessToken,
+                      googleRefreshToken,
+                      googleTokenExpiry: googleTokenExpiry?.toISOString(),
+                    }),
+                  });
+                  console.log('✅ Synced Google tokens to backend LINE user');
+                }
               }
             } catch (syncErr: any) {
               console.warn('⚠️ Could not sync googleSheetId to backend:', syncErr?.message);
@@ -140,6 +159,34 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Sync Google tokens to backend for Drive upload (even if sheet already exists)
+      if (googleAccessToken && isLineUser && process.env.BACKEND_API_URL) {
+        try {
+          const lineAccount = await db.collection('accounts').findOne({
+            $or: [
+              { userId: userId, provider: 'line' },
+              { userId: ObjectId.isValid(userId) ? new ObjectId(userId) : userId, provider: 'line' },
+            ],
+          });
+          if (lineAccount?.providerAccountId) {
+            await fetch(`${process.env.BACKEND_API_URL}/api/user/link-line`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId,
+                lineUserId: lineAccount.providerAccountId,
+                googleAccessToken,
+                googleRefreshToken,
+                googleTokenExpiry: googleTokenExpiry?.toISOString(),
+              }),
+            });
+            console.log('✅ Synced Google tokens to backend LINE user');
+          }
+        } catch (syncErr: any) {
+          console.warn('⚠️ Could not sync tokens to backend:', syncErr?.message);
+        }
+      }
+
       return NextResponse.json({
         success: true,
         message: 'Google Drive already setup',
@@ -147,8 +194,6 @@ export async function POST(request: NextRequest) {
         googleSheetId,
       });
     }
-
-    console.log('📁 Creating folder structure with Service Account for:', userId);
 
     // Create folder structure using Service Account (no user token needed)
     let monthFolderId: string | undefined;
@@ -235,7 +280,37 @@ export async function POST(request: NextRequest) {
       console.log('💾 Saved folder IDs to database');
     }
 
-
+    // Sync Google tokens + folder/sheet to backend LINE user record
+    if (isLineUser && process.env.BACKEND_API_URL) {
+      try {
+        const lineAccount = await db.collection('accounts').findOne({
+          $or: [
+            { userId: userId, provider: 'line' },
+            { userId: ObjectId.isValid(userId) ? new ObjectId(userId) : userId, provider: 'line' },
+          ],
+        });
+        if (lineAccount?.providerAccountId) {
+          await fetch(`${process.env.BACKEND_API_URL}/api/user/link-line`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId,
+              lineUserId: lineAccount.providerAccountId,
+              googleDriveFolderId: userFolderId,
+              googleSheetId: googleSheetId || undefined,
+              ...(googleAccessToken && {
+                googleAccessToken,
+                googleRefreshToken,
+                googleTokenExpiry: googleTokenExpiry?.toISOString(),
+              }),
+            }),
+          });
+          console.log('✅ Synced tokens + Drive folder to backend LINE user (new setup)');
+        }
+      } catch (syncErr: any) {
+        console.warn('⚠️ Could not sync to backend:', syncErr?.message);
+      }
+    }
 
     return NextResponse.json({
       success: true,

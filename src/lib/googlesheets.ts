@@ -147,20 +147,23 @@ export async function createUserSpreadsheet(
     console.warn('⚠️ Could not share spreadsheet (non-critical):', shareErr?.message);
   }
 
-  // Share with Service Account as writer (so SA can append receipt rows from LINE webhook)
-  if (userAccessToken && process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL) {
-    try {
-      await drive.permissions.create({
-        fileId: spreadsheetId,
-        requestBody: {
-          role: 'writer',
-          type: 'user',
-          emailAddress: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-        },
-      });
-      console.log('✅ Spreadsheet shared with Service Account as writer');
-    } catch (saShareErr: any) {
-      console.warn('⚠️ Could not share spreadsheet with SA (non-critical):', saShareErr?.message);
+  // Share with Service Account(s) as writer (so SA can append receipt rows from LINE webhook)
+  if (userAccessToken) {
+    const saEmails = [
+      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      process.env.BACKEND_SA_EMAIL,
+    ].filter(Boolean) as string[];
+
+    for (const email of saEmails) {
+      try {
+        await drive.permissions.create({
+          fileId: spreadsheetId,
+          requestBody: { role: 'writer', type: 'user', emailAddress: email },
+        });
+        console.log('✅ Spreadsheet shared with SA as writer:', email);
+      } catch (saShareErr: any) {
+        console.warn('⚠️ Could not share spreadsheet with SA (non-critical):', email, saShareErr?.message);
+      }
     }
   }
 
