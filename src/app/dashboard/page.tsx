@@ -70,6 +70,11 @@ export default function DashboardPage() {
                 lineUserId: lineUserId,
                 googleDriveFolderId: folderId,
                 googleSheetId: sheetId,
+                googleAccessToken: (session as any).googleAccessToken,
+                googleRefreshToken: (session as any).googleRefreshToken,
+                googleTokenExpiry: (session as any).googleExpiresAt
+                  ? new Date((session as any).googleExpiresAt * 1000).toISOString()
+                  : undefined,
               }),
             });
             const linkData = await linkRes.json();
