@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { createFolderStructureWithServiceAccount, shareWithAnyoneWithLink } from '@/lib/googledrive';
+import { createFolderStructureWithServiceAccount, createFolderStructureAsUser, shareWithAnyoneWithLink } from '@/lib/googledrive';
 import { createUserSpreadsheet } from '@/lib/googlesheets';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
@@ -90,6 +90,50 @@ export async function POST(request: NextRequest) {
     
     if (user?.googleDriveFolderId) {
       console.log('✅ Google Drive already setup for user:', userId);
+
+      // If user has a Google token but folder is SA-owned (not user-owned), migrate to user-owned folder
+      // This fixes "Insufficient permissions" when backend tries to upload to SA folder
+      if (googleAccessToken && !user.folderOwnedByUser) {
+        try {
+          console.log('🔄 Migrating to user-owned Drive folder...');
+          const result = await createFolderStructureAsUser(googleAccessToken, userName ?? undefined);
+          const newFolderId = result.userFolderId;
+          const updateQuery = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { _id: userId };
+          await db.collection('users').updateOne(updateQuery as any, {
+            $set: { googleDriveFolderId: newFolderId, folderOwnedByUser: true }
+          });
+          user.googleDriveFolderId = newFolderId;
+          user.folderOwnedByUser = true;
+          console.log('✅ Migrated to user-owned folder:', newFolderId);
+
+          // Sync new folder ID to backend
+          if (isLineUser && process.env.BACKEND_API_URL) {
+            const lineAcc = await db.collection('accounts').findOne({
+              $or: [
+                { userId: userId, provider: 'line' },
+                { userId: ObjectId.isValid(userId) ? new ObjectId(userId) : userId, provider: 'line' },
+              ],
+            });
+            if (lineAcc?.providerAccountId) {
+              await fetch(`${process.env.BACKEND_API_URL}/api/user/link-line`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId,
+                  lineUserId: lineAcc.providerAccountId,
+                  googleDriveFolderId: newFolderId,
+                  googleAccessToken,
+                  googleRefreshToken,
+                  googleTokenExpiry: googleTokenExpiry?.toISOString(),
+                }),
+              });
+              console.log('✅ Synced new folder ID + tokens to backend');
+            }
+          }
+        } catch (migrateErr: any) {
+          console.warn('⚠️ Folder migration failed (will use existing):', migrateErr?.message);
+        }
+      }
 
       // If user doesn't have a Sheet yet, try to create one now
       // Only attempt if: user has a Google token (LINE users without token will always fail SA quota)
@@ -195,19 +239,25 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create folder structure using Service Account (no user token needed)
+    // Create folder structure — use user's OAuth token if available (user owns folders → no permission issues)
     let monthFolderId: string | undefined;
     let userFolderId: string | undefined;
 
     try {
-      const result = await createFolderStructureWithServiceAccount(
-        userId,
-        userEmail ?? undefined,
-        userName ?? undefined
-        // No access token - will use Service Account
-      );
-      monthFolderId = result.monthFolderId;
-      userFolderId = result.userFolderId;
+      if (googleAccessToken) {
+        console.log('📁 Creating folder structure with user OAuth token...');
+        const result = await createFolderStructureAsUser(googleAccessToken, userName ?? undefined);
+        userFolderId = result.userFolderId;
+        monthFolderId = userFolderId;
+      } else {
+        const result = await createFolderStructureWithServiceAccount(
+          userId,
+          userEmail ?? undefined,
+          userName ?? undefined
+        );
+        monthFolderId = result.monthFolderId;
+        userFolderId = result.userFolderId;
+      }
     } catch (folderError: unknown) {
       const errorMsg = folderError instanceof Error ? folderError.message : String(folderError);
       console.error('❌ Failed to create folder structure:', errorMsg);
@@ -268,6 +318,7 @@ export async function POST(request: NextRequest) {
           googleDriveSetupCompleted: true,
           googleDriveSetupDate: new Date(),
           googleDriveSetupMethod: isLineUser ? 'service-account' : 'user-auth',
+          folderOwnedByUser: !!googleAccessToken,
           ...(googleSheetId ? { googleSheetId } : {}),
         },
       },
