@@ -216,6 +216,11 @@ export default function DashboardPage() {
       <CreateReceiptSheet
         isOpen={isCreateSheetOpen}
         onClose={closeCreateSheet}
+        onSuccess={() => {
+          if (session?.user?.id) {
+            fetchReceipts(session.user.id);
+          }
+        }}
       />
     </div>
   );
