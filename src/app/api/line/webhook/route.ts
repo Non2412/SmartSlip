@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import clientPromise from '@/lib/mongodb';
 import { uploadFile, getUserMonthFolder } from '@/lib/googledrive';
+import { appendReceiptToUserSheet } from '@/lib/googlesheets';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -110,18 +111,40 @@ export async function POST(req: NextRequest) {
           if (!jsonMatch) throw new Error('AI could not parse structured data');
           const data = JSON.parse(jsonMatch[0]);
 
-          // 5. Upload to Google Drive
+          // 5. Upload to Google Drive (ใช้โฟลเดอร์จาก DB เดียวกับที่ผู้ใช้เห็นใน Drive)
           let driveFileId = null;
+          const { ObjectId } = await import('mongodb');
+          let userDoc = await db.collection('users').findOne({ _id: internalUserId as any });
+          if (!userDoc && ObjectId.isValid(internalUserId)) {
+            userDoc = await db.collection('users').findOne({ _id: new ObjectId(internalUserId) });
+          }
+
           try {
             const fileName = `line-receipt-${data.store || 'unknown'}-${Date.now()}.jpg`.replace(/[^a-zA-Z0-9.-]/g, '_');
-            
-            // Use internalUserId to access user's specific drive
-            const targetFolderId = await getUserMonthFolder(internalUserId, undefined);
+
+            let targetFolderId: string | undefined;
+            if (userDoc?.googleDriveFolderId) {
+              // สร้าง/หาโฟลเดอร์เดือนปัจจุบันใน user folder
+              const { findOrCreateFolder } = await import('@/lib/googledrive');
+              const now = new Date();
+              const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+              const yearFolderId = await findOrCreateFolder(now.getFullYear().toString(), userDoc.googleDriveFolderId);
+              targetFolderId = yearFolderId
+                ? await findOrCreateFolder(
+                    `${String(now.getMonth() + 1).padStart(2, '0')}-${monthNames[now.getMonth()]} ${now.getFullYear()}`,
+                    yearFolderId
+                  ) ?? undefined
+                : userDoc.googleDriveFolderId;
+            } else {
+              // fallback: ใช้ getUserMonthFolder ถ้ายังไม่เคย setup
+              targetFolderId = await getUserMonthFolder(internalUserId, undefined);
+            }
 
             const uploadResult = await uploadFile(imageBuffer, fileName, 'image/jpeg', targetFolderId, internalUserId);
             driveFileId = uploadResult.id;
+            console.log('✅ LINE receipt uploaded to Drive:', driveFileId, 'folder:', targetFolderId);
           } catch (driveErr) {
-            console.error('Drive upload failed:', driveErr);
+            console.error('❌ Drive upload failed:', driveErr);
           }
 
           // 6. Save to MongoDB
@@ -134,9 +157,31 @@ export async function POST(req: NextRequest) {
             imageFileId: driveFileId,
             createdAt: new Date().toISOString(),
           };
-          await db.collection('receipts').insertOne(newReceipt);
+          const insertResult = await db.collection('receipts').insertOne(newReceipt);
 
-          // 6. Reply Success
+          // 7. Append to Google Sheet (if user has a sheet)
+          if (userDoc?.googleSheetId) {
+            try {
+              const imageUrl = driveFileId
+                ? `https://drive.google.com/file/d/${driveFileId}/view`
+                : '';
+              await appendReceiptToUserSheet(userDoc.googleSheetId, {
+                date: data.date || new Date().toISOString(),
+                storeName: newReceipt.storeName,
+                sender: data.method || '',
+                amount: newReceipt.totalAmount,
+                status: 'pending',
+                confidence: 'high',
+                receiptId: insertResult.insertedId.toString(),
+                imageUrl,
+              });
+              console.log('✅ Receipt appended to Google Sheet:', userDoc.googleSheetId);
+            } catch (sheetErr) {
+              console.error('❌ Sheet append failed (non-critical):', sheetErr);
+            }
+          }
+
+          // 8. Reply Success
           const successMsg = `✅ บันทึกใบเสร็จเรียบร้อย!
 ร้าน: ${newReceipt.storeName}
 ยอดเงิน: ${newReceipt.totalAmount.toLocaleString()} บาท

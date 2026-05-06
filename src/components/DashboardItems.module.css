@@ -263,12 +263,14 @@
     border-radius: 16px;
     border: 1px solid var(--border-color);
     overflow: hidden;
+    overflow-x: auto;
 }
 
 .receiptTable {
     width: 100%;
     border-collapse: collapse;
     text-align: left;
+    min-width: 800px;
 }
 
 .receiptTable th {
@@ -292,4 +294,47 @@
     text-align: center;
     color: #94a3b8;
     font-size: 0.95rem;
+}
+
+.statusSuccess {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #10b981;
+    background-color: #ecfdf5;
+    padding: 4px 10px;
+    border-radius: 99px;
+    display: inline-block;
+}
+
+.statusWarning {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #f59e0b;
+    background-color: #fef3c7;
+    padding: 4px 10px;
+    border-radius: 99px;
+    display: inline-block;
+}
+
+@media (max-width: 768px) {
+    .filterBar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+    
+    .searchWrapper {
+        min-width: 100%;
+    }
+    
+    .filterGroup {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .filterChips {
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
 }

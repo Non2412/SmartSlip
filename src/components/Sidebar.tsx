@@ -38,11 +38,10 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
 
       <nav className={styles.nav}>
         <div className={styles.navSection}>
-          To-do ของฉัน
+          ข้อมูลของฉัน
         </div>
         <ul className={styles.navList}>
-          <SidebarItem href="#" label="เช็กใบเสร็จที่เจอจากอีเมล" icon={<MailIcon />} />
-          <SidebarItem href="#" label="Task ที่ต้องตรวจสอบ/จัดการ" icon={<TaskIcon />} />
+          <SidebarItem href="/profile" active={pathname === '/profile'} label="โปรไฟล์ของฉัน" icon={<UserIcon />} />
         </ul>
 
         <div className={styles.navSection}>
@@ -51,7 +50,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
         <ul className={styles.navList}>
           <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="รายการใบเสร็จ" icon={<ListIcon />} />
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} onClick={onAddReceipt} />
-          <SidebarItem href="#" label="Google Sheets" icon={<SheetsIcon />} isExternal />
+          <SidebarItem href={`/api/drive/sheets/redirect/${userId}`} label="Google Sheets" icon={<SheetsIcon />} isExternal />
           <SidebarItem href={`/api/drive/redirect/${userId}`} label="Google Drive" icon={<DriveIcon />} isExternal />
         </ul>
 
@@ -199,6 +198,10 @@ function HelpIcon() {
 
 function LogoutIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>;
+}
+
+function UserIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
 }
 
 export default Sidebar;

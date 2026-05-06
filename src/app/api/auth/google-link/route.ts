@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
           googleRefreshToken,
           googleExpiresAt,
           googleLinkedAt: new Date(),
+          googleSheetSkipped: false,  // Allow sheet creation now that user has Google token
         }
       }
     );

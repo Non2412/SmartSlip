@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { createFolderStructureWithServiceAccount, shareFolderWithUser, shareWithAnyoneWithLink } from '@/lib/googledrive';
+import { createUserSpreadsheet } from '@/lib/googlesheets';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { google } from 'googleapis';
 
 /**
  * POST /api/drive/setup
@@ -23,6 +25,7 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id;
     const userName = session.user.name || undefined;
+    let googleAccessToken = (session as any).googleAccessToken as string | undefined;
 
     // Parse request body - email optional (LINE users may not have real email)
     let userEmail: string | null = session.user.email ?? null;
@@ -42,6 +45,38 @@ export async function POST(request: NextRequest) {
     // Check if already set up
     const client = await clientPromise;
     const db = client.db();
+
+    // If no Google token in session (LINE login), check DB accounts for linked Google token
+    if (!googleAccessToken) {
+      const googleAccount = await db.collection('accounts').findOne({
+        $or: [
+          { userId: userId, provider: 'google' },
+          { userId: ObjectId.isValid(userId) ? new ObjectId(userId) : userId, provider: 'google' },
+        ],
+      });
+      if (googleAccount?.refresh_token || googleAccount?.access_token) {
+        console.log('🔑 Found stored Google account in DB for LINE user - refreshing token...');
+        try {
+          const oauth2Client = new google.auth.OAuth2(
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_CLIENT_SECRET,
+          );
+          oauth2Client.setCredentials({
+            access_token: googleAccount.access_token as string,
+            refresh_token: googleAccount.refresh_token as string,
+          });
+          const { credentials } = await oauth2Client.refreshAccessToken();
+          googleAccessToken = credentials.access_token!;
+          const accountFilter = googleAccount._id ? { _id: googleAccount._id } : { userId: userId, provider: 'google' };
+          await db.collection('accounts').updateOne(accountFilter, { $set: { access_token: credentials.access_token, expires_at: credentials.expiry_date } });
+          console.log('🔑 Google token refreshed successfully');
+        } catch (refreshErr: any) {
+          console.error('❌ Token refresh failed:', refreshErr?.message);
+        }
+      } else {
+        console.log('ℹ️ No linked Google account found in DB for user:', userId);
+      }
+    }
     
     // Try to find by userId as string, or as ObjectId if valid
     let existingUser = await db.collection('users').findOne({ _id: userId as any });
@@ -54,10 +89,16 @@ export async function POST(request: NextRequest) {
       console.log('✅ Google Drive ตั้งค่าแล้วสำหรับผู้ใช้:', userId, '- Re-sharing to ensure access...');
       const folderId = existingUser.googleDriveFolderId;
 
-      // Re-share the folder to ensure user has access
-      // ALWAYS share with Anyone-with-link first (guarantees URL works), then try email as bonus
+      // Skip SA sharing if folder is owned by user (SA can't see/share user-owned folders)
       let shareSuccess = false;
       let shareError: string | null = null;
+
+      if (existingUser.folderOwnedByUser) {
+        console.log('ℹ️ Folder is user-owned — skipping SA share step');
+        shareSuccess = true;
+      } else {
+      // Re-share the folder to ensure user has access
+      // ALWAYS share with Anyone-with-link first (guarantees URL works), then try email as bonus
 
       // Step 1: Always share with Anyone-with-link (this is what makes the URL accessible)
       try {
@@ -79,6 +120,34 @@ export async function POST(request: NextRequest) {
           console.log('ℹ️ Could not share by email (non-critical, link sharing already done):', shareErr?.message);
         }
       }
+      } // end else (SA-owned folder)
+
+      // If user doesn't have a Sheet yet, create one now
+      // Only attempt if: has Google token (LINE users without token will always fail SA quota)
+      // If googleAccessToken is present, always try regardless of googleSheetSkipped (user may have linked Google later)
+      let googleSheetId: string | null = existingUser.googleSheetId || null;
+      const shouldTrySheet = !googleSheetId && (googleAccessToken ? true : !existingUser.googleSheetSkipped);
+      if (shouldTrySheet) {
+        if (!googleAccessToken) {
+          // No Google token (LINE user) - skip to prevent SA quota errors on every load
+          console.log('ℹ️ No Google token for sheet creation - skipping for LINE user');
+          const updateQuery = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { _id: userId };
+          await db.collection('users').updateOne(updateQuery as any, { $set: { googleSheetSkipped: true } });
+        } else {
+          try {
+            const sheet = await createUserSpreadsheet(userId, userName, folderId, googleAccessToken);
+            googleSheetId = sheet.spreadsheetId;
+            console.log('✅ Google Sheet created for existing user:', googleSheetId);
+            const updateQuery = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { _id: userId };
+            await db.collection('users').updateOne(updateQuery as any, { $set: { googleSheetId, googleSheetSkipped: false } });
+          } catch (sheetErr: any) {
+            console.error('❌ SHEET CREATION ERROR:', sheetErr?.message || sheetErr);
+            // Mark as skipped to prevent infinite retries
+            const updateQuery = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { _id: userId };
+            await db.collection('users').updateOne(updateQuery as any, { $set: { googleSheetSkipped: true } });
+          }
+        }
+      }
 
       return NextResponse.json({
         success: true,
@@ -86,6 +155,7 @@ export async function POST(request: NextRequest) {
           message: 'Google Drive folder ตั้งค่าแล้วสำหรับผู้ใช้นี้',
           userFolderId: folderId,
           monthFolderId: existingUser.googleDriveMonthFolderId,
+          googleSheetId,
           shareSuccess,
           shareError,
         },
@@ -125,6 +195,20 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ ตั้งค่า Google Drive สำเร็จ:', { monthFolderId, userFolderId });
 
+    // Create Google Sheet only if user has a Google token (avoids SA quota issues)
+    let googleSheetId: string | undefined;
+    if (googleAccessToken) {
+      try {
+        const sheet = await createUserSpreadsheet(userId, userName, userFolderId, googleAccessToken);
+        googleSheetId = sheet.spreadsheetId;
+        console.log('✅ Google Sheet created:', googleSheetId);
+      } catch (sheetErr: any) {
+        console.warn('⚠️ Could not create spreadsheet (non-critical):', sheetErr?.message);
+      }
+    } else {
+      console.log('ℹ️ No Google token - skipping sheet creation for LINE user');
+    }
+
     // Store folder IDs in database for this user
     const updateQuery = ObjectId.isValid(userId) ? { _id: new ObjectId(userId) } : { _id: userId };
     
@@ -136,12 +220,13 @@ export async function POST(request: NextRequest) {
           googleDriveMonthFolderId: monthFolderId,
           googleDriveSetupCompleted: true,
           googleDriveSetupDate: new Date(),
+          ...(googleSheetId ? { googleSheetId } : {}),
         },
       },
       { upsert: true }
     );
 
-    console.log('💾 บันทึก ID โฟลเดอร์ลงฐานข้อมูล:', { userFolderId, monthFolderId });
+    console.log('💾 บันทึก ID โฟลเดอร์ลงฐานข้อมูล:', { userFolderId, monthFolderId, googleSheetId });
 
     return NextResponse.json({
       success: true,
@@ -149,6 +234,7 @@ export async function POST(request: NextRequest) {
         message: 'สร้างและแชร์โครงสร้างโฟลเดอร์ Google Drive สำเร็จ',
         userFolderId,
         monthFolderId,
+        googleSheetId: googleSheetId || null,
       },
     }, { status: 200 });
   } catch (error: unknown) {
