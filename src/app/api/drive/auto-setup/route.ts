@@ -252,7 +252,7 @@ export async function POST(request: NextRequest) {
       } else {
         const result = await createFolderStructureWithServiceAccount(
           userId,
-          userEmail ?? undefined,
+          userEmail ?? '',
           userName ?? undefined
         );
         monthFolderId = result.monthFolderId;
