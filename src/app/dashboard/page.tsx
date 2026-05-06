@@ -24,7 +24,7 @@ export default function DashboardPage() {
     console.log('🔍 Dashboard loaded, session:', session?.user?.id);
 
     const autoSetupGoogleDrive = async () => {
-      if (!session?.user?.id || !session?.user?.email) {
+      if (!session?.user?.id) {
         console.log('⚠️ Waiting for session... ID:', session?.user?.id);
         return;
       }
@@ -54,6 +54,35 @@ export default function DashboardPage() {
 
         const data = await response.json();
         console.log('✅ Google Drive auto-setup successful:', data);
+
+        // Link LINE user ID + Google Drive folder + Sheet to backend user record
+        const lineUserId = (session as any)?.lineUserId;
+        const folderId = data?.data?.userFolderId || data?.folderId;
+        const sheetId = data?.data?.googleSheetId || data?.googleSheetId;
+        console.log('🔍 lineUserId:', lineUserId, 'folderId:', folderId, 'sheetId:', sheetId);
+        if (lineUserId) {
+          try {
+            const linkRes = await fetch('https://smart-slip-api.vercel.app/api/user/link-line', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: session.user.id,
+                lineUserId: lineUserId,
+                googleDriveFolderId: folderId,
+                googleSheetId: sheetId,
+                googleAccessToken: (session as any).googleAccessToken,
+                googleRefreshToken: (session as any).googleRefreshToken,
+                googleTokenExpiry: (session as any).googleExpiresAt
+                  ? new Date((session as any).googleExpiresAt * 1000).toISOString()
+                  : undefined,
+              }),
+            });
+            const linkData = await linkRes.json();
+            console.log('✅ LINE user linked to Drive+Sheets:', linkData);
+          } catch (linkErr) {
+            console.warn('⚠️ LINE link failed (non-critical):', linkErr);
+          }
+        }
       } catch (error) {
         console.error('❌ Setup error:', error);
       }

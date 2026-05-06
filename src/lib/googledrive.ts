@@ -2,7 +2,7 @@ import { google } from 'googleapis';
 import { Readable } from 'stream';
 import clientPromise from './mongodb';
 
-const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
+const SCOPES = ['https://www.googleapis.com/auth/drive'];
 
 export async function getGoogleDriveClient(userId?: string, accessToken?: string) {
   // If access token is provided directly, use it
@@ -229,6 +229,42 @@ export async function uploadFile(buffer: Buffer, fileName: string, mimeType: str
  * @param userName - User Name (optional)
  * @returns Object with folder IDs and user email for sharing
  */
+/**
+ * Create folder structure using user's own OAuth token
+ * User owns the folders → no permission issues for upload
+ */
+export async function createFolderStructureAsUser(
+  accessToken: string,
+  userName?: string
+): Promise<{ userFolderId: string }> {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET
+  );
+  oauth2Client.setCredentials({ access_token: accessToken });
+  const drive = google.drive({ version: 'v3', auth: oauth2Client });
+
+  const createFolder = async (name: string, parentId?: string) => {
+    const res = await drive.files.create({
+      requestBody: {
+        name,
+        mimeType: 'application/vnd.google-apps.folder',
+        ...(parentId ? { parents: [parentId] } : {}),
+      },
+      fields: 'id',
+    });
+    return res.data.id!;
+  };
+
+  const rootId = await createFolder('SmartSlip Receipts');
+  const now = new Date();
+  const monthName = now.toLocaleString('en', { month: 'long' });
+  const folderName = `${String(now.getMonth() + 1).padStart(2, '0')}-${monthName} ${now.getFullYear()}`;
+  const monthFolderId = await createFolder(folderName, rootId);
+  console.log(`✅ [User Folder] Created folders in user Drive: root=${rootId}, month=${monthFolderId}`);
+  return { userFolderId: monthFolderId };
+}
+
 export async function createFolderStructureWithServiceAccount(userId: string, userEmail: string, userName?: string): Promise<{ monthFolderId: string; userFolderId: string }> {
   // Service Account creates folder structure automatically (no user access token needed)
   const drive = await getGoogleDriveClient(undefined);
