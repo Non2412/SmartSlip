@@ -108,10 +108,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
             
             // Store LINE user info as primary account (preserve it always)
-            if (account?.provider === "line" && user?.name) {
-                token.lineUserName = user.name
-                token.lineUserImage = user.image
-                console.log("📝 บันทึกข้อมูล LINE:", user.name);
+            if (account?.provider === "line") {
+                token.lineUserName = user?.name
+                token.lineUserImage = user?.image
+                token.lineUserId = account.providerAccountId // LINE User ID for linking
+                console.log("📝 บันทึกข้อมูล LINE:", user?.name, "providerAccountId:", account.providerAccountId, "fullAccount:", JSON.stringify(account));
             }
             
             // Store Google tokens during sign in
@@ -148,6 +149,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 ;(session as any).provider = token.provider
                 ;(session as any).lineUserName = token.lineUserName
                 ;(session as any).lineUserImage = token.lineUserImage
+                ;(session as any).lineUserId = token.lineUserId
                 ;(session as any).googleAccessToken = token.googleAccessToken
                 ;(session as any).googleRefreshToken = token.googleRefreshToken
                 ;(session as any).googleExpiresAt = token.googleExpiresAt

@@ -1,19 +1,23 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import { useFlow } from '@/context/FlowContext';
 import styles from './CreateReceiptSheet.module.css';
 
 interface CreateReceiptSheetProps {
     isOpen: boolean;
     onClose: () => void;
+    onSuccess?: () => void;
 }
 
-const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
+const CreateReceiptSheet = ({ isOpen, onClose, onSuccess }: CreateReceiptSheetProps) => {
+    const { data: session } = useSession();
     const { setStep } = useFlow();
     const [image, setImage] = useState<string | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [results, setResults] = useState<{ label: string; value: string }[]>([]);
+    const [extractedData, setExtractedData] = useState<any>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -79,10 +83,10 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
         setErrorMsg(null);
 
         try {
-            const response = await fetch('/api/ocr', {
+            const response = await fetch('/api/receipts/extract', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image })
+                body: JSON.stringify({ image, userId: session?.user?.id })
             });
 
             if (response.status === 413) throw new Error('ไฟล์รูปภาพมีขนาดใหญ่เกินไป');
@@ -91,12 +95,13 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
             const res = await response.json();
             if (res.success) {
                 const data = res.data;
+                setExtractedData(data);
                 setResults([
-                    { label: 'ชื่อร้าน', value: data.shop_name || '-' },
-                    { label: 'วันที่', value: data.date || '-' },
-                    { label: 'เวลา', value: data.time || '-' },
-                    { label: 'ยอดรวม', value: `฿ ${data.total_amount || '0.00'}` },
-                    { label: 'เลขที่ใบกำกับภาษี', value: data.receipt_no || '-' },
+                    { label: 'ชื่อร้าน', value: data.store || '-' },
+                    { label: 'วันที่', value: data.date ? new Date(data.date).toLocaleDateString('th-TH') : '-' },
+                    { label: 'วิธีชำระเงิน', value: data.method || '-' },
+                    { label: 'ยอดรวม', value: `฿ ${data.amount ? data.amount.toLocaleString() : '0.00'}` },
+                    { label: 'Google Drive', value: data.imageFileId ? 'บันทึกรูปสำเร็จ' : '-' }
                 ]);
                 setStep(4); // Set to Review step
             } else {
@@ -234,14 +239,37 @@ const CreateReceiptSheet = ({ isOpen, onClose }: CreateReceiptSheetProps) => {
                         <button
                             onClick={async () => {
                                 setStep(5); // Confirm
-                                // Simulate API call
-                                await new Promise(r => setTimeout(r, 1000));
-                                setStep(6); // Done
-                                setTimeout(() => {
-                                    onClose();
-                                    // Reset to step 1 (logged in) or dashboard view
-                                    setStep(1); 
-                                }, 1500);
+                                try {
+                                    const saveRes = await fetch('/api/receipts', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            storeName: extractedData?.store || 'ไม่ระบุ',
+                                            totalAmount: extractedData?.amount || 0,
+                                            userId: session?.user?.id,
+                                            extractedData: {
+                                                date: extractedData?.date,
+                                                method: extractedData?.method,
+                                                receiver: extractedData?.receiver,
+                                                paymentMethod: extractedData?.method
+                                            },
+                                            imageFileId: extractedData?.imageFileId
+                                        })
+                                    });
+                                    if (!saveRes.ok) throw new Error('บันทึกข้อมูลไม่สำเร็จ');
+                                    
+                                    setStep(6); // Done
+                                    if (onSuccess) onSuccess();
+                                    
+                                    setTimeout(() => {
+                                        onClose();
+                                        setStep(1); 
+                                    }, 1500);
+                                } catch (error: any) {
+                                    console.error('Save error:', error);
+                                    setErrorMsg(error.message || 'ไม่สามารถบันทึกข้อมูลได้');
+                                    setStep(4);
+                                }
                             }}
                             className={styles.saveButton}
                         >
