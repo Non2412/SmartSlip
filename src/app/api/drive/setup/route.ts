@@ -89,10 +89,16 @@ export async function POST(request: NextRequest) {
       console.log('✅ Google Drive ตั้งค่าแล้วสำหรับผู้ใช้:', userId, '- Re-sharing to ensure access...');
       const folderId = existingUser.googleDriveFolderId;
 
-      // Re-share the folder to ensure user has access
-      // ALWAYS share with Anyone-with-link first (guarantees URL works), then try email as bonus
+      // Skip SA sharing if folder is owned by user (SA can't see/share user-owned folders)
       let shareSuccess = false;
       let shareError: string | null = null;
+
+      if (existingUser.folderOwnedByUser) {
+        console.log('ℹ️ Folder is user-owned — skipping SA share step');
+        shareSuccess = true;
+      } else {
+      // Re-share the folder to ensure user has access
+      // ALWAYS share with Anyone-with-link first (guarantees URL works), then try email as bonus
 
       // Step 1: Always share with Anyone-with-link (this is what makes the URL accessible)
       try {
@@ -114,6 +120,7 @@ export async function POST(request: NextRequest) {
           console.log('ℹ️ Could not share by email (non-critical, link sharing already done):', shareErr?.message);
         }
       }
+      } // end else (SA-owned folder)
 
       // If user doesn't have a Sheet yet, create one now
       // Only attempt if: has Google token (LINE users without token will always fail SA quota)
