@@ -9,7 +9,7 @@ import Credentials from "next-auth/providers/credentials"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     adapter: MongoDBAdapter(clientPromise),
-    secret: process.env.NEXTAUTH_SECRET,
+    trustHost: true,
     session: {
         strategy: "jwt",
     },
@@ -39,10 +39,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                 const client = await clientPromise
                 const db = client.db()
-                
+
                 // Find user in MongoDB
-                const user = await db.collection("users").findOne({ 
-                    email: (credentials.email as string).toLowerCase() 
+                const user = await db.collection("users").findOne({
+                    email: (credentials.email as string).toLowerCase()
                 })
 
                 if (!user || !user.password) {
@@ -60,7 +60,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                 // Verify password
                 const isValid = await bcrypt.compare(
-                    credentials.password as string, 
+                    credentials.password as string,
                     user.password
                 )
 
@@ -106,7 +106,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 token.email = user.email
                 console.log("📝 บันทึก ID ผู้ใช้และอีเมล:", user.id, user.email);
             }
-            
+
             // Store LINE user info as primary account (preserve it always)
             if (account?.provider === "line") {
                 token.lineUserName = user?.name
@@ -114,7 +114,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 token.lineUserId = account.providerAccountId // LINE User ID for linking
                 console.log("📝 บันทึกข้อมูล LINE:", user?.name, "providerAccountId:", account.providerAccountId, "fullAccount:", JSON.stringify(account));
             }
-            
+
             // Store Google tokens during sign in
             if (account?.provider === "google" && account?.access_token) {
                 token.googleAccessToken = account.access_token
@@ -126,7 +126,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             else if (token.googleAccessToken && !account) {
                 // Silently preserve tokens, don't log
             }
-            
+
             // Handle update trigger (called when session is updated)
             if (trigger === "update" && session) {
                 // If clearing Google, remove Google tokens
@@ -137,7 +137,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     console.log("🗑️ ลบ Google tokens");
                 }
             }
-            
+
             return token
         },
         session({ session, token }) {
@@ -146,13 +146,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 session.user.id = token.sub || ""
                 // Always use email from token (JWT strategy source of truth)
                 session.user.email = (token.email as string) || session.user.email
-                ;(session as any).provider = token.provider
-                ;(session as any).lineUserName = token.lineUserName
-                ;(session as any).lineUserImage = token.lineUserImage
-                ;(session as any).lineUserId = token.lineUserId
-                ;(session as any).googleAccessToken = token.googleAccessToken
-                ;(session as any).googleRefreshToken = token.googleRefreshToken
-                ;(session as any).googleExpiresAt = token.googleExpiresAt
+                const s = session as unknown as Record<string, unknown>;
+                s.provider = token.provider;
+                s.lineUserName = token.lineUserName;
+                s.lineUserImage = token.lineUserImage;
+                s.lineUserId = token.lineUserId;
+                s.googleAccessToken = token.googleAccessToken;
+                s.googleRefreshToken = token.googleRefreshToken;
+                s.googleExpiresAt = token.googleExpiresAt;
             }
             return session
         },
