@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
 
           // 4. Process with Gemini
           if (!process.env.GEMINI_API_KEY) throw new Error('ไม่พบการตั้งค่า GEMINI_API_KEY ในระบบ');
-          const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
+          const model = genAI.getGenerativeModel({ model: 'gemini-pro-vision' });
           const prompt = `
             คุณคือผู้ช่วยจัดการใบเสร็จระดับมืออาชีพ กรุณาอ่านรูปภาพใบเสร็จนี้และส่งข้อมูลยอดเงินสุทธิ ชื่อร้านค้า และรายการสินค้า กลับมาในรูปแบบ JSON ดังนี้:
             {
