@@ -56,13 +56,14 @@ export default function DashboardPage() {
         console.log('✅ Google Drive auto-setup successful:', data);
 
         // Link LINE user ID + Google Drive folder + Sheet to backend user record
-        const lineUserId = (session as any)?.lineUserId;
+        const lineUserId = (session as unknown as { lineUserId: string })?.lineUserId;
         const folderId = data?.data?.userFolderId || data?.folderId;
         const sheetId = data?.data?.googleSheetId || data?.googleSheetId;
         console.log('🔍 lineUserId:', lineUserId, 'folderId:', folderId, 'sheetId:', sheetId);
         if (lineUserId) {
           try {
-            const linkRes = await fetch('https://smart-slip-api.vercel.app/api/user/link-line', {
+            const apiUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'https://smart-slip-api.vercel.app';
+            const linkRes = await fetch(`${apiUrl}/api/user/link-line`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -70,10 +71,10 @@ export default function DashboardPage() {
                 lineUserId: lineUserId,
                 googleDriveFolderId: folderId,
                 googleSheetId: sheetId,
-                googleAccessToken: (session as any).googleAccessToken,
-                googleRefreshToken: (session as any).googleRefreshToken,
-                googleTokenExpiry: (session as any).googleExpiresAt
-                  ? new Date((session as any).googleExpiresAt * 1000).toISOString()
+                googleAccessToken: (session as unknown as { googleAccessToken: string }).googleAccessToken,
+                googleRefreshToken: (session as unknown as { googleRefreshToken: string }).googleRefreshToken,
+                googleTokenExpiry: (session as unknown as { googleExpiresAt: number }).googleExpiresAt
+                  ? new Date((session as unknown as { googleExpiresAt: number }).googleExpiresAt * 1000).toISOString()
                   : undefined,
               }),
             });

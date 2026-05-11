@@ -128,11 +128,12 @@ export async function POST(req: NextRequest) {
               const { findOrCreateFolder } = await import('@/lib/googledrive');
               const now = new Date();
               const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-              const yearFolderId = await findOrCreateFolder(now.getFullYear().toString(), userDoc.googleDriveFolderId);
+              const yearFolderId = await findOrCreateFolder(now.getFullYear().toString(), userDoc.googleDriveFolderId, internalUserId);
               targetFolderId = yearFolderId
                 ? await findOrCreateFolder(
                     `${String(now.getMonth() + 1).padStart(2, '0')}-${monthNames[now.getMonth()]} ${now.getFullYear()}`,
-                    yearFolderId
+                    yearFolderId,
+                    internalUserId
                   ) ?? undefined
                 : userDoc.googleDriveFolderId;
             } else {
