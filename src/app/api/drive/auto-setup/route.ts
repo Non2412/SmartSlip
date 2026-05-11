@@ -106,8 +106,8 @@ export async function POST(request: NextRequest) {
           user.folderOwnedByUser = true;
           console.log('✅ Migrated to user-owned folder:', newFolderId);
 
-          // Sync new folder ID to backend
-          if (isLineUser && process.env.BACKEND_API_URL) {
+          // Sync new folder ID to backend (check DB for LINE account, not session flag)
+          if (process.env.BACKEND_API_URL) {
             const lineAcc = await db.collection('accounts').findOne({
               $or: [
                 { userId: userId, provider: 'line' },
@@ -203,8 +203,8 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Sync Google tokens to backend for Drive upload (even if sheet already exists)
-      if (googleAccessToken && isLineUser && process.env.BACKEND_API_URL) {
+      // Sync Google tokens to backend for Drive upload (check DB for LINE account, not session flag)
+      if (googleAccessToken && process.env.BACKEND_API_URL) {
         try {
           const lineAccount = await db.collection('accounts').findOne({
             $or: [
@@ -331,8 +331,8 @@ export async function POST(request: NextRequest) {
       console.log('💾 Saved folder IDs to database');
     }
 
-    // Sync Google tokens + folder/sheet to backend LINE user record
-    if (isLineUser && process.env.BACKEND_API_URL) {
+    // Sync Google tokens + folder/sheet to backend LINE user record (check DB for LINE account)
+    if (process.env.BACKEND_API_URL) {
       try {
         const lineAccount = await db.collection('accounts').findOne({
           $or: [
