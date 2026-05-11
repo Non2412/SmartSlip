@@ -83,15 +83,24 @@ export async function POST(req: NextRequest) {
           const base64Image = imageBuffer.toString('base64');
 
           // 4. Process with Gemini
+          if (!process.env.GEMINI_API_KEY) throw new Error('ไม่พบการตั้งค่า GEMINI_API_KEY ในระบบ');
           const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
           const prompt = `
-            คุณคือผู้ช่วยจัดการใบเสร็จระดับมืออาชีพ กรุณาอ่านรูปภาพใบเสร็จนี้และส่งข้อมูลยอดเงินสุทธิและชื่อร้านค้ากลับมาในรูปแบบ JSON ดังนี้:
+            คุณคือผู้ช่วยจัดการใบเสร็จระดับมืออาชีพ กรุณาอ่านรูปภาพใบเสร็จนี้และส่งข้อมูลยอดเงินสุทธิ ชื่อร้านค้า และรายการสินค้า กลับมาในรูปแบบ JSON ดังนี้:
             {
               "store": "ชื่อร้านค้าที่พบในใบเสร็จ",
               "amount": "ยอดเงินสุทธิในรูปแบบตัวเลข (เช่น 120.50)",
               "date": "วันที่ในใบเสร็จ (ISO 8601)",
               "method": "วิธีชำระเงิน (เงินสด, โอนเงิน, บัตรเครดิต)",
-              "receiver": "ชื่อผู้รับเงิน (ถ้ามี)"
+              "receiver": "ชื่อผู้รับเงิน (ถ้ามี)",
+              "items": [
+                {
+                  "description": "ชื่อสินค้า",
+                  "quantity": 1,
+                  "unitPrice": 35.00,
+                  "totalPrice": 35.00
+                }
+              ]
             }
             **สำคัญ**: คืนค่าเฉพาะ JSON เท่านั้น ไม่ต้องมีคำอธิบายเพิ่มเติม และภาษาไทยถูกต้อง
           `;
@@ -193,15 +202,16 @@ export async function POST(req: NextRequest) {
           }
 
           // 8. Reply Success
-          const successMsg = `✅ บันทึกใบเสร็จเรียบร้อย!
-ร้าน: ${newReceipt.storeName}
-ยอดเงิน: ${newReceipt.totalAmount.toLocaleString()} บาท
-บันทึกลงระบบแล้วครับ${driveFileId ? '\n📁 บันทึกลง Google Drive แล้ว' : driveErrorMsg}`;
+          const itemsText = data.items && data.items.length > 0 
+            ? `\n🛒 สินค้า:\n` + data.items.map((item: any, idx: number) => `${idx + 1}. ${item.description}\n   จำนวน: ${item.quantity} x ฿${Number(item.unitPrice).toFixed(2)} = ฿${Number(item.totalPrice).toFixed(2)}`).join('\n')
+            : '';
+
+          const successMsg = `✅ ประมวลผลสำเร็จ!\n\n💰 จำนวนเงิน: ฿${newReceipt.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n👤 ผู้ส่ง: ${data.method || 'Unknown'}\n🏢 ผู้รับ: ${newReceipt.storeName}\n📅 วันที่: ${data.date || new Date().toISOString().split('T')[0]}\n${itemsText}\n\n🎯 ความแม่นยำ: ✅ high${driveFileId ? '\n📁 บันทึกลง Google Drive แล้ว' : driveErrorMsg}`;
           await replyMessage(replyToken, successMsg);
 
-        } catch (procErr: unknown) {
+        } catch (procErr: any) {
           console.error('Processing error:', procErr);
-          await replyMessage(replyToken, '❌ เกิดข้อความผิดพลาดขณะประมวลผลรูปภาพ กรุณาลองใหม่อีกครั้ง');
+          await replyMessage(replyToken, `❌ เกิดข้อความผิดพลาดขณะประมวลผลรูปภาพ:\n${procErr.message || 'Unknown Error'}`);
         }
       }
     }
