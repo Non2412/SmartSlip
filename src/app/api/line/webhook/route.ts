@@ -119,23 +119,32 @@ export async function POST(req: NextRequest) {
             userDoc = await db.collection('users').findOne({ _id: new ObjectId(internalUserId) });
           }
 
+          let driveErrorMsg = '';
           try {
             const fileName = `line-receipt-${data.store || 'unknown'}-${Date.now()}.jpg`.replace(/[^a-zA-Z0-9.-]/g, '_');
 
             let targetFolderId: string | undefined;
             if (userDoc?.googleDriveFolderId) {
-              // สร้าง/หาโฟลเดอร์เดือนปัจจุบันใน user folder
               const { findOrCreateFolder } = await import('@/lib/googledrive');
               const now = new Date();
               const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-              const yearFolderId = await findOrCreateFolder(now.getFullYear().toString(), userDoc.googleDriveFolderId, internalUserId);
+              
+              let currentParent = userDoc.googleDriveFolderId;
+              
+              // If set up via service account, the structure is User -> Receipts -> Year -> Month
+              if (userDoc.googleDriveSetupMethod === 'service-account') {
+                const receiptsFolderId = await findOrCreateFolder('Receipts', currentParent, internalUserId);
+                if (receiptsFolderId) currentParent = receiptsFolderId;
+              }
+
+              const yearFolderId = await findOrCreateFolder(now.getFullYear().toString(), currentParent, internalUserId);
               targetFolderId = yearFolderId
                 ? await findOrCreateFolder(
                     `${String(now.getMonth() + 1).padStart(2, '0')}-${monthNames[now.getMonth()]} ${now.getFullYear()}`,
                     yearFolderId,
                     internalUserId
                   ) ?? undefined
-                : userDoc.googleDriveFolderId;
+                : currentParent;
             } else {
               // fallback: ใช้ getUserMonthFolder ถ้ายังไม่เคย setup
               targetFolderId = await getUserMonthFolder(internalUserId, undefined);
@@ -144,8 +153,9 @@ export async function POST(req: NextRequest) {
             const uploadResult = await uploadFile(imageBuffer, fileName, 'image/jpeg', targetFolderId, internalUserId);
             driveFileId = uploadResult.id;
             console.log('✅ LINE receipt uploaded to Drive:', driveFileId, 'folder:', targetFolderId);
-          } catch (driveErr) {
+          } catch (driveErr: any) {
             console.error('❌ Drive upload failed:', driveErr);
+            driveErrorMsg = `\n(⚠️ อัปโหลดรูปลง Drive ไม่สำเร็จ: ${driveErr.message})`;
           }
 
           // 6. Save to MongoDB
@@ -186,7 +196,7 @@ export async function POST(req: NextRequest) {
           const successMsg = `✅ บันทึกใบเสร็จเรียบร้อย!
 ร้าน: ${newReceipt.storeName}
 ยอดเงิน: ${newReceipt.totalAmount.toLocaleString()} บาท
-บันทึกลง Google Drive แล้วครับ`;
+บันทึกลงระบบแล้วครับ${driveFileId ? '\n📁 บันทึกลง Google Drive แล้ว' : driveErrorMsg}`;
           await replyMessage(replyToken, successMsg);
 
         } catch (procErr: unknown) {
