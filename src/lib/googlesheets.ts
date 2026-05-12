@@ -187,13 +187,29 @@ export async function appendReceiptToUserSheet(
     confidence?: string;
     receiptId?: string;
     imageUrl?: string;
-  }
+  },
+  userAccessToken?: string
 ): Promise<void> {
-  const { sheets } = getSheetsClient();
+  // ใช้ user token ถ้ามี (SA อาจไม่มีสิทธิ์เขียน Sheet ของ user)
+  let sheets: ReturnType<typeof google.sheets>;
+  if (userAccessToken) {
+    const oauth2 = new google.auth.OAuth2();
+    oauth2.setCredentials({ access_token: userAccessToken });
+    sheets = google.sheets({ version: 'v4', auth: oauth2 });
+  } else {
+    sheets = getSheetsClient().sheets;
+  }
+
+  // Auto-detect tab name (รองรับ "Sheet1", "Sheet 1", "ชีต1" ฯลฯ)
+  let tabName = 'Sheet1';
+  try {
+    const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: 'sheets.properties.title' });
+    tabName = meta.data.sheets?.[0]?.properties?.title || 'Sheet1';
+  } catch {}
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: 'Sheet1!A:H',
+    range: `${tabName}!A:H`,
     valueInputOption: 'USER_ENTERED',
     requestBody: {
       values: [
