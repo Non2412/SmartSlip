@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     const bodyText = await req.text();
     const signature = req.headers.get('x-line-signature') || '';
 
-    if (!verifySignature(bodyText, signature)) {
+    if (!await verifySignature(bodyText, signature)) {
       return new NextResponse('Invalid signature', { status: 401 });
     }
 
@@ -129,11 +129,31 @@ export async function POST(req: NextRequest) {
           }
 
           let driveErrorMsg = '';
+          let userAccessToken: string | undefined;
           try {
             const fileName = `line-receipt-${data.store || 'unknown'}-${Date.now()}.jpg`.replace(/[^a-zA-Z0-9.-]/g, '_');
 
+            // ดึง Google access token ของ user เพื่อ upload ด้วย user OAuth (ไม่ใช่ SA)
+            try {
+              const { ObjectId: ObjId } = await import('mongodb');
+              const googleAccount = await db.collection('accounts').findOne({
+                provider: 'google',
+                $or: [
+                  { userId: internalUserId },
+                  { userId: ObjId.isValid(internalUserId) ? new ObjId(internalUserId) : internalUserId },
+                ],
+              });
+              if (googleAccount?.access_token) {
+                userAccessToken = googleAccount.access_token as string;
+              }
+            } catch {}
+
             let targetFolderId: string | undefined;
             if (userDoc?.googleDriveFolderId) {
+              if (userDoc?.folderOwnedByUser) {
+                // folder เป็นของ user → upload ตรงเลย ไม่ต้องสร้าง subfolder ใหม่
+                targetFolderId = userDoc.googleDriveFolderId;
+              } else {
               const { findOrCreateFolder } = await import('@/lib/googledrive');
               const now = new Date();
               const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -154,12 +174,13 @@ export async function POST(req: NextRequest) {
                     internalUserId
                   ) ?? undefined
                 : currentParent;
+              }
             } else {
               // fallback: ใช้ getUserMonthFolder ถ้ายังไม่เคย setup
               targetFolderId = await getUserMonthFolder(internalUserId, undefined);
             }
 
-            const uploadResult = await uploadFile(imageBuffer, fileName, 'image/jpeg', targetFolderId, internalUserId);
+            const uploadResult = await uploadFile(imageBuffer, fileName, 'image/jpeg', targetFolderId, userAccessToken ? undefined : internalUserId, userAccessToken);
             driveFileId = uploadResult.id;
             console.log('✅ LINE receipt uploaded to Drive:', driveFileId, 'folder:', targetFolderId);
           } catch (driveErr: any) {
@@ -194,7 +215,7 @@ export async function POST(req: NextRequest) {
                 confidence: 'high',
                 receiptId: insertResult.insertedId.toString(),
                 imageUrl,
-              });
+              }, userAccessToken);
               console.log('✅ Receipt appended to Google Sheet:', userDoc.googleSheetId);
             } catch (sheetErr) {
               console.error('❌ Sheet append failed (non-critical):', sheetErr);
