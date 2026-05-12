@@ -14,6 +14,14 @@ const shimmerKeyframes = `
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
 `;
 
 interface CreateReceiptSheetProps {
@@ -32,18 +40,19 @@ interface ExpenseItem {
     type: 'product' | 'service';
     category: string;
     quantity: number;
-    amount: number;
-    subtotal: number;
+    amount: number; // Unit price
+    subtotal: number; // Total for this item before tax
     vat: number;
     wht: number;
+    note: string;
 }
 
 const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceiptSheetProps) => {
     const [image, setImage] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
-    const [formTab, setFormTab] = useState<FormTabType>('header');
-    const [creationMethod, setCreationMethod] = useState<CreationMethod>('upload');
+    const [formTab, setFormTab] = useState<'info' | 'items'>('info');
+    const [creationMethod, setCreationMethod] = useState<CreationMethod>('manual');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const evidenceInputRef = useRef<HTMLInputElement>(null);
 
@@ -52,11 +61,16 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [isSaving, setIsSaving] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
 
-    // Form states - Header
+    // Form states - Header (Info)
+    const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>('paid');
     const [shopName, setShopName] = useState('');
     const [amount, setAmount] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [paymentMethod, setPaymentMethod] = useState('💵 โอนเงิน');
+    const [approver, setApprover] = useState('Nobphanan Katain');
+    const [isTaxInvoice, setIsTaxInvoice] = useState(false);
+    const [taxInvoiceNo, setTaxInvoiceNo] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState('โอน');
+    const [mainCategory, setMainCategory] = useState('อื่นๆ');
     const [notes, setNotes] = useState('');
     const [receiptNo, setReceiptNo] = useState('');
     const [payerName, setPayerName] = useState('Nobphanan Katain');
@@ -64,10 +78,60 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [vendorTaxId, setVendorTaxId] = useState('');
     const [vendorAddress, setVendorAddress] = useState('');
     const [currency, setCurrency] = useState('THB - Thai Baht (฿)');
+    const [editSummaryManually, setEditSummaryManually] = useState(false);
+
+    const detectPaymentMethodFromText = (methodText: string | null | undefined) => {
+        if (!methodText) return 'โอน';
+        const text = methodText.toString().toLowerCase();
+        if (/เงินสด|cash|cashier/.test(text)) return 'เงินสด';
+        if (/โอน|transfer|promptpay|prompt pay|บัตร|card|credit|debit/.test(text)) return 'โอน';
+        return 'โอน';
+    };
+
+    const detectCategoryFromText = (text?: string) => {
+        if (!text) return 'อื่นๆ';
+        const lower = text.toLowerCase();
+        if (/อาหาร|restaurant|ร้านอาหาร|cafe|coffee|eat|food|delivery|foodpanda|grab/i.test(lower)) return 'อาหาร';
+        if (/เดินทาง|travel|taxi|grab|uber|bus|train|flight|airline|hotel|ที่พัก|travel|trip/i.test(lower)) return 'เดินทาง';
+        if (/shopping|ช้อปปิ้ง|mall|department|fashion|online|shopee|lazada|ร้านค้าทั่วไป|ซื้อของ/i.test(lower)) return 'ช้อปปิ้ง';
+        return 'อื่นๆ';
+    };
+
+    const formatInputDate = (dateText?: string) => {
+        if (!dateText) return '';
+        const isoMatch = dateText.match(/^\d{4}-\d{2}-\d{2}$/);
+        if (isoMatch) return dateText;
+
+        const slashMatch = dateText.match(/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})$/);
+        if (slashMatch) {
+            let [, day, month, year] = slashMatch;
+            if (year.length === 2) {
+                year = `20${year}`;
+            }
+            return `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+
+        const parsed = new Date(dateText);
+        if (!Number.isNaN(parsed.getTime())) {
+            return parsed.toISOString().split('T')[0];
+        }
+
+        return '';
+    };
+
+    const buildNotesFromExtraction = (result: any) => {
+        if (!result) return '';
+        const parts = [];
+        const receiptId = result.receipt_no || result.receiptNo;
+        if (receiptId) parts.push(`ใบเสร็จ: ${receiptId}`);
+        if (result.method) parts.push(`วิธีชำระ: ${result.method}`);
+        if (result.receiver) parts.push(`จาก: ${result.receiver}`);
+        return parts.join(' | ');
+    };
 
     // Form states - Items
     const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([
-        { id: '1', description: '', type: 'product', category: '', quantity: 1, amount: 0, subtotal: 0, vat: 0, wht: 0 }
+        { id: '1', description: '', type: 'product', category: '', quantity: 1, amount: 0, subtotal: 0, vat: 0, wht: 0, note: '' }
     ]);
     const [selectedItemId, setSelectedItemId] = useState('1');
 
@@ -90,19 +154,25 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 setShopName('');
                 setAmount('');
                 setDate(new Date().toISOString().split('T')[0]);
-                setPaymentMethod('🏦 โอนเงิน');
+                setPaymentMethod('โอน');
+                setMainCategory('อื่นๆ');
                 setNotes('');
                 setErrorMsg(null);
-                setFormTab('header');
+                setFormTab('info');
                 setReceiptNo('');
                 setVendorTaxId('');
                 setVendorAddress('');
-                setCreationMethod('upload');
+                setCreationMethod('manual');
                 setZoom(1);
                 setRotation(0);
                 setPosition({ x: 0, y: 0 });
-                setExpenseItems([{ id: '1', description: '', type: 'product', category: '', quantity: 1, amount: 0, subtotal: 0, vat: 0, wht: 0 }]);
+                setExpenseItems([{ id: '1', description: '', type: 'product', category: '', quantity: 1, amount: 0, subtotal: 0, vat: 0, wht: 0, note: '' }]);
                 setSelectedItemId('1');
+                setPaymentStatus('paid');
+                setApprover('Nobphanan Katain');
+                setIsTaxInvoice(false);
+                setTaxInvoiceNo('');
+                setEditSummaryManually(false);
             }, 400);
         }
     }, [isOpen]);
@@ -159,12 +229,19 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         try {
             const result = await extractFromImage(fileToProcess, userId) as any;
             if (result) {
-                setShopName(result.store || result.receiver || '');
-                setAmount(result.amount?.toString() || '');
-                if (result.date) setDate(new Date(result.date).toISOString().split('T')[0]);
+                setShopName(result.store || result.receiver || result.shop_name || '');
+                setAmount((result.amount ?? result.total_amount ?? '').toString());
+                const parsedDate = formatInputDate(result.date || result.transaction_date || result.date_time);
+                if (parsedDate) setDate(parsedDate);
                 if (result.tax_id) setVendorTaxId(result.tax_id);
+                if (result.taxId) setVendorTaxId(result.taxId);
                 if (result.address) setVendorAddress(result.address);
-                if (result.receipt_no) setReceiptNo(result.receipt_no);
+                if (result.receipt_no || result.receiptNo) setReceiptNo(result.receipt_no || result.receiptNo);
+
+                setPaymentMethod(detectPaymentMethodFromText(result.method || result.payment_method));
+                setMainCategory(detectCategoryFromText(`${result.store || result.receiver || result.shop_name || ''} ${result.method || result.payment_method || ''}`));
+                const autoNotes = buildNotesFromExtraction(result);
+                if (autoNotes) setNotes(autoNotes);
             }
         } catch (err: any) {
             setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการประมวลผลด้วย AI');
@@ -174,30 +251,43 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     };
 
     const handleSave = async () => {
-        if (creationMethod === 'manual' || (creationMethod === 'upload' && image)) {
-            if (!shopName || !amount || !date) {
-                setErrorMsg('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน ในหน้าข้อมูลหัวบิล (*)');
-                setFormTab('header');
-                return;
-            }
+        if (!shopName || !date) {
+            setErrorMsg('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วนในหน้าข้อมูลรายจ่าย (*)');
+            setFormTab('info');
+            return;
         }
 
         setIsSaving(true);
         try {
+            const { subtotal, vat, wht, total } = calculateTotals();
+            // ใช้จำนวนเงินจากหน้า Info ถ้ามีการระบุไว้ มิฉะนั้นใช้จากรายการสินค้า
+            const finalTotal = parseFloat(amount) || total;
+            
             await createReceipt({
                 userId,
                 storeName: shopName,
-                totalAmount: parseFloat(amount || '0'),
+                totalAmount: finalTotal,
                 extractedData: {
                     date,
+                    paymentStatus,
                     paymentMethod,
+                    category: mainCategory,
+                    approver,
+                    isTaxInvoice,
+                    taxInvoiceNo,
                     notes,
                     receiptNo,
                     payerName,
                     vendorTaxId,
                     vendorAddress,
                     currency,
-                    items: expenseItems
+                    items: expenseItems,
+                    summary: {
+                        subtotal: parseFloat(amount) || subtotal,
+                        vat,
+                        wht,
+                        total: finalTotal
+                    }
                 }
             });
             setIsSuccess(true);
@@ -216,10 +306,29 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     };
 
     const addItem = () => {
-        const newId = (expenseItems.length + 1).toString();
-        setExpenseItems([...expenseItems, { id: newId, description: '', type: 'product', category: '', quantity: 1, amount: 0, subtotal: 0, vat: 0, wht: 0 }]);
+        const newId = (Date.now()).toString();
+        setExpenseItems([...expenseItems, { id: newId, description: '', type: 'product', category: '', quantity: 1, amount: 0, subtotal: 0, vat: 0, wht: 0, note: '' }]);
         setSelectedItemId(newId);
     };
+
+    const removeItem = (id: string) => {
+        if (expenseItems.length === 1) return;
+        const newItems = expenseItems.filter(it => it.id !== id);
+        setExpenseItems(newItems);
+        if (selectedItemId === id) {
+            setSelectedItemId(newItems[0].id);
+        }
+    };
+
+    const calculateTotals = () => {
+        const subtotal = expenseItems.reduce((acc, it) => acc + (it.amount * it.quantity), 0);
+        const vat = expenseItems.reduce((acc, it) => acc + it.vat, 0);
+        const wht = expenseItems.reduce((acc, it) => acc + it.wht, 0);
+        const total = subtotal + vat - wht;
+        return { subtotal, vat, wht, total };
+    };
+
+    const { subtotal, vat, wht, total } = calculateTotals();
 
     // Styling Helpers
     const inputStyle: React.CSSProperties = {
@@ -357,53 +466,65 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
                     {/* Tabs */}
                     <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9', padding: '0 32px' }}>
-                        {(['header', 'items', 'evidence'] as FormTabType[]).map((tab) => (
-                            <button key={tab} onClick={() => setFormTab(tab)} style={{ padding: '16px 16px', marginRight: '16px', backgroundColor: 'transparent', border: 'none', borderBottom: formTab === tab ? '3px solid #0052cc' : '3px solid transparent', color: formTab === tab ? '#0052cc' : '#94a3b8', fontSize: '0.9rem', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>
-                                {tab === 'header' ? 'ข้อมูลหัวบิล' : tab === 'items' ? 'รายการค่าใช้จ่าย' : 'หลักฐานเพิ่มเติม'}
-                            </button>
-                        ))}
+                        <button onClick={() => setFormTab('info')} style={{ padding: '16px 16px', marginRight: '16px', backgroundColor: 'transparent', border: 'none', borderBottom: formTab === 'info' ? '3px solid #0052cc' : '3px solid transparent', color: formTab === 'info' ? '#0052cc' : '#94a3b8', fontSize: '0.9rem', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>
+                            ข้อมูลรายจ่าย
+                        </button>
+                        <button onClick={() => setFormTab('items')} style={{ padding: '16px 16px', marginRight: '16px', backgroundColor: 'transparent', border: 'none', borderBottom: formTab === 'items' ? '3px solid #0052cc' : '3px solid transparent', color: formTab === 'items' ? '#0052cc' : '#94a3b8', fontSize: '0.9rem', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>
+                            รายการและสรุปค่าใช้จ่าย
+                        </button>
                     </div>
 
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
-                        {formTab === 'header' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                                {/* User Info Section - Refined style */}
-                                <div style={{ borderBottom: '1.5px solid #f1f5f9', paddingBottom: '16px' }}>
-                                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' }}>อัปโหลดใบเสร็จชำระเงินสำหรับ</p>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <span style={{ fontSize: '1.1rem', fontWeight: '900', color: '#1e293b' }}>นพนนท์ เกษอินทร์</span>
-                                        <span style={{ fontSize: '1rem', color: '#94a3b8', borderBottom: '1px solid #cbd5e1', paddingBottom: '2px' }}>Nobphanan Katain</span>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', backgroundColor: '#fcfcfd' }}>
+                        {errorMsg && (
+                            <div style={{ padding: '12px 16px', backgroundColor: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', color: '#991b1b', fontSize: '0.85rem', fontWeight: '600', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                {errorMsg}
+                            </div>
+                        )}
+                        {formTab === 'info' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                {/* รายจ่ายสำหรับ */}
+                                <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' }}>รายจ่ายสำหรับ</p>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ fontSize: '1rem', fontWeight: '900', color: '#1e293b' }}>นพนนท์ เกษอินทร์</span>
+                                            <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Nobphanan Katain</span>
+                                        </div>
+                                        <button style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', background: 'white', fontSize: '0.8rem', fontWeight: '600', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> เปลี่ยนธุรกิจ
+                                        </button>
                                     </div>
                                 </div>
 
-                                {/* Creation Method label with underline */}
-                                <div>
-                                    <h3 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '20px', borderBottom: '2.5px solid #0052cc', display: 'inline-block', paddingBottom: '4px' }}>วิธีการสร้างค่าใช้จ่าย</h3>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '4px' }}>
+                                {/* วิธีการอัปโหลดรายจ่าย */}
+                                <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                                    <h3 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '16px' }}>วิธีการอัปโหลดรายจ่าย</h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                                         <div onClick={() => setCreationMethod('upload')} style={{ padding: '16px', borderRadius: '12px', border: `1.5px solid ${creationMethod === 'upload' ? '#0052cc' : '#e2e8f0'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', background: creationMethod === 'upload' ? '#f0f7ff' : '#fff' }}>
-                                            <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: `2px solid ${creationMethod === 'upload' ? '#0052cc' : '#cbd5e1'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                {creationMethod === 'upload' && <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#0052cc' }} />}
+                                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: `2px solid ${creationMethod === 'upload' ? '#0052cc' : '#cbd5e1'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                {creationMethod === 'upload' && <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#0052cc' }} />}
                                             </div>
                                             <div>
-                                                <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>อัปโหลดใบเสร็จ</div>
-                                                <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>ใบเสร็จรับเงินต้นแบบ</p>
+                                                <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>อัปโหลดไฟล์</div>
+                                                <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>อัปโหลดไฟล์ให้ Paypers อ่าน</p>
                                             </div>
                                         </div>
                                         <div onClick={() => setCreationMethod('manual')} style={{ padding: '16px', borderRadius: '12px', border: `1.5px solid ${creationMethod === 'manual' ? '#0052cc' : '#e2e8f0'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', background: creationMethod === 'manual' ? '#f0f7ff' : '#fff' }}>
-                                            <div style={{ width: '18px', height: '18px', borderRadius: '50%', border: `2px solid ${creationMethod === 'manual' ? '#0052cc' : '#cbd5e1'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                {creationMethod === 'manual' && <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#0052cc' }} />}
+                                            <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: `2px solid ${creationMethod === 'manual' ? '#0052cc' : '#cbd5e1'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                {creationMethod === 'manual' && <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#0052cc' }} />}
                                             </div>
                                             <div>
-                                                <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>ไม่มีใบเสร็จ</div>
-                                                <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>สร้างใบรับรองแทนใบเสร็จ</p>
+                                                <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>กรอกข้อมูลเอง</div>
+                                                <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>ไม่มีไฟล์อะไรเลย อยากมาบันทึกค่าใช้จ่าย</p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Main Dropzone (Refined Icons/Layout) */}
+                                {/* Main Dropzone for Upload Mode */}
                                 {creationMethod === 'upload' && (
-                                    <div onClick={() => fileInputRef.current?.click()} style={{ width: '100%', height: '180px', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', cursor: 'pointer', backgroundColor: '#fcfcfd' }}>
+                                    <div onClick={() => fileInputRef.current?.click()} style={{ width: '100%', height: '180px', border: '1.5px dashed #cbd5e1', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', cursor: 'pointer', backgroundColor: '#fcfcfd' }}>
                                         <div style={{ color: '#0052cc' }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
                                         <div style={{ textAlign: 'center' }}>
                                             <div style={{ fontWeight: '800', fontSize: '1rem' }}>ลากวางไฟล์ หรือ <span style={{ color: '#0052cc', textDecoration: 'underline' }}>กดเพื่อเลือกไฟล์</span></div>
@@ -411,61 +532,327 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                         </div>
                                     </div>
                                 )}
-
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept=".jpg,.jpeg,.png,.webp,.heic,.pdf" />
 
-                                {/* Items Count Label */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '20px' }}>
-                                    <h3 style={{ fontSize: '1.1rem', fontWeight: '800' }}>รายการค่าใช้จ่าย</h3>
-                                    <span style={{ color: '#0052cc', fontSize: '0.9rem', fontWeight: '800' }}>{image ? expenseItems.length : 0} รายการ</span>
-                                </div>
-
-                                {/* Info Banner */}
-                                <div style={{ ...bannerStyle, margin: 0, padding: '16px', background: '#f8fafc' }}>
-                                    <div style={{ color: '#0052cc' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
-                                    <span style={{ fontSize: '0.85rem' }}>รายการค่าใช้จ่ายจะถูกบันทึกแยกตามหมวดหมู่เพื่อความสะดวกในการจัดทำรายงานภาษี</span>
-                                </div>
-
-                                {/* Receipt Details Form (Only if image is selected or manual) */}
+                                {/* ข้อมูลรายจ่าย & ข้อมูลผู้ขาย Section - Hidden until upload if in upload mode */}
                                 {(creationMethod === 'manual' || (creationMethod === 'upload' && image)) && (
-                                    <div style={{ border: '1px solid #f1f5f9', borderRadius: '12px', padding: '20px' }}>
-                                         <h3 style={{ fontSize: '1.1rem', fontWeight: '900', marginBottom: '20px' }}>รายละเอียดใบเสร็จ</h3>
-                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                             <div><label style={labelStyle}>ผู้ขาย/ผู้ให้บริการ *</label><input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="ระบุผู้ขาย" style={inputStyle} /></div>
-                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                                                 <div><label style={labelStyle}>วันที่ *</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} /></div>
-                                                 <div><label style={labelStyle}>ยอดรวม *</label><input type="text" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" style={inputStyle} /></div>
-                                             </div>
-                                         </div>
-                                    </div>
+                                    <>
+                                        <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                                            <h3 style={{ fontSize: '1.2rem', fontWeight: '900', marginBottom: '24px' }}>ข้อมูลรายจ่าย</h3>
+                                            
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                                                    {/* วันที่ออกใบเสร็จ */}
+                                                    <div>
+                                                        <label style={labelStyle}>วันที่ *</label>
+                                                        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
+                                                    </div>
+                                                    {/* หมวดหมู่ */}
+                                                    <div>
+                                                        <label style={labelStyle}>หมวดหมู่ *</label>
+                                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                            {['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'].map(cat => (
+                                                                <button
+                                                                    key={cat}
+                                                                    onClick={() => setMainCategory(cat)}
+                                                                    style={{
+                                                                        padding: '8px 16px',
+                                                                        borderRadius: '20px',
+                                                                        border: `1.5px solid ${mainCategory === cat ? '#0052cc' : '#e2e8f0'}`,
+                                                                        backgroundColor: mainCategory === cat ? '#f0f7ff' : 'white',
+                                                                        color: mainCategory === cat ? '#0052cc' : '#64748b',
+                                                                        fontWeight: '700',
+                                                                        fontSize: '0.85rem',
+                                                                        cursor: 'pointer',
+                                                                        transition: 'all 0.2s',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '6px'
+                                                                    }}
+                                                                >
+                                                                    {cat === 'อาหาร' && '🍴'}
+                                                                    {cat === 'เดินทาง' && '🚗'}
+                                                                    {cat === 'ช้อปปิ้ง' && '🛍️'}
+                                                                    {cat === 'อื่นๆ' && '✨'}
+                                                                    {cat}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                                                    {/* ผู้ขาย */}
+                                                    <div>
+                                                        <label style={labelStyle}>ผู้ขาย/ผู้ให้บริการ *</label>
+                                                        <input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="ระบุชื่อผู้ขาย" style={inputStyle} />
+                                                    </div>
+                                                    {/* จำนวนเงิน */}
+                                                    <div>
+                                                        <label style={labelStyle}>จำนวนเงิน (รวม) *</label>
+                                                        <div style={{ position: 'relative' }}>
+                                                            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" style={{ ...inputStyle, paddingRight: '45px', fontWeight: '800', color: '#0052cc', fontSize: '1.1rem' }} />
+                                                            <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem', fontWeight: '700', color: '#94a3b8' }}>THB</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                                                    {/* ช่องทางชำระเงิน */}
+                                                    <div>
+                                                        <label style={labelStyle}>ช่องทางชำระเงิน *</label>
+                                                        <div style={{ display: 'flex', gap: '12px' }}>
+                                                            {['โอน', 'เงินสด'].map(method => (
+                                                                <button
+                                                                    key={method}
+                                                                    onClick={() => setPaymentMethod(method)}
+                                                                    style={{
+                                                                        flex: 1,
+                                                                        padding: '10px',
+                                                                        borderRadius: '10px',
+                                                                        border: `1.5px solid ${paymentMethod === method ? '#0052cc' : '#e2e8f0'}`,
+                                                                        backgroundColor: paymentMethod === method ? '#f0f7ff' : 'white',
+                                                                        color: paymentMethod === method ? '#0052cc' : '#64748b',
+                                                                        fontWeight: '700',
+                                                                        fontSize: '0.9rem',
+                                                                        cursor: 'pointer',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        gap: '8px',
+                                                                        transition: 'all 0.2s'
+                                                                    }}
+                                                                >
+                                                                    {method === 'โอน' ? '🏦' : '💵'}
+                                                                    {method}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    {/* รายละเอียด */}
+                                                    <div>
+                                                        <label style={labelStyle}>รายละเอียด *</label>
+                                                        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="ระบุรายละเอียดเพิ่มเติม" style={{ ...inputStyle, height: '44px', resize: 'none' }} />
+                                                    </div>
+                                                </div>
+
+
+                                            </div>
+                                        </div>
+
+                                        {/* ข้อมูลเพิ่มเติมสำหรับใบกำกับภาษี */}
+                                        {isTaxInvoice && (
+                                            <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                                                <h3 style={{ fontSize: '1.2rem', fontWeight: '900', marginBottom: '24px' }}>ข้อมูลเพิ่มเติมสำหรับใบกำกับภาษี</h3>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                                                    <div>
+                                                        <label style={labelStyle}>เลขประจำตัวผู้เสียภาษีของผู้ขาย</label>
+                                                        <input type="text" value={vendorTaxId} onChange={(e) => setVendorTaxId(e.target.value)} placeholder="เลขประจำตัวผู้เสียภาษี" style={inputStyle} />
+                                                    </div>
+                                                    <div>
+                                                        <label style={labelStyle}>เลขที่ใบกำกับภาษี</label>
+                                                        <input type="text" value={taxInvoiceNo} onChange={(e) => setTaxInvoiceNo(e.target.value)} placeholder="เลขที่ใบกำกับภาษี" style={inputStyle} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         )}
 
                         {formTab === 'items' && (
-                            /* Items Tab Content (Refined) */
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <h3 style={{ fontSize: '1.1rem', fontWeight: '900' }}>รายการค่าใช้จ่าย ({expenseItems.length})</h3>
-                                    <button onClick={addItem} style={{ padding: '8px 16px', background: '#f0f7ff', border: 'none', color: '#0052cc', fontWeight: '700', borderRadius: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>+ เพิ่มรายการ</button>
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: '900' }}>รายการค่าใช้จ่าย <span style={{ color: '#0052cc', fontSize: '0.9rem', backgroundColor: '#f0f7ff', padding: '2px 8px', borderRadius: '4px', marginLeft: '8px' }}>{expenseItems.length} รายการ</span></h3>
                                 </div>
-                                
-                                {expenseItems.map((item, idx) => (
-                                    <div key={item.id} style={{ border: '1px solid #f1f5f9', borderRadius: '10px', padding: '16px', background: selectedItemId === item.id ? '#f8faff' : 'white' }}>
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: '16px' }}>
-                                            <input type="text" value={item.description} onChange={(e) => updateItem(item.id, { description: e.target.value })} placeholder="รายละเอียดสินค้า/บริการ" style={inputStyle} />
-                                            <input type="number" value={item.amount} onChange={(e) => updateItem(item.id, { amount: parseFloat(e.target.value) || 0 })} placeholder="ราคา" style={inputStyle} />
+
+                                <div>
+                                    <label style={labelStyle}>สกุลเงิน *</label>
+                                    <select value={currency} onChange={(e) => setCurrency(e.target.value)} style={inputStyle}>
+                                        <option value="THB - Thai Baht (฿)">THB - Thai Baht (฿)</option>
+                                    </select>
+                                </div>
+
+                                <div style={{ ...bannerStyle, margin: 0, padding: '12px 16px', background: '#f8fafc' }}>
+                                    <div style={{ color: '#0052cc' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
+                                    <span style={{ fontSize: '0.85rem' }}>รายการค่าใช้จ่ายจะถูกบันทึกแยกตามหมวดหมู่เพื่อความสะดวกในการจัดทำรายงานภาษี</span>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '20px', minHeight: '500px' }}>
+                                    {/* Left Sidebar: Item List */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                        {expenseItems.map((item, idx) => (
+                                            <div 
+                                                key={item.id} 
+                                                onClick={() => setSelectedItemId(item.id)}
+                                                style={{ 
+                                                    padding: '16px', 
+                                                    borderRadius: '10px', 
+                                                    border: `2px solid ${selectedItemId === item.id ? '#0052cc' : '#f1f5f9'}`, 
+                                                    background: selectedItemId === item.id ? '#f0f7ff' : 'white',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                <div style={{ fontWeight: '800', fontSize: '0.95rem', marginBottom: '8px' }}>#{idx + 1} {item.description || 'ไม่มีรายละเอียด'}</div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '0.85rem' }}>
+                                                    <span>ยอดชำระ</span>
+                                                    <span style={{ fontWeight: '700', color: '#1e293b' }}>฿{(item.amount * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <button onClick={addItem} style={{ padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', color: '#0052cc', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer', textAlign: 'center' }}>
+                                            เพิ่มรายการค่าใช้จ่าย
+                                        </button>
+                                    </div>
+
+                                    {/* Right Content: Item Details */}
+                                    <div style={{ background: 'white', border: '1px solid #f1f5f9', borderRadius: '12px', padding: '24px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                                            <h4 style={{ fontSize: '1.1rem', fontWeight: '900' }}>รายการที่ {expenseItems.findIndex(it => it.id === selectedItemId) + 1}</h4>
+                                            <button onClick={() => removeItem(selectedItemId)} style={{ background: '#fff1f2', border: 'none', color: '#e11d48', padding: '6px', borderRadius: '6px', cursor: 'pointer' }}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                            </button>
+                                        </div>
+
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                            <div>
+                                                <label style={labelStyle}>รายละเอียด *</label>
+                                                <input type="text" value={selectedItem.description} onChange={(e) => updateItem(selectedItemId, { description: e.target.value })} placeholder="ชื่อสินค้า/บริการ" style={inputStyle} />
+                                            </div>
+
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                                <div>
+                                                    <label style={labelStyle}>ประเภท *</label>
+                                                    <div style={{ display: 'flex', gap: '16px' }}>
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                                            <input type="radio" checked={selectedItem.type === 'product'} onChange={() => updateItem(selectedItemId, { type: 'product' })} style={{ width: '18px', height: '18px' }} />
+                                                            <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>สินค้า</span>
+                                                        </label>
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                                            <input type="radio" checked={selectedItem.type === 'service'} onChange={() => updateItem(selectedItemId, { type: 'service' })} style={{ width: '18px', height: '18px' }} />
+                                                            <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>บริการ</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label style={labelStyle}>จำนวน *</label>
+                                                    <input type="number" value={selectedItem.quantity} onChange={(e) => updateItem(selectedItemId, { quantity: parseInt(e.target.value) || 0 })} style={inputStyle} />
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label style={labelStyle}>หมวดหมู่ *</label>
+                                                <select value={selectedItem.category} onChange={(e) => updateItem(selectedItemId, { category: e.target.value })} style={inputStyle}>
+                                                    <option value="">เลือกหมวดหมู่</option>
+                                                    <option value="travel">ค่าเดินทาง</option>
+                                                    <option value="office">อุปกรณ์สำนักงาน</option>
+                                                </select>
+                                            </div>
+
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                                <div>
+                                                    <label style={labelStyle}>ยอดชำระ</label>
+                                                    <div style={{ position: 'relative' }}>
+                                                        <input type="number" value={selectedItem.amount * selectedItem.quantity} onChange={(e) => {
+                                                            const total = parseFloat(e.target.value) || 0;
+                                                            updateItem(selectedItemId, { amount: total / (selectedItem.quantity || 1) });
+                                                        }} style={{ ...inputStyle, paddingRight: '40px' }} />
+                                                        <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label style={labelStyle}>ยอดรวมก่อนภาษี</label>
+                                                    <div style={{ position: 'relative' }}>
+                                                        <input type="number" value={selectedItem.amount * selectedItem.quantity} readOnly style={{ ...inputStyle, backgroundColor: '#f8fafc', paddingRight: '40px' }} />
+                                                        <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                                <div>
+                                                    <label style={labelStyle}>ภาษีมูลค่าเพิ่ม (VAT)</label>
+                                                    <div style={{ position: 'relative' }}>
+                                                        <input type="number" value={selectedItem.vat} onChange={(e) => updateItem(selectedItemId, { vat: parseFloat(e.target.value) || 0 })} style={{ ...inputStyle, paddingRight: '40px' }} />
+                                                        <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label style={labelStyle}>ภาษีหัก ณ ที่จ่าย (WHT)</label>
+                                                    <div style={{ position: 'relative' }}>
+                                                        <input type="number" value={selectedItem.wht} onChange={(e) => updateItem(selectedItemId, { wht: parseFloat(e.target.value) || 0 })} style={{ ...inputStyle, paddingRight: '40px' }} />
+                                                        <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label style={labelStyle}>หมายเหตุ</label>
+                                                <textarea value={selectedItem.note} onChange={(e) => updateItem(selectedItemId, { note: e.target.value })} placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)" style={{ ...inputStyle, height: '80px', resize: 'none' }} />
+                                            </div>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        )}
+                                </div>
 
-                        {formTab === 'evidence' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                                <h3 style={{ fontSize: '1.1rem', fontWeight: '900' }}>หลักฐานเพิ่มเติม</h3>
-                                <SmallDropzone onClick={() => evidenceInputRef.current?.click()} />
-                                <input type="file" ref={evidenceInputRef} style={{ display: 'none' }} multiple />
+                                {/* สรุปรวมค่าใช้จ่าย */}
+                                <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #f1f5f9', marginTop: '20px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                                        <h3 style={{ fontSize: '1.2rem', fontWeight: '900' }}>สรุปรวมค่าใช้จ่าย</h3>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <div onClick={() => setEditSummaryManually(!editSummaryManually)} style={{ width: '40px', height: '22px', background: editSummaryManually ? '#0052cc' : '#cbd5e1', borderRadius: '12px', position: 'relative', cursor: 'pointer', transition: 'all 0.2s' }}>
+                                                <div style={{ width: '18px', height: '18px', background: 'white', borderRadius: '50%', position: 'absolute', top: '2px', left: editSummaryManually ? '20px' : '2px', transition: 'all 0.2s' }} />
+                                            </div>
+                                            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>แก้ไขยอดรวมด้วยตนเอง</span>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+                                        <div>
+                                            <label style={{ ...labelStyle, color: '#64748b' }}>ยอดชำระ</label>
+                                            <div style={{ position: 'relative' }}>
+                                                <input type="text" value={total.toLocaleString(undefined, { minimumFractionDigits: 2 })} readOnly style={{ ...inputStyle, backgroundColor: '#f8fafc', paddingRight: '40px', fontWeight: '800' }} />
+                                                <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style={{ ...labelStyle, color: '#64748b' }}>ยอดรวมก่อนภาษี</label>
+                                            <div style={{ position: 'relative' }}>
+                                                <input type="text" value={subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} readOnly style={{ ...inputStyle, backgroundColor: '#f8fafc', paddingRight: '40px' }} />
+                                                <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style={{ ...labelStyle, color: '#64748b' }}>ภาษีมูลค่าเพิ่ม (VAT)</label>
+                                            <div style={{ position: 'relative' }}>
+                                                <input type="text" value={vat.toLocaleString(undefined, { minimumFractionDigits: 2 })} readOnly style={{ ...inputStyle, backgroundColor: '#f8fafc', paddingRight: '40px' }} />
+                                                <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style={{ ...labelStyle, color: '#64748b' }}>ภาษีหัก ณ ที่จ่าย (WHT)</label>
+                                            <div style={{ position: 'relative' }}>
+                                                <input type="text" value={wht.toLocaleString(undefined, { minimumFractionDigits: 2 })} readOnly style={{ ...inputStyle, backgroundColor: '#f8fafc', paddingRight: '40px' }} />
+                                                <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ใบแทนใบเสร็จ */}
+                                <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #f1f5f9', marginTop: '20px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                        <h3 style={{ fontSize: '1.2rem', fontWeight: '900' }}>ใบแทนใบเสร็จ</h3>
+                                        <button style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', background: 'white', fontSize: '0.8rem', fontWeight: '600', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> แก้ไขชื่อผู้อนุมัติ
+                                        </button>
+                                    </div>
+                                    <div style={{ padding: '16px', background: '#f0f7ff', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div style={{ color: '#0052cc' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
+                                        <span style={{ fontSize: '0.9rem', color: '#0052cc', fontWeight: '600' }}>ระบบจะสร้างใบรับรองใบแทนใบเสร็จให้โดยอัตโนมัติ</span>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -473,7 +860,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     <div style={{ padding: '16px 32px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white' }}>
                         <button onClick={onClose} style={{ padding: '10px 24px', borderRadius: '8px', border: '1.5px solid #e2e8f0', backgroundColor: 'white', color: '#64748b', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
                         <button onClick={handleSave} disabled={isSaving} style={{ padding: '12px 32px', borderRadius: '10px', backgroundColor: '#1e293b', color: '#ffffff', fontWeight: '800', border: 'none', display: 'flex', alignItems: 'center', gap: '10px', cursor: isSaving ? 'not-allowed' : 'pointer' }}>
-                            {isSaving ? <LoadingSpinner /> : <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg> เพิ่มใบเสร็จ</>}
+                            {isSaving ? <LoadingSpinner /> : <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg> สร้างรายจ่าย</>}
                         </button>
                     </div>
                 </div>
