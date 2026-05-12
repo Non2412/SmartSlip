@@ -61,6 +61,29 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
     }
   };
 
+  const handleDisconnect = async () => {
+    if (!window.confirm("คุณแน่ใจหรือไม่ที่จะยกเลิกการเชื่อมต่อ Google Drive? (ระบบจะล้างการตั้งค่าโฟลเดอร์เดิม)")) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/drive/disconnect", {
+        method: "POST",
+      });
+      
+      if (response.ok) {
+        alert("ยกเลิกการเชื่อมต่อสำเร็จ!");
+        window.location.reload();
+      } else {
+        const data = await response.json();
+        alert(`เกิดข้อผิดพลาด: ${data.error || "ไม่สามารถยกเลิกการเชื่อมต่อได้"}`);
+      }
+    } catch (err) {
+      alert("เกิดข้อผิดพลาดในการเชื่อมต่อ");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Auto-setup Google Drive folder using Service Account (no user auth required)
   useEffect(() => {
     const userId = session?.user?.id;
@@ -87,6 +110,14 @@ export const GoogleDriveAuth = ({ onAuthSuccess, showText = true }: GoogleDriveA
               className={styles.syncButton}
             >
               🔄
+            </button>
+            <button
+              onClick={handleDisconnect}
+              title="ยกเลิกการเชื่อมต่อ Google Drive"
+              className={styles.syncButton}
+              style={{ marginLeft: '4px', backgroundColor: '#fee2e2' }}
+            >
+              ❌
             </button>
           </>
         )}
