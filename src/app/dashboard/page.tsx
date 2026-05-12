@@ -2,78 +2,227 @@
 
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
-import { StatCard, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
+import CreateReceiptSheet from '@/components/CreateReceiptSheet';
+import { GoogleDriveAuth } from '@/components/GoogleDriveAuth';
+import { StatCard, FilterBar, ReceiptTable, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { useReceipts } from '@/hooks/useReceipts';
+import { StatCardSkeleton, ChartSkeleton, RecentUploadsSkeleton } from '@/components/Skeleton';
+import styles from './Dashboard.module.css';
 
 export default function DashboardPage() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
+  const { receipts, fetchReceipts, loading } = useReceipts();
+
+  // Setup Google Drive folder on first login (for both Google and LINE users)
+  useEffect(() => {
+    console.log('🔍 Dashboard loaded, session:', session?.user?.id);
+
+    const autoSetupGoogleDrive = async () => {
+      if (!session?.user?.id) {
+        console.log('⚠️ Waiting for session... ID:', session?.user?.id);
+        return;
+      }
+
+      try {
+        const isLineUser = (session as unknown as { lineUserName: string })?.lineUserName ? true : false;
+        console.log(`📁 Auto-setting up Google Drive for ${isLineUser ? 'LINE' : 'Google'} user:`, session.user.id);
+
+        const response = await fetch('/api/drive/auto-setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            userId: session.user.id,
+            email: session.user.email,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          console.error(`❌ Failed to setup (Status ${response.status}):`, errorData);
+          if (errorData?.error) {
+            console.error('Error detail:', errorData.error);
+          }
+          return;
+        }
+
+        const data = await response.json();
+        console.log('✅ Google Drive auto-setup successful:', data);
+
+        // Link LINE user ID + Google Drive folder + Sheet to backend user record
+        const lineUserId = (session as unknown as { lineUserId: string })?.lineUserId;
+        const folderId = data?.data?.userFolderId || data?.folderId;
+        const sheetId = data?.data?.googleSheetId || data?.googleSheetId;
+        console.log('🔍 lineUserId:', lineUserId, 'folderId:', folderId, 'sheetId:', sheetId);
+        if (lineUserId) {
+          try {
+            const apiUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'https://smart-slip-api.vercel.app';
+            const linkRes = await fetch(`${apiUrl}/api/user/link-line`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: session.user.id,
+                lineUserId: lineUserId,
+                googleDriveFolderId: folderId,
+                googleSheetId: sheetId,
+                googleAccessToken: (session as unknown as { googleAccessToken: string }).googleAccessToken,
+                googleRefreshToken: (session as unknown as { googleRefreshToken: string }).googleRefreshToken,
+                googleTokenExpiry: (session as unknown as { googleExpiresAt: number }).googleExpiresAt
+                  ? new Date((session as unknown as { googleExpiresAt: number }).googleExpiresAt * 1000).toISOString()
+                  : undefined,
+              }),
+            });
+            const linkData = await linkRes.json();
+            console.log('✅ LINE user linked to Drive+Sheets:', linkData);
+          } catch (linkErr) {
+            console.warn('⚠️ LINE link failed (non-critical):', linkErr);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Setup error:', error);
+      }
+    };
+
+    autoSetupGoogleDrive();
+  }, [session]);
 
   useEffect(() => {
+    if (session?.user?.id) {
+      fetchReceipts(session.user.id);
+    }
+  }, [session, fetchReceipts]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsSidebarOpen(false);
   }, [pathname]);
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
 
+  const openCreateSheet = () => setIsCreateSheetOpen(true);
+  const closeCreateSheet = () => setIsCreateSheetOpen(false);
+
+  // คำนวณสถิติจริง
+  const totalAmount = receipts.reduce((acc, r) => acc + (r.totalAmount || 0), 0);
+  const pendingCount = receipts.filter(r => !r.extractedData).length;
+  const approvedCount = receipts.filter(r => r.extractedData).length;
+
   return (
     <div className="dashboard-layout">
-      {/* Sidebar Overlay for mobile */}
-      <div 
-        className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} 
+      <div
+        className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`}
         onClick={closeSidebar}
       />
 
-      <Sidebar 
+      <Sidebar
         isOpen={isSidebarOpen}
         onClose={closeSidebar}
+        onAddReceipt={openCreateSheet}
       />
 
       <main className="main-content">
-        <TopBar 
-          title="ภาพรวมรายจ่าย" 
+        <TopBar
+          title="ภาพรวมรายจ่าย"
           onToggleSidebar={toggleSidebar}
+          onCreateNew={openCreateSheet}
         />
 
         <div className="page-container">
-          {/* Summary Stats Row */}
-          <div style={{
-            display: 'flex',
-            gap: '24px',
-            marginBottom: '32px',
-            flexWrap: 'wrap'
-          }}>
-            <StatCard
-              title="ยอดใช้จ่ายรวม"
-              subValue="฿ 425,000.00"
-              value=""
-              trend="+12.5%"
-            />
-            <StatCard
-              title="รอตรวจสอบ"
-              value="15 รายการ"
-              status="รออนุมัติ"
-            />
-            <StatCard
-              title="อนุมัติแล้ว"
-              value="128 รายการ"
-              trend="+5%"
-            />
+          {/* Google Drive Auth Section */}
+          <div className={styles.driveSection}>
+            <span className={styles.driveLabel}>ตั้งค่า Google Drive:</span>
+            <GoogleDriveAuth showText={true} />
           </div>
 
-          {/* Charts and Lists Row */}
-          <div style={{
-            display: 'flex',
-            gap: '24px',
-            flexWrap: 'wrap'
-          }}>
-            <ExpenseChart />
-            <RecentUploads />
+          {/* Summary Stats Row */}
+          <div className={styles.summaryStatsRow}>
+            {loading ? (
+              <>
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+                <StatCardSkeleton />
+              </>
+            ) : (
+              <>
+                <StatCard
+                  title="ยอดใช้จ่ายรวม"
+                  value={`฿ ${totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`}
+                  trend="+12.5%"
+                  icon={
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="5" width="20" height="14" rx="2" />
+                      <line x1="2" y1="10" x2="22" y2="10" />
+                    </svg>
+                  }
+                />
+                <StatCard
+                  title="รอตรวจสอบ"
+                  value={`${pendingCount} รายการ`}
+                  status="รออนุมัติ"
+                  iconBg="#fff7ed"
+                  icon={
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                  }
+                />
+                <StatCard
+                  title="อนุมัติแล้ว"
+                  value={`${approvedCount} รายการ`}
+                  trend="+5%"
+                  icon={
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                  }
+                />
+              </>
+            )}
           </div>
+
+          {/* Charts Row */}
+          <div className={styles.chartsRow}>
+            {loading ? (
+              <>
+                <div className={styles.chartColSpan2}>
+                  <ChartSkeleton />
+                </div>
+                <RecentUploadsSkeleton />
+              </>
+            ) : (
+              <>
+                <div className={styles.chartColSpan2}>
+                  <ExpenseChart receipts={receipts} />
+                </div>
+                <RecentUploads receipts={receipts} />
+              </>
+            )}
+          </div>
+
+          <FilterBar />
+
+          <ReceiptTable loading={loading} receipts={receipts} />
         </div>
       </main>
+
+      <CreateReceiptSheet
+        isOpen={isCreateSheetOpen}
+        onClose={closeCreateSheet}
+        onSuccess={() => {
+          if (session?.user?.id) {
+            fetchReceipts(session.user.id);
+          }
+        }}
+      />
     </div>
   );
 }
-

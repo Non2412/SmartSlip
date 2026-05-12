@@ -14,10 +14,12 @@ const TopBar = ({
 }) => {
     return (
         <header className={styles.header}>
-            <button className={styles.menuButton} onClick={onToggleSidebar} aria-label="Toggle Sidebar">
-                <MenuIcon />
-            </button>
-            <h1 className={styles.title}>{title}</h1>
+            <div className={styles.leftSection}>
+                <button className={styles.menuButton} onClick={onToggleSidebar} aria-label="Toggle Sidebar">
+                    <MenuIcon />
+                </button>
+                <h1 className={styles.title}>{title}</h1>
+            </div>
 
             <div className={styles.actions}>
                 <div className={styles.searchContainer}>

@@ -10,6 +10,10 @@
   margin-bottom: 16px;
 }
 
+.hiddenInput {
+  display: none;
+}
+
 .uploadButton {
   padding: 12px 24px;
   background-color: #10b981;

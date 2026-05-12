@@ -21,7 +21,7 @@ export const useReceipts = (): UseReceiptsReturn => {
     setLoading(true);
     setError(null);
     try {
-      const result = await receiptApi.getAll(userId);
+      const result = await receiptApi.getAll(userId) as any;
       if (result.success && result.data) {
         setReceipts(result.data);
       } else {
@@ -38,7 +38,7 @@ export const useReceipts = (): UseReceiptsReturn => {
     setLoading(true);
     setError(null);
     try {
-      const result = await receiptApi.create(data);
+      const result = await receiptApi.create(data) as any;
 
       if (result.success && result.data) {
         setReceipts(prev => [result.data as Receipt, ...prev]);
@@ -57,23 +57,16 @@ export const useReceipts = (): UseReceiptsReturn => {
     setLoading(true);
     setError(null);
     try {
-      // Convert file to base64
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      const result = await receiptApi.extract(file, userId || '');
 
-      const result = await receiptApi.extract(base64, userId);
-
-      if (result.success && result.data) {
-        return result.data;
-      } else {
-        const errorMsg = result.error || 'Failed to extract data';
-        setError(errorMsg);
-        throw new Error(errorMsg);
+      if (result.success) {
+        const data = (result as any).data;
+        if (data) {
+          return data;
+        }
       }
+      setError(result.error || 'Failed to extract data');
+      return null;
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMsg);

@@ -36,7 +36,7 @@ export function ReceiptUploader({ onOCRSuccess, userId }: ReceiptUploaderProps) 
     // Extract receipt data using AI
     setExtractedData(null);
     // You can pass the actual userId here, e.g., from a session
-    const data = await extractFromImage(file, 'user123'); 
+    const data = await extractFromImage(file, userId); 
     if (data) {
       setExtractedData(data);
       setEditableData({
@@ -71,7 +71,7 @@ export function ReceiptUploader({ onOCRSuccess, userId }: ReceiptUploaderProps) 
         type="file"
         accept="image/*"
         onChange={handleFileSelect}
-        style={{ display: 'none' }}
+        className={styles.hiddenInput}
       />
 
       <button

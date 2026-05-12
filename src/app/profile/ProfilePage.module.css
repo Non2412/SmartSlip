@@ -1,0 +1,14 @@
+.profileContainer {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .profileContainer {
+    flex-direction: column;
+  }
+}

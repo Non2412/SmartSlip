@@ -8,13 +8,15 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import { useReceipts } from '@/hooks/useReceipts';
+import { useSession } from 'next-auth/react';
 
 export default function HowToUsePage() {
     const pathname = usePathname();
+    const { data: session } = useSession();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const { fetchReceipts } = useReceipts();
-    const userId = 'user123';
+    const userId = session?.user?.id || 'guest';
 
     useEffect(() => {
         setIsSidebarOpen(false);
