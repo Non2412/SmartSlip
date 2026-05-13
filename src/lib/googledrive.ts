@@ -184,8 +184,8 @@ export async function getFileStream(fileId: string, userId?: string) {
  * @param parentFolderId - Optional folder ID to upload to
  * @returns Metadata of the uploaded file
  */
-export async function uploadFile(buffer: Buffer, fileName: string, mimeType: string, parentFolderId?: string, userId?: string) {
-  const drive = await getGoogleDriveClient(userId);
+export async function uploadFile(buffer: Buffer, fileName: string, mimeType: string, parentFolderId?: string, userId?: string, accessToken?: string) {
+  const drive = await getGoogleDriveClient(userId, accessToken);
   const folderId = parentFolderId || process.env.GOOGLE_DRIVE_FOLDER_ID;
 
   const fileMetadata = {
