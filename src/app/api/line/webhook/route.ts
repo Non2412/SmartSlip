@@ -153,6 +153,7 @@ export async function POST(req: NextRequest) {
             source: 'line',
             extractedData: data,
             imageFileId: driveFileId,
+            imageUrl: gcsUrl,
             createdAt: new Date().toISOString(),
           };
           const insertResult = await db.collection('receipts').insertOne(newReceipt);

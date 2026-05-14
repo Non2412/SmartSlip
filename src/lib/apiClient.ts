@@ -9,6 +9,8 @@ export interface Receipt {
   totalAmount: number;
   userId: string;
   imageFileId?: string;
+  imageUrl?: string;
+  source?: string;
   createdAt: string;
   updatedAt: string;
   extractedData?: {
