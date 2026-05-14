@@ -3,7 +3,7 @@
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import CreateReceiptSheet from '@/components/CreateReceiptSheet';
-import { GoogleDriveAuth } from '@/components/GoogleDriveAuth';
+
 import { StatCard, FilterBar, ReceiptTable, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
@@ -19,78 +19,7 @@ export default function DashboardPage() {
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const { receipts, fetchReceipts, loading } = useReceipts();
 
-  // Setup Google Drive folder on first login (for both Google and LINE users)
-  useEffect(() => {
-    console.log('🔍 Dashboard loaded, session:', session?.user?.id);
 
-    const autoSetupGoogleDrive = async () => {
-      if (!session?.user?.id) {
-        console.log('⚠️ Waiting for session... ID:', session?.user?.id);
-        return;
-      }
-
-      try {
-        const isLineUser = (session as unknown as { lineUserName: string })?.lineUserName ? true : false;
-        console.log(`📁 Auto-setting up Google Drive for ${isLineUser ? 'LINE' : 'Google'} user:`, session.user.id);
-
-        const response = await fetch('/api/drive/auto-setup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            userId: session.user.id,
-            email: session.user.email,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => null);
-          console.error(`❌ Failed to setup (Status ${response.status}):`, errorData);
-          if (errorData?.error) {
-            console.error('Error detail:', errorData.error);
-          }
-          return;
-        }
-
-        const data = await response.json();
-        console.log('✅ Google Drive auto-setup successful:', data);
-
-        // Link LINE user ID + Google Drive folder + Sheet to backend user record
-        const lineUserId = (session as unknown as { lineUserId: string })?.lineUserId;
-        const folderId = data?.data?.userFolderId || data?.folderId;
-        const sheetId = data?.data?.googleSheetId || data?.googleSheetId;
-        console.log('🔍 lineUserId:', lineUserId, 'folderId:', folderId, 'sheetId:', sheetId);
-        if (lineUserId) {
-          try {
-            const apiUrl = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'https://smart-slip-api.vercel.app';
-            const linkRes = await fetch(`${apiUrl}/api/user/link-line`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                userId: session.user.id,
-                lineUserId: lineUserId,
-                googleDriveFolderId: folderId,
-                googleSheetId: sheetId,
-                googleAccessToken: (session as unknown as { googleAccessToken: string }).googleAccessToken,
-                googleRefreshToken: (session as unknown as { googleRefreshToken: string }).googleRefreshToken,
-                googleTokenExpiry: (session as unknown as { googleExpiresAt: number }).googleExpiresAt
-                  ? new Date((session as unknown as { googleExpiresAt: number }).googleExpiresAt * 1000).toISOString()
-                  : undefined,
-              }),
-            });
-            const linkData = await linkRes.json();
-            console.log('✅ LINE user linked to Drive+Sheets:', linkData);
-          } catch (linkErr) {
-            console.warn('⚠️ LINE link failed (non-critical):', linkErr);
-          }
-        }
-      } catch (error) {
-        console.error('❌ Setup error:', error);
-      }
-    };
-
-    autoSetupGoogleDrive();
-  }, [session]);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -135,11 +64,6 @@ export default function DashboardPage() {
         />
 
         <div className="page-container">
-          {/* Google Drive Auth Section */}
-          <div className={styles.driveSection}>
-            <span className={styles.driveLabel}>ตั้งค่า Google Drive:</span>
-            <GoogleDriveAuth showText={true} />
-          </div>
 
           {/* Summary Stats Row */}
           <div className={styles.summaryStatsRow}>

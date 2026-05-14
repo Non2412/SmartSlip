@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import clientPromise from '@/lib/mongodb';
-import { uploadFile, getUserMonthFolder } from '@/lib/googledrive';
+
 import { appendReceiptToUserSheet } from '@/lib/googlesheets';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -120,8 +120,9 @@ export async function POST(req: NextRequest) {
           if (!jsonMatch) throw new Error('AI could not parse structured data');
           const data = JSON.parse(jsonMatch[0]);
 
-          // 5. Upload to Google Drive (ใช้โฟลเดอร์จาก DB เดียวกับที่ผู้ใช้เห็นใน Drive)
+          // 5. Upload to Google Cloud Storage
           let driveFileId = null;
+          let gcsUrl = null;
           const { ObjectId } = await import('mongodb');
           let userDoc = await db.collection('users').findOne({ _id: internalUserId as any });
           if (!userDoc && ObjectId.isValid(internalUserId)) {
@@ -131,61 +132,17 @@ export async function POST(req: NextRequest) {
           let driveErrorMsg = '';
           try {
             const fileName = `line-receipt-${data.store || 'unknown'}-${Date.now()}.jpg`.replace(/[^a-zA-Z0-9.-]/g, '_');
-
-            // ดึง Google access token ของ user เพื่อ upload ด้วย user OAuth (ไม่ใช่ SA)
-            let userAccessToken: string | undefined;
-            try {
-              const { ObjectId: ObjId } = await import('mongodb');
-              const googleAccount = await db.collection('accounts').findOne({
-                provider: 'google',
-                $or: [
-                  { userId: internalUserId },
-                  { userId: ObjId.isValid(internalUserId) ? new ObjId(internalUserId) : internalUserId },
-                ],
-              });
-              if (googleAccount?.access_token) {
-                userAccessToken = googleAccount.access_token as string;
-              }
-            } catch {}
-
-            let targetFolderId: string | undefined;
-            if (userDoc?.googleDriveFolderId) {
-              if (userDoc?.folderOwnedByUser) {
-                // folder เป็นของ user → upload ตรงเลย ไม่ต้องสร้าง subfolder ใหม่
-                targetFolderId = userDoc.googleDriveFolderId;
-              } else {
-              const { findOrCreateFolder } = await import('@/lib/googledrive');
-              const now = new Date();
-              const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-              
-              let currentParent = userDoc.googleDriveFolderId;
-              
-              // If set up via service account, the structure is User -> Receipts -> Year -> Month
-              if (userDoc.googleDriveSetupMethod === 'service-account') {
-                const receiptsFolderId = await findOrCreateFolder('Receipts', currentParent, internalUserId);
-                if (receiptsFolderId) currentParent = receiptsFolderId;
-              }
-
-              const yearFolderId = await findOrCreateFolder(now.getFullYear().toString(), currentParent, internalUserId);
-              targetFolderId = yearFolderId
-                ? await findOrCreateFolder(
-                    `${String(now.getMonth() + 1).padStart(2, '0')}-${monthNames[now.getMonth()]} ${now.getFullYear()}`,
-                    yearFolderId,
-                    internalUserId
-                  ) ?? undefined
-                : currentParent;
-              }
-            } else {
-              // fallback: ใช้ getUserMonthFolder ถ้ายังไม่เคย setup
-              targetFolderId = await getUserMonthFolder(internalUserId, undefined);
-            }
-
-            const uploadResult = await uploadFile(imageBuffer, fileName, 'image/jpeg', targetFolderId, userAccessToken ? undefined : internalUserId, userAccessToken);
-            driveFileId = uploadResult.id;
-            console.log('✅ LINE receipt uploaded to Drive:', driveFileId, 'folder:', targetFolderId);
+            
+            const { uploadToGCS } = await import('@/lib/gcs');
+            const bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || 'smartslip-receipts';
+            
+            const uploadResult = await uploadToGCS(imageBuffer, fileName, 'image/jpeg', bucketName, internalUserId);
+            gcsUrl = uploadResult.publicUrl;
+            driveFileId = uploadResult.name; // Use the GCS path as the ID for now
+            console.log('✅ LINE receipt uploaded to GCS:', gcsUrl);
           } catch (driveErr: any) {
-            console.error('❌ Drive upload failed:', driveErr);
-            driveErrorMsg = `\n(⚠️ อัปโหลดรูปลง Drive ไม่สำเร็จ: ${driveErr.message})`;
+            console.error('❌ GCS upload failed:', driveErr);
+            driveErrorMsg = `\n(⚠️ อัปโหลดรูปไม่สำเร็จ: ${driveErr.message})`;
           }
 
           // 6. Save to MongoDB
@@ -203,9 +160,7 @@ export async function POST(req: NextRequest) {
           // 7. Append to Google Sheet (if user has a sheet)
           if (userDoc?.googleSheetId) {
             try {
-              const imageUrl = driveFileId
-                ? `https://drive.google.com/file/d/${driveFileId}/view`
-                : '';
+              const imageUrl = gcsUrl || '';
               await appendReceiptToUserSheet(userDoc.googleSheetId, {
                 date: data.date || new Date().toISOString(),
                 storeName: newReceipt.storeName,
@@ -227,7 +182,8 @@ export async function POST(req: NextRequest) {
             ? `\n🛒 สินค้า:\n` + data.items.map((item: any, idx: number) => `${idx + 1}. ${item.description}\n   จำนวน: ${item.quantity} x ฿${Number(item.unitPrice).toFixed(2)} = ฿${Number(item.totalPrice).toFixed(2)}`).join('\n')
             : '';
 
-          const successMsg = `✅ ประมวลผลสำเร็จ!\n\n💰 จำนวนเงิน: ฿${newReceipt.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n👤 ผู้ส่ง: ${data.method || 'Unknown'}\n🏢 ผู้รับ: ${newReceipt.storeName}\n📅 วันที่: ${data.date || new Date().toISOString().split('T')[0]}\n${itemsText}\n\n🎯 ความแม่นยำ: ✅ high${driveFileId ? '\n📁 บันทึกลง Google Drive แล้ว' : driveErrorMsg}`;
+          const successMsg = `✅ ประมวลผลสำเร็จ!\n\n💰 จำนวนเงิน: ฿${newReceipt.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n👤 ผู้ส่ง: ${data.method || 'Unknown'}\n🏢 ผู้รับ: ${newReceipt.storeName}\n📅 วันที่: ${data.date || new Date().toISOString().split('T')[0]}\n${itemsText}\n\n🎯 ความแม่นยำ: ✅ high${gcsUrl ? '\n☁️ บันทึกลง Cloud Storage แล้ว' : driveErrorMsg}`;
+
           await replyMessage(replyToken, successMsg);
 
         } catch (procErr: any) {

@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { GoogleDriveAuth } from './GoogleDriveAuth';
+
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -50,8 +50,6 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
         <ul className={styles.navList}>
           <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="รายการใบเสร็จ" icon={<ListIcon />} />
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} onClick={onAddReceipt} />
-          <SidebarItem href={`/api/drive/sheets/redirect/${userId}`} label="Google Sheets" icon={<SheetsIcon />} isExternal />
-          <SidebarItem href={`/api/drive/redirect/${userId}`} label="Google Drive" icon={<DriveIcon />} isExternal />
         </ul>
 
         <div className={styles.navSection}>
@@ -65,12 +63,8 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
             icon={<HelpIcon />}
           />
 
-        <div className={styles.navSection}>
-          ตั้งค่า Google Drive
-        </div>
-        <div className={styles.driveAuthWrapper}>
-          <GoogleDriveAuth showText={true} />
-        </div>
+
+
         </ul>
       </nav>
 
