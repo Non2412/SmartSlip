@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     const bodyText = await req.text();
     const signature = req.headers.get('x-line-signature') || '';
 
-    if (!verifySignature(bodyText, signature)) {
+    if (!await verifySignature(bodyText, signature)) {
       return new NextResponse('Invalid signature', { status: 401 });
     }
 
@@ -130,6 +130,7 @@ export async function POST(req: NextRequest) {
           }
 
           let driveErrorMsg = '';
+          let userAccessToken: string | undefined;
           try {
             const fileName = `line-receipt-${data.store || 'unknown'}-${Date.now()}.jpg`.replace(/[^a-zA-Z0-9.-]/g, '_');
             
@@ -171,7 +172,7 @@ export async function POST(req: NextRequest) {
                 confidence: 'high',
                 receiptId: insertResult.insertedId.toString(),
                 imageUrl,
-              });
+              }, userAccessToken);
               console.log('✅ Receipt appended to Google Sheet:', userDoc.googleSheetId);
             } catch (sheetErr) {
               console.error('❌ Sheet append failed (non-critical):', sheetErr);
