@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { GoogleDriveAuth } from './GoogleDriveAuth';
+
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
@@ -49,9 +49,8 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
         </div>
         <ul className={styles.navList}>
           <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="รายการใบเสร็จ" icon={<ListIcon />} />
+          <SidebarItem href="/line-receipts" active={pathname === '/line-receipts'} label="รูปภาพจาก LINE" icon={<ImageIcon />} />
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} onClick={onAddReceipt} />
-          <SidebarItem href={`/api/drive/sheets/redirect/${userId}`} label="Google Sheets" icon={<SheetsIcon />} isExternal />
-          <SidebarItem href={`/api/drive/redirect/${userId}`} label="Google Drive" icon={<DriveIcon />} isExternal />
         </ul>
 
         <div className={styles.navSection}>
@@ -65,12 +64,8 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
             icon={<HelpIcon />}
           />
 
-        <div className={styles.navSection}>
-          ตั้งค่า Google Drive
-        </div>
-        <div className={styles.driveAuthWrapper}>
-          <GoogleDriveAuth showText={true} />
-        </div>
+
+
         </ul>
       </nav>
 
@@ -202,6 +197,10 @@ function LogoutIcon() {
 
 function UserIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
+}
+
+function ImageIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>;
 }
 
 export default Sidebar;

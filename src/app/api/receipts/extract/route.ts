@@ -51,40 +51,31 @@ export async function POST(request: Request) {
 
     const data = JSON.parse(jsonMatch[0]);
 
-    // --- UPLOAD TO GOOGLE DRIVE (WITH AUTO-FOLDER LOGIC) ---
+    // --- UPLOAD TO GOOGLE CLOUD STORAGE ---
     let driveFileId = null;
     let webViewLink = null;
     
     try {
-      const { uploadFile, getUserMonthFolder } = await import('@/lib/googledrive');
+      const { uploadToGCS } = await import('@/lib/gcs');
       
-      // 1. Get/Create Folder Structure (User -> Month-Year)
-      let targetFolderId = undefined;
-      if (userId) {
-        try {
-          targetFolderId = await getUserMonthFolder(userId) || undefined;
-        } catch (folderErr) {
-          console.error('Auto Folder Creation Failed, using root:', folderErr);
-        }
-      }
-
-      // 2. Upload File
       const base64Data = image.split(',')[1] || image;
       const buffer = Buffer.from(base64Data, 'base64');
       
       const fileName = `receipt-${data.store || 'unknown'}-${Date.now()}.jpg`.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || 'smartslip-receipts';
       
-      const uploadResult = await uploadFile(
+      const uploadResult = await uploadToGCS(
         buffer, 
         fileName, 
         'image/jpeg',
-        targetFolderId
+        bucketName,
+        userId
       );
       
-      driveFileId = uploadResult.id;
-      webViewLink = (uploadResult as any).webViewLink;
-    } catch (driveError) {
-      console.error('Google Drive Process Failed:', driveError);
+      driveFileId = uploadResult.name;
+      webViewLink = uploadResult.publicUrl;
+    } catch (gcsError) {
+      console.error('Google Cloud Storage Process Failed:', gcsError);
     }
 
     return NextResponse.json({
