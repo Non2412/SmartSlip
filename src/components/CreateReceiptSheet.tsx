@@ -1,7 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useFlow } from '@/context/FlowContext';
+import { useReceipts } from '@/hooks/useReceipts';
 import styles from './CreateReceiptSheet.module.css';
+
+type CreationMethod = 'upload' | 'manual';
+
+interface ExpenseItem {
+    id: string;
+    description: string;
+    type: 'product' | 'service';
+    category: string;
+    quantity: number;
+    amount: number;
+    subtotal: number;
+    vat: number;
+    wht: number;
+    note: string;
+}
 
 interface CreateReceiptSheetProps {
     isOpen: boolean;
@@ -24,9 +40,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess }: CreateReceiptSheetPr
     const evidenceInputRef = useRef<HTMLInputElement>(null);
 
     const { createReceipt, extractFromImage, loading: hookLoading, error: hookError } = useReceipts();
-    const [isProcessing, setIsProcessing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     // Form states - Header (Info)
     const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>('paid');
@@ -148,6 +164,22 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess }: CreateReceiptSheetPr
         }
     }, [isOpen, setStep]);
 
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = () => {
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) handleFile(file);
+    };
+
     const handleFile = (file: File) => {
         if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
             setErrorMsg('กรุณาอัพโหลดไฟล์รูปภาพหรือ PDF เท่านั้น');
@@ -226,7 +258,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess }: CreateReceiptSheetPr
             const finalTotal = parseFloat(amount) || total;
 
             await createReceipt({
-                userId,
+                userId: session?.user?.id || '',
                 storeName: shopName,
                 totalAmount: finalTotal,
                 extractedData: {
@@ -430,11 +462,13 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess }: CreateReceiptSheetPr
                                     <span className={styles.resultLabel}>{item.label}</span>
                                     <span className={styles.resultValue}>{item.value}</span>
                                 </div>
+                            ))}
+                        </div>
 
-                                <div style={{ ...bannerStyle, margin: 0, padding: '12px 16px', background: '#f8fafc' }}>
-                                    <div style={{ color: '#0052cc' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
-                                    <span style={{ fontSize: '0.85rem' }}>รายการค่าใช้จ่ายจะถูกบันทึกแยกตามหมวดหมู่เพื่อความสะดวกในการจัดทำรายงานภาษี</span>
-                                </div>
+                        <div style={{ ...bannerStyle, margin: '16px 0', padding: '12px 16px', background: '#f8fafc' }}>
+                            <div style={{ color: '#0052cc' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
+                            <span style={{ fontSize: '0.85rem' }}>รายการค่าใช้จ่ายจะถูกบันทึกแยกตามหมวดหมู่เพื่อความสะดวกในการจัดทำรายงานภาษี</span>
+                        </div>
 
                         <button
                             onClick={async () => {
@@ -476,9 +510,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess }: CreateReceiptSheetPr
                             บันทึกข้อมูลเข้าสู่ระบบ
                         </button>
                     </div>
-                    </div>
+                </div>
             </div>
-        </div >
+        </>
     );
 };
 
