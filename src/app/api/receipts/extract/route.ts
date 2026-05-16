@@ -41,79 +41,67 @@ export async function POST(request: Request) {
       );
     }
 
-    let data: any = {};
-    let fullText = '';
+    // Initialize Gemini model
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    try {
-      if (hasGeminiConfig) {
-        const geminiResult = await processGeminiImage(image);
-        const parsed = parseGeminiResponse(geminiResult);
-        data = parsed.data;
-        fullText = parsed.fullText;
-      } else if (hasDocumentAiConfig) {
-        const documentAiResult = await processDocumentAiImage(image);
-        const parsed = parseReceiptDocument(documentAiResult);
-        data = parsed.data;
-        fullText = parsed.fullText;
-      } else {
-        const ocrResult = await fetchLocalOcr(image);
-        if (ocrResult.success) {
-          data = ocrResult.data;
-          fullText = Array.isArray(ocrResult.raw) ? ocrResult.raw.join(' ') : '';
-        } else {
-          data = {};
-          fullText = '';
-        }
+    // System prompt for structured JSON
+    const prompt = `
+      คุณคือผู้ช่วยจัดการใบเสร็จระดับมืออาชีพ กรุณาอ่านรูปภาพใบเสร็จนี้และส่งข้อมูลยอดเงินสุทธิและชื่อร้านค้ากลับมาในรูปแบบ JSON ดังนี้:
+      {
+        "store": "ชื่อร้านค้าที่พบในใบเสร็จ",
+        "amount": "ยอดเงินสุทธิในรูปแบบตัวเลข (เช่น 120.50)",
+        "date": "วันที่ในใบเสร็จ (ISO 8601)",
+        "method": "วิธีชำระเงิน (เงินสด, โอนเงิน, บัตรเครดิต)",
+        "receiver": "ชื่อผู้รับเงิน (ถ้ามี)"
       }
-    } catch (mainError) {
-      console.error('Gemini/Document AI failed:', mainError);
-      if (hasDocumentAiConfig && !hasGeminiConfig) {
-        const documentAiResult = await processDocumentAiImage(image);
-        const parsed = parseReceiptDocument(documentAiResult);
-        data = parsed.data;
-        fullText = parsed.fullText;
-      } else {
-        const ocrResult = await fetchLocalOcr(image);
-        if (ocrResult.success) {
-          data = ocrResult.data;
-          fullText = Array.isArray(ocrResult.raw) ? ocrResult.raw.join(' ') : '';
-        } else {
-          data = {};
-          fullText = '';
-        }
+      **สำคัญ**: คืนค่าเฉพาะ JSON เท่านั้น ไม่ต้องมีคำอธิบายเพิ่มเติม และภาษาไทยถูกต้อง
+    `;
+
+    // Process image
+    const imageParts = [{
+      inlineData: {
+        data: image.split(',')[1] || image,
+        mimeType: 'image/jpeg'
       }
+    }];
+
+    const result = await model.generateContent([prompt, ...imageParts]);
+    const response = await result.response;
+    const text = response.text();
+
+    // Parse the JSON from the text
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('AI could not parse structured data: ' + text);
     }
 
+    const data = JSON.parse(jsonMatch[0]);
+
+    // --- UPLOAD TO GOOGLE CLOUD STORAGE ---
     let driveFileId = null;
     let webViewLink = null;
 
     try {
-      const { uploadFile, getUserMonthFolder } = await import('@/lib/googledrive');
-
-      let targetFolderId = undefined;
-      if (userId) {
-        try {
-          targetFolderId = (await getUserMonthFolder(userId)) || undefined;
-        } catch (folderErr) {
-          console.error('Auto Folder Creation Failed, using root:', folderErr);
-        }
-      }
-
-      const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+      const { uploadToGCS } = await import('@/lib/gcs');
+      
+      const base64Data = image.split(',')[1] || image;
       const buffer = Buffer.from(base64Data, 'base64');
-      const fileName = `receipt-${(data.store || 'unknown')}-${Date.now()}.jpg`.replace(/[^a-zA-Z0-9.-]/g, '_');
-
-      const uploadResult = await uploadFile(
-        buffer,
-        fileName,
+      
+      const fileName = `receipt-${data.store || 'unknown'}-${Date.now()}.jpg`.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || 'smartslip-receipts';
+      
+      const uploadResult = await uploadToGCS(
+        buffer, 
+        fileName, 
         'image/jpeg',
-        targetFolderId
+        bucketName,
+        userId
       );
-
-      driveFileId = uploadResult.id;
-      webViewLink = (uploadResult as any).webViewLink;
-    } catch (driveError) {
-      console.error('Google Drive Process Failed:', driveError);
+      
+      driveFileId = uploadResult.name;
+      webViewLink = uploadResult.publicUrl;
+    } catch (gcsError) {
+      console.error('Google Cloud Storage Process Failed:', gcsError);
     }
 
     const detectPaymentMethod = (text: string) => {
