@@ -68,8 +68,9 @@ export const useReceipts = (): UseReceiptsReturn => {
       setError(result.error || 'Failed to extract data');
       return null;
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-      return null;
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      setError(errorMsg);
+      throw new Error(errorMsg);
     } finally {
       setLoading(false);
     }

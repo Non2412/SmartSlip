@@ -1,12 +1,38 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { hasGeminiConfig, processGeminiImage, parseGeminiResponse } from '@/lib/gemini-ocr';
+import { hasDocumentAiConfig, processDocumentAiImage, parseReceiptDocument } from '@/lib/documentai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+async function fetchLocalOcr(image: string) {
+  try {
+    const response = await fetch('http://localhost:5000/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn(`Local OCR service returned non-ok response: ${errorText}`);
+      return { success: false, error: 'Local OCR service unavailable' };
+    }
+
+    const ocrResult = await response.json();
+    if (!ocrResult.success) {
+      console.warn('Local OCR failed:', ocrResult.error);
+      return { success: false, error: ocrResult.error || 'Local OCR failed' };
+    }
+
+    return ocrResult;
+  } catch (error) {
+    console.warn('Local OCR service not available on port 5000, skipping local OCR fallback.', error);
+    return { success: false, error: 'Local OCR service not available' };
+  }
+}
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { image, userId } = body; // Base64 image data + Optional userId
+    const { image, userId } = body;
 
     if (!image) {
       return NextResponse.json(
@@ -54,7 +80,7 @@ export async function POST(request: Request) {
     // --- UPLOAD TO GOOGLE CLOUD STORAGE ---
     let driveFileId = null;
     let webViewLink = null;
-    
+
     try {
       const { uploadToGCS } = await import('@/lib/gcs');
       
@@ -78,17 +104,25 @@ export async function POST(request: Request) {
       console.error('Google Cloud Storage Process Failed:', gcsError);
     }
 
+    const detectPaymentMethod = (text: string) => {
+      const match = text.match(/(เงินสด|cash|โอน(?:เงิน)?|transfer|บัตรเครดิต|บัตรเดบิต|credit|debit|promptpay)/i);
+      return match ? match[0] : 'ไม่ระบุ';
+    };
+
+    const receiptNumber = data.receipt_no || data.receiptNo || undefined;
     return NextResponse.json({
       success: true,
       data: {
         store: data.store || 'Unknown Store',
-        amount: parseFloat(data.amount) || 0,
+        amount: parseFloat(data.total_amount || data.amount || '0') || 0,
         date: data.date || new Date().toISOString(),
-        method: data.method || 'ไม่ระบุ',
+        method: data.method || detectPaymentMethod(fullText),
         receiver: data.receiver || 'ทั่วไป',
+        receiptNo: receiptNumber,
+        receipt_no: receiptNumber,
         imageFileId: driveFileId,
-        driveUrl: webViewLink
-      }
+        driveUrl: webViewLink,
+      },
     });
   } catch (error: any) {
     console.error('OCR Extraction Error:', error);

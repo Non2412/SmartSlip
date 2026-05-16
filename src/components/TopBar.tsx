@@ -3,12 +3,12 @@
 import React from 'react';
 import styles from './TopBar.module.css';
 
-const TopBar = ({ 
-    title, 
-    onCreateNew, 
+const TopBar = ({
+    title,
+    onCreateNew,
     onToggleSidebar
-}: { 
-    title: string, 
+}: {
+    title: string,
     onCreateNew?: () => void,
     onToggleSidebar?: () => void
 }) => {

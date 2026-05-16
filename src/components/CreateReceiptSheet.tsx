@@ -1,9 +1,23 @@
-'use client';
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useFlow } from '@/context/FlowContext';
+import { useReceipts } from '@/hooks/useReceipts';
 import styles from './CreateReceiptSheet.module.css';
+
+type CreationMethod = 'upload' | 'manual';
+
+interface ExpenseItem {
+    id: string;
+    description: string;
+    type: 'product' | 'service';
+    category: string;
+    quantity: number;
+    amount: number;
+    subtotal: number;
+    vat: number;
+    wht: number;
+    note: string;
+}
 
 interface CreateReceiptSheetProps {
     isOpen: boolean;
@@ -20,7 +34,96 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess }: CreateReceiptSheetPr
     const [extractedData, setExtractedData] = useState<any>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [formTab, setFormTab] = useState<'info' | 'items'>('info');
+    const [creationMethod, setCreationMethod] = useState<CreationMethod>('manual');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const evidenceInputRef = useRef<HTMLInputElement>(null);
+
+    const { createReceipt, extractFromImage, loading: hookLoading, error: hookError } = useReceipts();
+    const [isSaving, setIsSaving] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+    // Form states - Header (Info)
+    const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>('paid');
+    const [shopName, setShopName] = useState('');
+    const [amount, setAmount] = useState('');
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [approver, setApprover] = useState('Nobphanan Katain');
+    const [isTaxInvoice, setIsTaxInvoice] = useState(false);
+    const [taxInvoiceNo, setTaxInvoiceNo] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState('โอน');
+    const [mainCategory, setMainCategory] = useState('อื่นๆ');
+    const [notes, setNotes] = useState('');
+    const [receiptNo, setReceiptNo] = useState('');
+    const [payerName, setPayerName] = useState('Nobphanan Katain');
+    const [docType, setDocType] = useState('receipt');
+    const [vendorTaxId, setVendorTaxId] = useState('');
+    const [vendorAddress, setVendorAddress] = useState('');
+    const [currency, setCurrency] = useState('THB - Thai Baht (฿)');
+    const [editSummaryManually, setEditSummaryManually] = useState(false);
+
+    const detectPaymentMethodFromText = (methodText: string | null | undefined) => {
+        if (!methodText) return 'โอน';
+        const text = methodText.toString().toLowerCase();
+        if (/เงินสด|cash|cashier/.test(text)) return 'เงินสด';
+        if (/โอน|transfer|promptpay|prompt pay|บัตร|card|credit|debit/.test(text)) return 'โอน';
+        return 'โอน';
+    };
+
+    const detectCategoryFromText = (text?: string) => {
+        if (!text) return 'อื่นๆ';
+        const lower = text.toLowerCase();
+        if (/อาหาร|restaurant|ร้านอาหาร|cafe|coffee|eat|food|delivery|foodpanda|grab/i.test(lower)) return 'อาหาร';
+        if (/เดินทาง|travel|taxi|grab|uber|bus|train|flight|airline|hotel|ที่พัก|travel|trip/i.test(lower)) return 'เดินทาง';
+        if (/shopping|ช้อปปิ้ง|mall|department|fashion|online|shopee|lazada|ร้านค้าทั่วไป|ซื้อของ/i.test(lower)) return 'ช้อปปิ้ง';
+        return 'อื่นๆ';
+    };
+
+    const formatInputDate = (dateText?: string) => {
+        if (!dateText) return '';
+        const isoMatch = dateText.match(/^\d{4}-\d{2}-\d{2}$/);
+        if (isoMatch) return dateText;
+
+        const slashMatch = dateText.match(/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})$/);
+        if (slashMatch) {
+            let [, day, month, year] = slashMatch;
+            if (year.length === 2) {
+                year = `20${year}`;
+            }
+            return `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+
+        const parsed = new Date(dateText);
+        if (!Number.isNaN(parsed.getTime())) {
+            return parsed.toISOString().split('T')[0];
+        }
+
+        return '';
+    };
+
+    const buildNotesFromExtraction = (result: any) => {
+        if (!result) return '';
+        const parts = [];
+        const receiptId = result.receipt_no || result.receiptNo;
+        if (receiptId) parts.push(`ใบเสร็จ: ${receiptId}`);
+        if (result.method) parts.push(`วิธีชำระ: ${result.method}`);
+        if (result.receiver) parts.push(`จาก: ${result.receiver}`);
+        return parts.join(' | ');
+    };
+
+    // Form states - Items
+    const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([
+        { id: '1', description: '', type: 'product', category: '', quantity: 1, amount: 0, subtotal: 0, vat: 0, wht: 0, note: '' }
+    ]);
+    const [selectedItemId, setSelectedItemId] = useState('1');
+
+    // Image viewer states
+    const [zoom, setZoom] = useState(1);
+    const [rotation, setRotation] = useState(0);
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [isDraggingImage, setIsDraggingImage] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
     // Reset state when closing
     useEffect(() => {
@@ -31,43 +134,44 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess }: CreateReceiptSheetPr
             // No reset to 1 here because user is still logged in
             setTimeout(() => {
                 setImage(null);
-                setResults([]);
+                setSelectedFile(null);
                 setIsProcessing(false);
+                setIsSaving(false);
+                setIsSuccess(false);
+                setShopName('');
+                setAmount('');
+                setDate(new Date().toISOString().split('T')[0]);
+                setPaymentMethod('โอน');
+                setMainCategory('อื่นๆ');
+                setNotes('');
                 setErrorMsg(null);
-            }, 300);
+                setFormTab('info');
+                setReceiptNo('');
+                setVendorTaxId('');
+                setVendorAddress('');
+                setCreationMethod('manual');
+                setZoom(1);
+                setRotation(0);
+                setPosition({ x: 0, y: 0 });
+                setExpenseItems([{ id: '1', description: '', type: 'product', category: '', quantity: 1, amount: 0, subtotal: 0, vat: 0, wht: 0, note: '' }]);
+                setSelectedItemId('1');
+                setPaymentStatus('paid');
+                setApprover('Nobphanan Katain');
+                setIsTaxInvoice(false);
+                setTaxInvoiceNo('');
+                setEditSummaryManually(false);
+            }, 400);
         }
     }, [isOpen, setStep]);
-
-    const handleFile = (file: File) => {
-        if (!file.type.startsWith('image/')) {
-            setErrorMsg('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
-            return;
-        }
-
-        setErrorMsg(null);
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            setImage(event.target?.result as string);
-            setResults([]);
-        };
-        reader.onerror = () => setErrorMsg('เกิดข้อผิดพลาดในการอ่านไฟล์');
-        reader.readAsDataURL(file);
-    };
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            handleFile(file);
-            if (e.target) e.target.value = ''; // Clear for next selection
-        }
-    };
 
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(true);
     };
 
-    const handleDragLeave = () => setIsDragging(false);
+    const handleDragLeave = () => {
+        setIsDragging(false);
+    };
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
@@ -76,8 +180,30 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess }: CreateReceiptSheetPr
         if (file) handleFile(file);
     };
 
-    const runOCR = async () => {
-        if (!image) return;
+    const handleFile = (file: File) => {
+        if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+            setErrorMsg('กรุณาอัพโหลดไฟล์รูปภาพหรือ PDF เท่านั้น');
+            return;
+        }
+        setSelectedFile(file);
+        const reader = new FileReader();
+        reader.onload = (e) => setImage(e.target?.result as string);
+        reader.readAsDataURL(file);
+        setErrorMsg(null);
+
+        if (file.type.startsWith('image/')) {
+            setTimeout(() => runOCR(file), 500);
+        }
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) handleFile(file);
+    };
+
+    const runOCR = async (file?: File) => {
+        const fileToProcess = file || selectedFile;
+        if (!fileToProcess) return;
         setIsProcessing(true);
         setStep(3); // Set to Processing step
         setErrorMsg(null);
@@ -117,6 +243,109 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess }: CreateReceiptSheetPr
             setIsProcessing(false);
         }
     };
+
+    const handleSave = async () => {
+        if (!shopName || !date) {
+            setErrorMsg('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วนในหน้าข้อมูลรายจ่าย (*)');
+            setFormTab('info');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const { subtotal, vat, wht, total } = calculateTotals();
+            // ใช้จำนวนเงินจากหน้า Info ถ้ามีการระบุไว้ มิฉะนั้นใช้จากรายการสินค้า
+            const finalTotal = parseFloat(amount) || total;
+
+            await createReceipt({
+                userId: session?.user?.id || '',
+                storeName: shopName,
+                totalAmount: finalTotal,
+                extractedData: {
+                    date,
+                    paymentStatus,
+                    paymentMethod,
+                    category: mainCategory,
+                    approver,
+                    isTaxInvoice,
+                    taxInvoiceNo,
+                    notes,
+                    receiptNo,
+                    payerName,
+                    vendorTaxId,
+                    vendorAddress,
+                    currency,
+                    items: expenseItems,
+                    summary: {
+                        subtotal: parseFloat(amount) || subtotal,
+                        vat,
+                        wht,
+                        total: finalTotal
+                    }
+                }
+            });
+            setIsSuccess(true);
+            setTimeout(() => {
+                if (onSuccess) onSuccess();
+            }, 1500);
+        } catch (err: any) {
+            setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const updateItem = (id: string, updates: Partial<ExpenseItem>) => {
+        setExpenseItems(items => items.map(it => it.id === id ? { ...it, ...updates } : it));
+    };
+
+    const addItem = () => {
+        const newId = (Date.now()).toString();
+        setExpenseItems([...expenseItems, { id: newId, description: '', type: 'product', category: '', quantity: 1, amount: 0, subtotal: 0, vat: 0, wht: 0, note: '' }]);
+        setSelectedItemId(newId);
+    };
+
+    const removeItem = (id: string) => {
+        if (expenseItems.length === 1) return;
+        const newItems = expenseItems.filter(it => it.id !== id);
+        setExpenseItems(newItems);
+        if (selectedItemId === id) {
+            setSelectedItemId(newItems[0].id);
+        }
+    };
+
+    const calculateTotals = () => {
+        const subtotal = expenseItems.reduce((acc, it) => acc + (it.amount * it.quantity), 0);
+        const vat = expenseItems.reduce((acc, it) => acc + it.vat, 0);
+        const wht = expenseItems.reduce((acc, it) => acc + it.wht, 0);
+        const total = subtotal + vat - wht;
+        return { subtotal, vat, wht, total };
+    };
+
+    const { subtotal, vat, wht, total } = calculateTotals();
+
+    // Styling Helpers
+    const inputStyle: React.CSSProperties = {
+        width: '100%', padding: '10px 14px', borderRadius: '4px', border: '1px solid #e2e8f0', fontSize: '0.95rem', outline: 'none', transition: 'all 0.2s', backgroundColor: '#ffffff', color: '#1e293b'
+    };
+    const labelStyle: React.CSSProperties = {
+        fontSize: '0.85rem', fontWeight: '800', color: '#1e293b', marginBottom: '8px', display: 'block'
+    };
+    const bannerStyle: React.CSSProperties = {
+        padding: '12px 24px', backgroundColor: '#f8f8f8', color: '#64748b', borderRadius: '4px', marginBottom: '24px', border: '1px solid #f1f1f1', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '12px'
+    };
+
+    const selectedItem = expenseItems.find(it => it.id === selectedItemId) || expenseItems[0];
+
+    const SmallDropzone = ({ onClick }: { onClick: () => void }) => (
+        <div onClick={onClick} style={{ height: '140px', border: '1px solid #e2e8f0', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', backgroundColor: '#fcfcfd' }}>
+            <div style={{ color: '#4f46e5' }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+            </div>
+            <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>ลากวางไฟล์ หรือ <span style={{ color: '#4f46e5', textDecoration: 'underline' }}>กดเพื่อเลือกไฟล์</span></div>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>รองรับไฟล์ JPEG, PNG, WebP, HEIC, PDF</p>
+        </div>
+    );
 
     return (
         <>
@@ -236,6 +465,11 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess }: CreateReceiptSheetPr
                             ))}
                         </div>
 
+                        <div style={{ ...bannerStyle, margin: '16px 0', padding: '12px 16px', background: '#f8fafc' }}>
+                            <div style={{ color: '#0052cc' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
+                            <span style={{ fontSize: '0.85rem' }}>รายการค่าใช้จ่ายจะถูกบันทึกแยกตามหมวดหมู่เพื่อความสะดวกในการจัดทำรายงานภาษี</span>
+                        </div>
+
                         <button
                             onClick={async () => {
                                 setStep(5); // Confirm
@@ -276,7 +510,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess }: CreateReceiptSheetPr
                             บันทึกข้อมูลเข้าสู่ระบบ
                         </button>
                     </div>
-                )}
+                </div>
             </div>
         </>
     );

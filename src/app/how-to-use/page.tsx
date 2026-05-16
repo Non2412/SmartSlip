@@ -6,7 +6,7 @@ import TopBar from '@/components/TopBar';
 import styles from './how-to-use.module.css';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { CreateReceiptModal } from '@/app/createreceipt/CreateReceiptModal';
+import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import { useReceipts } from '@/hooks/useReceipts';
 import { useSession } from 'next-auth/react';
 
@@ -139,7 +139,7 @@ export default function HowToUsePage() {
                 </div>
             </main>
 
-            <CreateReceiptModal
+            <CreateReceiptSheet
                 isOpen={showCreateModal}
                 onClose={handleModalClose}
                 onSuccess={handleModalSuccess}

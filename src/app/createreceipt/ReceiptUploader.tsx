@@ -13,6 +13,13 @@ export function ReceiptUploader({ onOCRSuccess, userId }: ReceiptUploaderProps) 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [extractedData, setExtractedData] = useState<any | null>(null);
   const [preview, setPreview] = useState<string>('');
+  const [editableData, setEditableData] = useState({
+    store: '',
+    amount: '',
+    date: '',
+    method: 'เงินสด',
+    receiver: 'อาหาร'
+  });
   const { extractFromImage, loading, error } = useReceipts();
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,6 +39,13 @@ export function ReceiptUploader({ onOCRSuccess, userId }: ReceiptUploaderProps) 
     const data = await extractFromImage(file, userId); 
     if (data) {
       setExtractedData(data);
+      setEditableData({
+        store: data.store || '',
+        amount: data.amount?.toString() || '',
+        date: data.date ? new Date(data.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        method: data.method || 'เงินสด',
+        receiver: data.receiver || 'อาหาร'
+      });
       // ส่งข้อมูลกลับไปให้หน้าจอหลัก (Modal) เพื่อเติมข้อมูลในช่องต่างๆ
       onOCRSuccess(data);
     }
@@ -88,41 +102,76 @@ export function ReceiptUploader({ onOCRSuccess, userId }: ReceiptUploaderProps) 
 
       {extractedData && (
         <div className={styles.dataContainer}>
-          <h4 className={styles.dataTitle}>✅ ผลการประมวลผล (AI)</h4>
+          <h4 className={styles.dataTitle}>✅ ผลการประมวลผล (AI) - แก้ไขได้</h4>
 
           <div className={styles.dataGrid}>
-            {extractedData.amount !== undefined && (
-              <div>
-                <span className={styles.dataLabel}>💰 ยอดเงิน:</span>
-                <div className={styles.amountValue}>
-                  {formatCurrency(extractedData.amount)}
-                </div>
-              </div>
-            )}
+            <div>
+              <label className={styles.dataLabel}>🏢 ร้านค้า:</label>
+              <input
+                type="text"
+                value={editableData.store}
+                onChange={(e) => setEditableData(prev => ({ ...prev, store: e.target.value }))}
+                className={styles.dataInput}
+              />
+            </div>
 
-            {extractedData.store && (
-              <div>
-                <span className={styles.dataLabel}>🏢 ร้านค้า:</span>
-                <div className={styles.dataValue}>{extractedData.store}</div>
-              </div>
-            )}
+            <div>
+              <label className={styles.dataLabel}>💰 ยอดเงิน:</label>
+              <input
+                type="number"
+                step="0.01"
+                value={editableData.amount}
+                onChange={(e) => setEditableData(prev => ({ ...prev, amount: e.target.value }))}
+                className={styles.dataInput}
+              />
+            </div>
 
-            {extractedData.method && (
-              <div>
-                <span className={styles.dataLabel}>💳 ชำระโดย:</span>
-                <div className={styles.dataValue}>{extractedData.method}</div>
-              </div>
-            )}
+            <div>
+              <label className={styles.dataLabel}>📅 วันที่:</label>
+              <input
+                type="date"
+                value={editableData.date}
+                onChange={(e) => setEditableData(prev => ({ ...prev, date: e.target.value }))}
+                className={styles.dataInput}
+              />
+            </div>
 
-            {extractedData.date && (
-              <div>
-                <span className={styles.dataLabel}>📅 วันที่:</span>
-                <div className={styles.dataValue}>
-                   {new Date(extractedData.date).toLocaleDateString('th-TH')}
-                </div>
-              </div>
-            )}
+            <div>
+              <label className={styles.dataLabel}>💳 ชำระโดย:</label>
+              <select
+                value={editableData.method}
+                onChange={(e) => setEditableData(prev => ({ ...prev, method: e.target.value }))}
+                className={styles.dataInput}
+              >
+                <option value="เงินสด">เงินสด</option>
+                <option value="โอนเงิน">โอนเงินธนาคาร</option>
+                <option value="บัตรเครดิต">บัตรเครดิต</option>
+                <option value="อื่นๆ">อื่นๆ</option>
+              </select>
+            </div>
+
+            <div>
+              <label className={styles.dataLabel}>📂 หมวดหมู่:</label>
+              <select
+                value={editableData.receiver}
+                onChange={(e) => setEditableData(prev => ({ ...prev, receiver: e.target.value }))}
+                className={styles.dataInput}
+              >
+                <option value="อาหาร">อาหารและเครื่องดื่ม</option>
+                <option value="ของใช้">ของใช้ทั่วไป</option>
+                <option value="เดินทาง">การเดินทาง</option>
+                <option value="บันเทิง">ความบันเทิง</option>
+                <option value="อื่นๆ">อื่นๆ</option>
+              </select>
+            </div>
           </div>
+
+          <button
+            onClick={() => onOCRSuccess(editableData)}
+            className={styles.confirmButton}
+          >
+            ✅ ยืนยันข้อมูล
+          </button>
         </div>
       )}
     </div>

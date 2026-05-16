@@ -100,8 +100,37 @@
   border-top: 1px solid #ddd;
 }
 
-.confidenceBadge {
+.dataInput {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.dataInput:focus {
+  outline: none;
+  border-color: #10b981;
+}
+
+.confirmButton {
+  margin-top: 16px;
+  padding: 12px 24px;
+  background-color: #10b981;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
   font-weight: 600;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.confirmButton:hover {
+  background-color: #059669;
+}
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
