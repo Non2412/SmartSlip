@@ -146,6 +146,7 @@ export default function DashboardPage() {
             fetchReceipts(session.user.id);
           }
         }}
+        userId={session?.user?.id || 'user123'}
       />
     </div>
   );

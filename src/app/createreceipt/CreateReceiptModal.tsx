@@ -74,7 +74,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
   const handleOCRSuccess = (data: any) => {
     // When OCR succeeds, populate manual fields and switch to manual tab for review
-    setStoreName(data.store || '');
+    setStoreName(data.payee || data.store || '');
     setAmount(data.amount?.toString() || '');
     if (data.date) {
         try {

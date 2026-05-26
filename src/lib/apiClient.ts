@@ -15,8 +15,20 @@ export interface Receipt {
   updatedAt: string;
   extractedData?: {
     date?: string;
+    time?: string;
     method?: string;
+    paymentMethod?: string;
     receiver?: string;
+    sender?: string;
+    payee?: string;
+    category?: string;
+    notes?: string;
+    receiptNo?: string;
+    vendorTaxId?: string;
+    vendorAddress?: string;
+    currency?: string;
+    items?: unknown;
+    summary?: unknown;
   };
 }
 

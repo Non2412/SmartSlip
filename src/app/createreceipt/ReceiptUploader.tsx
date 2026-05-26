@@ -35,12 +35,11 @@ export function ReceiptUploader({ onOCRSuccess, userId }: ReceiptUploaderProps) 
 
     // Extract receipt data using AI
     setExtractedData(null);
-    // You can pass the actual userId here, e.g., from a session
-    const data = await extractFromImage(file, userId); 
+    const data: any = await extractFromImage(file, userId);
     if (data) {
       setExtractedData(data);
       setEditableData({
-        store: data.store || '',
+        store: data.payee || data.receiver || data.store || '',
         amount: data.amount?.toString() || '',
         date: data.date ? new Date(data.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         method: data.method || 'เงินสด',
@@ -71,7 +70,7 @@ export function ReceiptUploader({ onOCRSuccess, userId }: ReceiptUploaderProps) 
         type="file"
         accept="image/*"
         onChange={handleFileSelect}
-        className={styles.hiddenInput}
+        style={{ display: 'none' }}
       />
 
       <button

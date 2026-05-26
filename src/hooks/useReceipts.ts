@@ -7,7 +7,7 @@ export interface UseReceiptsReturn {
   receipts: Receipt[];
   fetchReceipts: (userId: string) => Promise<void>;
   createReceipt: (data: CreateReceiptData) => Promise<{ success: boolean; data?: Receipt; error?: string }>;
-  extractFromImage: (file: File, userId: string) => Promise<unknown>;
+  extractFromImage: (file: File, userId: string) => Promise<any>;
   loading: boolean;
   error: string | null;
 }
@@ -65,8 +65,9 @@ export const useReceipts = (): UseReceiptsReturn => {
           return data;
         }
       }
-      setError(result.error || 'Failed to extract data');
-      return null;
+      const errMsg = (result as any).error || 'OCR extraction failed';
+      setError(errMsg);
+      throw new Error(errMsg);
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMsg);
