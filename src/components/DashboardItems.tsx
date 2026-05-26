@@ -180,33 +180,50 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
     );
 };
 
-export const RecentUploads = ({ receipts = [] }: { receipts?: any[] }) => {
+export const RecentUploads = ({ receipts = [], onReceiptClick }: { receipts?: any[]; onReceiptClick?: (receipt: any) => void }) => {
     const recentReceipts = [...receipts]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5);
 
     return (
         <div className={styles.recentCard}>
-            <div className={styles.recentTitle}>การอัปโหลดล่าสุด</div>
+            <div className={styles.recentTitle}>รูปภาพจาก LINE</div>
             <div className={styles.uploadList}>
                 {recentReceipts.length === 0 ? (
                     <div className={styles.emptyState} style={{ padding: '20px 0', textAlign: 'center', color: '#6b7280', fontSize: '14px' }}>
                         ไม่มีรายการอัปโหลดล่าสุด
                     </div>
                 ) : (
-                    recentReceipts.map((receipt) => (
-                        <div key={receipt.id} className={styles.uploadItem}>
-                            <div className={styles.uploadIconWrapper}>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                            </div>
-                            <div className={styles.uploadInfo}>
-                                <div className={styles.uploadName}>ใบเสร็จ {receipt.storeName || 'ไม่ระบุ'}</div>
-                                <div className={styles.uploadDate}>
-                                    {new Date(receipt.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} • {new Date(receipt.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                    recentReceipts.map((receipt) => {
+                        const imageData = receipt.extractedData?.imageData;
+                        return (
+                            <div
+                                key={receipt.id}
+                                className={styles.uploadItem}
+                                onClick={() => onReceiptClick?.(receipt)}
+                                style={{ cursor: onReceiptClick ? 'pointer' : 'default', transition: 'background 0.15s' }}
+                            >
+                                <div style={{ width: '44px', height: '44px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, border: '1px solid #e5e7eb' }}>
+                                    {imageData ? (
+                                        <img src={imageData} alt="slip" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                        <div style={{ width: '100%', height: '100%', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                        </div>
+                                    )}
                                 </div>
+                                <div className={styles.uploadInfo}>
+                                    <div className={styles.uploadName}>{receipt.storeName || 'ไม่ระบุร้านค้า'}</div>
+                                    <div className={styles.uploadDate}>
+                                        {new Date(receipt.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} • {receipt.totalAmount ? `฿${receipt.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}` : '—'}
+                                    </div>
+                                </div>
+                                {onReceiptClick && (
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
+                                )}
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
             {receipts.length > 5 && <button className={styles.viewAllButton}>ดูทั้งหมด</button>}

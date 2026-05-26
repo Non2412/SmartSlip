@@ -1,5 +1,4 @@
-﻿import { GoogleGenerativeAI } from "@google/generative-ai";
-import { normalizeDate, normalizeAmount } from '@/lib/ocr-utils';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -15,17 +14,27 @@ export async function processGeminiImage(image: string) {
     const base64Data = image.includes(",") ? image.split(",")[1] : image;
 
     const prompt = `
-      เธเธธเธ“เธเธทเธญเธเธนเนเน€เธเธตเนเธขเธงเธเธฒเธเธเธฒเธฃเธญเนเธฒเธเธชเธฅเธดเธเธเธเธฒเธเธฒเธฃเนเธ—เธขเนเธฅเธฐเนเธเน€เธชเธฃเนเธเนเธ—เธข
-      เธ เธฒเธฃเธเธดเธ: เธญเนเธฒเธเธฃเธนเธเธ เธฒเธเธ—เธตเนเธชเนเธเนเธซเนเนเธฅเนเธงเธ”เธถเธเธเนเธญเธกเธนเธฅเธญเธญเธเธกเธฒเน€เธเนเธ JSON เน€เธ—เนเธฒเธเธฑเนเธ
-      เนเธเธฃเธเธชเธฃเนเธฒเธ JSON เธ—เธตเนเธ•เนเธญเธเธเธฒเธฃ:
+      คุณคือผู้เชี่ยวชาญการอ่านสลิปธนาคารไทยและใบเสร็จรับเงิน
+      ภาระกิจ: อ่านรูปภาพที่ส่งให้แล้วดึงข้อมูลออกมาเป็น JSON เท่านั้น
+      โครงสร้าง JSON ที่ต้องการ:
       {
-        "date": "เธงเธฑเธเธ—เธตเนเธ—เธณเธฃเธฒเธขเธเธฒเธฃ (เธฃเธนเธเนเธเธ YYYY-MM-DD เน€เธเนเธ 2026-04-21)",
-        "vendor": "เธเธทเนเธญเธเธฃเธดเธฉเธฑเธ—เธซเธฃเธทเธญเธเธนเนเธฃเธฑเธเน€เธเธดเธเธเธฒเธเธชเธฅเธดเธ เน€เธเนเธ 'เธเธฃเธดเธฉเธฑเธ— เธ—เธฃเธน เธญเธดเธเน€เธ—เธญเธฃเนเน€เธเนเธ•' เธซเธฃเธทเธญ 'TrueMoney'",
-        "totalAmount": "เธขเธญเธ”เธเธณเธฃเธฐเธ—เธฑเนเธเธซเธกเธ” (เธ•เธฑเธงเน€เธฅเธเน€เธ—เนเธฒเธเธฑเนเธ เน€เธเนเธ 533.93)"
+        "date": "วันที่ทำรายการ (รูปแบบ YYYY-MM-DD เช่น 2026-04-21)",
+        "time": "เวลาทำรายการ (รูปแบบ HH:MM เช่น 08:39)",
+        "vendor": "ชื่อบริษัทหรือผู้รับเงินจากสลิป",
+        "category": "หมวดหมู่ภาษาอังกฤษ เลือกจาก: Utilities, Food, Travel, Shopping, Healthcare, Education, Entertainment, Other",
+        "totalAmount": ยอดชำระทั้งหมด (ตัวเลขเท่านั้น เช่น 533.93),
+        "paymentMethod": "วิธีชำระเงิน เช่น Mobile Banking, PromptPay, Cash, Credit Card",
+        "items": [
+          {"description": "ชื่อสินค้า/บริการ", "quantity": 1, "unitPrice": ราคาต่อหน่วย, "total": ยอดรวมรายการ}
+        ],
+        "discount": ส่วนลด (0 ถ้าไม่มี),
+        "vat": ภาษีมูลค่าเพิ่ม (0 ถ้าไม่มี),
+        "subtotal": ยอดก่อน VAT และส่วนลด
       }
-      เน€เธเธทเนเธญเธเนเธ:
-      - เธ•เธญเธเน€เธเธเธฒเธฐ JSON เน€เธ—เนเธฒเธเธฑเนเธ เธซเนเธฒเธกเธกเธตเธเนเธญเธเธงเธฒเธกเธญเธทเนเธ
-      - เธ–เนเธฒเธซเธฒเนเธกเนเน€เธเธญเนเธซเนเนเธชเน null
+      กฎ:
+      - ตอบเฉพาะ JSON เท่านั้น ห้ามมีข้อความอื่น
+      - ถ้าหาไม่เจอให้ใส่ null
+      - items ต้องเป็น array เสมอ ถ้าไม่มีรายการให้สร้างจาก vendor และ totalAmount
     `;
 
     const result = await model.generateContent([
@@ -42,27 +51,30 @@ export async function processGeminiImage(image: string) {
 }
 
 export function parseGeminiResponse(geminiResult: any) {
-  // geminiResult is already the parsed JSON object: {date, vendor, totalAmount}
   const data = geminiResult;
   const amountValue = data.totalAmount != null ? data.totalAmount.toString() : '0.00';
+
+  const items = Array.isArray(data.items) && data.items.length > 0
+    ? data.items
+    : [{ description: data.vendor || '', quantity: 1, unitPrice: parseFloat(amountValue) || 0, total: parseFloat(amountValue) || 0 }];
 
   return {
     fullText: JSON.stringify(data),
     data: {
-      // เธซเธเนเธฒเธเธญเธฃเนเธกเธเธญเธเธเธธเธ“เธฃเธญเธฃเธฑเธเธเธณเธงเนเธฒ 'store'
-      store: data.vendor || 'เนเธกเนเธเธเธเนเธญเธกเธนเธฅเธฃเนเธฒเธเธเนเธฒ',
-      // เธซเธเนเธฒเธเธญเธฃเนเธกเธฃเธญเธฃเธฑเธ 'date'
+      store: data.vendor || '',
       date: data.date || '',
-      // เธซเธเนเธฒเธเธญเธฃเนเธกเธฃเธญเธฃเธฑเธ 'amount'
+      time: data.time || '',
       amount: amountValue,
       total_amount: amountValue,
-      // เธเนเธญเธเธ—เธตเนเน€เธซเธฅเธทเธญเธเธฅเนเธญเธขเธงเนเธฒเธเนเธงเนเธ•เธฒเธกเธ—เธตเนเธเธธเธ“เธ•เนเธญเธเธเธฒเธฃเธเธฃเธญเธเน€เธญเธ
-      method: '',
+      category: data.category || 'Other',
+      method: data.paymentMethod || '',
+      items,
+      discount: data.discount ?? 0,
+      vat: data.vat ?? 0,
+      subtotal: data.subtotal ?? parseFloat(amountValue) ?? 0,
       receiver: '',
       receipt_no: '',
       raw: geminiResult,
     },
   };
 }
-
-

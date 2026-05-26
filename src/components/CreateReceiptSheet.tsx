@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useReceipts } from '@/hooks/useReceipts';
 
-// Animations
 const shimmerKeyframes = `
 @keyframes shimmer {
   0% { background-position: -468px 0; }
@@ -31,7 +30,6 @@ interface CreateReceiptSheetProps {
     userId: string;
 }
 
-type FormTabType = 'header' | 'items' | 'evidence';
 type CreationMethod = 'upload' | 'manual';
 
 interface ExpenseItem {
@@ -40,11 +38,18 @@ interface ExpenseItem {
     type: 'product' | 'service';
     category: string;
     quantity: number;
-    amount: number; // Unit price
-    subtotal: number; // Total for this item before tax
+    amount: number;
+    subtotal: number;
     vat: number;
     wht: number;
     note: string;
+}
+
+interface VerificationLineItem {
+    id: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
 }
 
 const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceiptSheetProps) => {
@@ -54,14 +59,13 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [formTab, setFormTab] = useState<'info' | 'items'>('info');
     const [creationMethod, setCreationMethod] = useState<CreationMethod>('manual');
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const evidenceInputRef = useRef<HTMLInputElement>(null);
 
-    const { createReceipt, extractFromImage, loading: hookLoading, error: hookError } = useReceipts();
+    const { createReceipt, extractFromImage } = useReceipts();
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
 
-    // Form states - Header (Info)
+    // Simple form states (manual entry)
     const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>('paid');
     const [shopName, setShopName] = useState('');
     const [amount, setAmount] = useState('');
@@ -73,63 +77,70 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [mainCategory, setMainCategory] = useState('อื่นๆ');
     const [notes, setNotes] = useState('');
     const [receiptNo, setReceiptNo] = useState('');
-    const [payerName, setPayerName] = useState('Nobphanan Katain');
-    const [docType, setDocType] = useState('receipt');
     const [vendorTaxId, setVendorTaxId] = useState('');
     const [vendorAddress, setVendorAddress] = useState('');
     const [currency, setCurrency] = useState('THB - Thai Baht (฿)');
-    const [editSummaryManually, setEditSummaryManually] = useState(false);
+
+    // Verification view states
+    const [showVerification, setShowVerification] = useState(false);
+    const [verStore, setVerStore] = useState('');
+    const [verCategory, setVerCategory] = useState('');
+    const [verDate, setVerDate] = useState('');
+    const [verTime, setVerTime] = useState('');
+    const [verPaymentMethod, setVerPaymentMethod] = useState('');
+    const [verCurrency, setVerCurrency] = useState('THB');
+    const [verTaxId, setVerTaxId] = useState('');
+    const [verItems, setVerItems] = useState<VerificationLineItem[]>([]);
+    const [verDiscount, setVerDiscount] = useState(0);
+    const [verVat, setVerVat] = useState(0);
 
     const detectPaymentMethodFromText = (methodText: string | null | undefined) => {
-        if (!methodText) return 'โอน';
+        if (!methodText) return 'Mobile Banking';
         const text = methodText.toString().toLowerCase();
-        if (/เงินสด|cash|cashier/.test(text)) return 'เงินสด';
-        if (/โอน|transfer|promptpay|prompt pay|บัตร|card|credit|debit/.test(text)) return 'โอน';
-        return 'โอน';
+        if (/เงินสด|cash/.test(text)) return 'Cash';
+        if (/promptpay|prompt pay|พร้อมเพย์/.test(text)) return 'PromptPay';
+        if (/credit/.test(text)) return 'Credit Card';
+        if (/debit/.test(text)) return 'Debit Card';
+        return 'Mobile Banking';
     };
 
     const detectCategoryFromText = (text?: string) => {
         if (!text) return 'อื่นๆ';
         const lower = text.toLowerCase();
-        if (/อาหาร|restaurant|ร้านอาหาร|cafe|coffee|eat|food|delivery|foodpanda|grab/i.test(lower)) return 'อาหาร';
-        if (/เดินทาง|travel|taxi|grab|uber|bus|train|flight|airline|hotel|ที่พัก|travel|trip/i.test(lower)) return 'เดินทาง';
-        if (/shopping|ช้อปปิ้ง|mall|department|fashion|online|shopee|lazada|ร้านค้าทั่วไป|ซื้อของ/i.test(lower)) return 'ช้อปปิ้ง';
+        if (/อาหาร|restaurant|cafe|coffee|food|delivery|foodpanda|grab/i.test(lower)) return 'อาหาร';
+        if (/เดินทาง|travel|taxi|grab|uber|bus|train|flight|airline|hotel/i.test(lower)) return 'เดินทาง';
+        if (/shopping|ช้อปปิ้ง|mall|department|shopee|lazada/i.test(lower)) return 'ช้อปปิ้ง';
         return 'อื่นๆ';
     };
 
     const formatInputDate = (dateText?: string) => {
         if (!dateText) return '';
-        const isoMatch = dateText.match(/^\d{4}-\d{2}-\d{2}$/);
-        if (isoMatch) return dateText;
-
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateText)) return dateText;
         const slashMatch = dateText.match(/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})$/);
         if (slashMatch) {
             let [, day, month, year] = slashMatch;
-            if (year.length === 2) {
-                year = `20${year}`;
-            }
+            if (year.length === 2) year = `20${year}`;
             return `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
         }
-
         const parsed = new Date(dateText);
-        if (!Number.isNaN(parsed.getTime())) {
-            return parsed.toISOString().split('T')[0];
-        }
-
+        if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
         return '';
     };
 
-    const buildNotesFromExtraction = (result: any) => {
-        if (!result) return '';
-        const parts = [];
-        const receiptId = result.receipt_no || result.receiptNo;
-        if (receiptId) parts.push(`ใบเสร็จ: ${receiptId}`);
-        if (result.method) parts.push(`วิธีชำระ: ${result.method}`);
-        if (result.receiver) parts.push(`จาก: ${result.receiver}`);
-        return parts.join(' | ');
+    // Verification helpers
+    const updateVerItem = (id: string, updates: Partial<VerificationLineItem>) => {
+        setVerItems(items => items.map(it => it.id === id ? { ...it, ...updates } : it));
     };
+    const removeVerItem = (id: string) => {
+        setVerItems(items => items.filter(it => it.id !== id));
+    };
+    const addVerItem = () => {
+        setVerItems(items => [...items, { id: Date.now().toString(), description: '', quantity: 1, unitPrice: 0 }]);
+    };
+    const calcVerSubtotal = () => verItems.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+    const calcVerTotal = () => calcVerSubtotal() - verDiscount + verVat;
 
-    // Form states - Items
+    // Item list for manual form
     const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([
         { id: '1', description: '', type: 'product', category: '', quantity: 1, amount: 0, subtotal: 0, vat: 0, wht: 0, note: '' }
     ]);
@@ -142,7 +153,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [isDraggingImage, setIsDraggingImage] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-    // Reset state when closing
     useEffect(() => {
         if (!isOpen) {
             setTimeout(() => {
@@ -172,7 +182,18 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 setApprover('Nobphanan Katain');
                 setIsTaxInvoice(false);
                 setTaxInvoiceNo('');
-                setEditSummaryManually(false);
+                // Reset verification
+                setShowVerification(false);
+                setVerStore('');
+                setVerCategory('');
+                setVerDate('');
+                setVerTime('');
+                setVerPaymentMethod('');
+                setVerCurrency('THB');
+                setVerTaxId('');
+                setVerItems([]);
+                setVerDiscount(0);
+                setVerVat(0);
             }, 400);
         }
     }, [isOpen]);
@@ -189,15 +210,10 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
     const handleMouseMove = (e: React.MouseEvent) => {
         if (!isDraggingImage) return;
-        setPosition({
-            x: e.clientX - dragStart.x,
-            y: e.clientY - dragStart.y
-        });
+        setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
     };
 
-    const handleMouseUp = () => {
-        setIsDraggingImage(false);
-    };
+    const handleMouseUp = () => setIsDraggingImage(false);
 
     const handleFile = (file: File) => {
         if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
@@ -209,7 +225,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         reader.onload = (e) => setImage(e.target?.result as string);
         reader.readAsDataURL(file);
         setErrorMsg(null);
-        
         setTimeout(() => runOCR(file), 500);
     };
 
@@ -227,19 +242,35 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         try {
             const result = await extractFromImage(fileToProcess, userId) as any;
             if (result) {
-                setShopName(result.store || result.receiver || result.shop_name || '');
-                setAmount((result.amount ?? result.total_amount ?? '').toString());
-                const parsedDate = formatInputDate(result.date || result.transaction_date || result.date_time);
-                if (parsedDate) setDate(parsedDate);
-                if (result.tax_id) setVendorTaxId(result.tax_id);
-                if (result.taxId) setVendorTaxId(result.taxId);
-                if (result.address) setVendorAddress(result.address);
-                if (result.receipt_no || result.receiptNo) setReceiptNo(result.receipt_no || result.receiptNo);
+                // Populate verification form
+                setVerStore(result.store || result.vendor || '');
+                setVerCategory(result.category || 'Other');
+                setVerDate(formatInputDate(result.date) || new Date().toISOString().split('T')[0]);
+                setVerTime(result.time || '');
+                setVerPaymentMethod(detectPaymentMethodFromText(result.method || result.paymentMethod));
+                setVerCurrency('THB');
+                setVerTaxId(result.tax_id || result.taxId || '');
+                setVerDiscount(typeof result.discount === 'number' ? result.discount : 0);
+                setVerVat(typeof result.vat === 'number' ? result.vat : 0);
 
-                setPaymentMethod(detectPaymentMethodFromText(result.method || result.payment_method));
-                setMainCategory(detectCategoryFromText(`${result.store || result.receiver || result.shop_name || ''} ${result.method || result.payment_method || ''}`));
-                const autoNotes = buildNotesFromExtraction(result);
-                if (autoNotes) setNotes(autoNotes);
+                const rawItems = result.items;
+                if (Array.isArray(rawItems) && rawItems.length > 0) {
+                    setVerItems(rawItems.map((it: any, idx: number) => ({
+                        id: (idx + 1).toString(),
+                        description: it.description || '',
+                        quantity: it.quantity || 1,
+                        unitPrice: it.unitPrice ?? it.unit_price ?? it.total ?? 0,
+                    })));
+                } else {
+                    setVerItems([{
+                        id: '1',
+                        description: result.store || '',
+                        quantity: 1,
+                        unitPrice: parseFloat(result.amount) || 0,
+                    }]);
+                }
+
+                setShowVerification(true);
             }
         } catch (err: any) {
             setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการประมวลผลด้วย AI');
@@ -248,20 +279,63 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         }
     };
 
+    const handleVerificationSave = async () => {
+        if (!verStore || !verDate) {
+            setErrorMsg('กรุณาระบุร้านค้าและวันที่');
+            return;
+        }
+        setIsSaving(true);
+        setErrorMsg(null);
+        try {
+            const grandTotal = calcVerTotal();
+            const result = await createReceipt({
+                userId,
+                storeName: verStore,
+                totalAmount: grandTotal,
+                extractedData: {
+                    date: verDate,
+                    time: verTime,
+                    paymentStatus: 'paid',
+                    paymentMethod: verPaymentMethod,
+                    category: verCategory,
+                    currency: verCurrency,
+                    vendorTaxId: verTaxId,
+                    notes: `หมวดหมู่: ${verCategory}`,
+                    imageData: image,
+                    items: verItems,
+                    summary: {
+                        subtotal: calcVerSubtotal(),
+                        discount: verDiscount,
+                        vat: verVat,
+                        total: grandTotal,
+                    },
+                },
+            }) as any;
+            if (result?.success) {
+                if (onSuccess) onSuccess();
+                onClose();
+            } else {
+                setErrorMsg(result?.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+            }
+        } catch (err: any) {
+            setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const handleSave = async () => {
         if (!shopName || !date) {
-            setErrorMsg('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วนในหน้าข้อมูลรายจ่าย (*)');
+            setErrorMsg('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน (ผู้ขาย และ วันที่)');
             setFormTab('info');
             return;
         }
-
         setIsSaving(true);
+        setErrorMsg(null);
         try {
             const { subtotal, vat, wht, total } = calculateTotals();
-            // ใช้จำนวนเงินจากหน้า Info ถ้ามีการระบุไว้ มิฉะนั้นใช้จากรายการสินค้า
             const finalTotal = parseFloat(amount) || total;
-            
-            await createReceipt({
+            const result = await createReceipt({
                 userId,
                 storeName: shopName,
                 totalAmount: finalTotal,
@@ -275,23 +349,19 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     taxInvoiceNo,
                     notes,
                     receiptNo,
-                    payerName,
                     vendorTaxId,
                     vendorAddress,
                     currency,
                     items: expenseItems,
-                    summary: {
-                        subtotal: parseFloat(amount) || subtotal,
-                        vat,
-                        wht,
-                        total: finalTotal
-                    }
+                    summary: { subtotal: parseFloat(amount) || subtotal, vat, wht, total: finalTotal }
                 }
-            });
-            setIsSuccess(true);
-            setTimeout(() => {
+            }) as any;
+            if (result?.success) {
                 if (onSuccess) onSuccess();
-            }, 1500);
+                onClose();
+            } else {
+                setErrorMsg(result?.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+            }
         } catch (err: any) {
             setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
         } finally {
@@ -313,9 +383,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         if (expenseItems.length === 1) return;
         const newItems = expenseItems.filter(it => it.id !== id);
         setExpenseItems(newItems);
-        if (selectedItemId === id) {
-            setSelectedItemId(newItems[0].id);
-        }
+        if (selectedItemId === id) setSelectedItemId(newItems[0].id);
     };
 
     const calculateTotals = () => {
@@ -328,62 +396,254 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
     const { subtotal, vat, wht, total } = calculateTotals();
 
-    // Styling Helpers
     const inputStyle: React.CSSProperties = {
-        width: '100%', padding: '10px 14px', borderRadius: '4px', border: '1px solid #e2e8f0', fontSize: '0.95rem', outline: 'none', transition: 'all 0.2s', backgroundColor: '#ffffff', color: '#1e293b'
+        width: '100%', padding: '10px 14px', borderRadius: '4px', border: '1px solid #e2e8f0',
+        fontSize: '0.95rem', outline: 'none', transition: 'all 0.2s', backgroundColor: '#ffffff', color: '#1e293b'
     };
     const labelStyle: React.CSSProperties = {
         fontSize: '0.85rem', fontWeight: '800', color: '#1e293b', marginBottom: '8px', display: 'block'
     };
     const bannerStyle: React.CSSProperties = {
-        padding: '12px 24px', backgroundColor: '#f8f8f8', color: '#64748b', borderRadius: '4px', marginBottom: '24px', border: '1px solid #f1f1f1', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '12px'
+        padding: '12px 24px', backgroundColor: '#f8f8f8', color: '#64748b', borderRadius: '4px',
+        marginBottom: '24px', border: '1px solid #f1f1f1', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '12px'
     };
 
     const selectedItem = expenseItems.find(it => it.id === selectedItemId) || expenseItems[0];
 
-    const SmallDropzone = ({ onClick }: { onClick: () => void }) => (
-        <div onClick={onClick} style={{ height: '140px', border: '1px solid #e2e8f0', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', backgroundColor: '#fcfcfd' }}>
-            <div style={{ color: '#4f46e5' }}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            </div>
-            <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>ลากวางไฟล์ หรือ <span style={{ color: '#4f46e5', textDecoration: 'underline' }}>กดเพื่อเลือกไฟล์</span></div>
-            <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>รองรับไฟล์ JPEG, PNG, WebP, HEIC, PDF</p>
-        </div>
-    );
-
     return (
         <div style={{
-            position: 'fixed', 
-            top: 0, 
-            right: isOpen ? 0 : (selectedFile ? '-100vw' : '-850px'), 
-            width: selectedFile ? '100vw' : '850px', 
-            height: '100vh', 
-            backgroundColor: '#ffffff', 
-            zIndex: 1000, 
-            transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            fontFamily: '"Inter", "Sarabun", sans-serif', 
+            position: 'fixed',
+            top: 0,
+            right: isOpen ? 0 : (selectedFile ? '-100vw' : '-850px'),
+            width: selectedFile ? '100vw' : '850px',
+            height: '100vh',
+            backgroundColor: '#ffffff',
+            zIndex: 1000,
+            transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+            display: 'flex',
+            flexDirection: 'column',
+            fontFamily: '"Inter", "Sarabun", sans-serif',
             boxShadow: '-20px 0 60px rgba(0,0,0,0.15)'
         }}>
             <style dangerouslySetInnerHTML={{ __html: shimmerKeyframes }} />
-            
+
+            {/* ===== VERIFICATION VIEW ===== */}
+            {showVerification ? (
+                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+                    {/* Dark header */}
+                    <div style={{ padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', flexShrink: 0 }}>
+                        <h2 style={{ color: 'white', fontWeight: '900', fontSize: '1.15rem', margin: 0 }}>ตรวจสอบและยืนยันข้อมูลใบเสร็จ</h2>
+                        <button onClick={() => setShowVerification(false)} style={{ color: '#94a3b8', background: 'none', border: 'none', fontSize: '0.9rem', cursor: 'pointer', fontWeight: '700' }}>ยกเลิก</button>
+                    </div>
+
+                    {/* Error */}
+                    {errorMsg && (
+                        <div style={{ padding: '10px 32px', backgroundColor: '#fef2f2', borderBottom: '1px solid #fee2e2', color: '#991b1b', fontSize: '0.85rem', fontWeight: '600', flexShrink: 0 }}>
+                            {errorMsg}
+                        </div>
+                    )}
+
+                    {/* Two-column body */}
+                    <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                        {/* Left: Image */}
+                        <div style={{ flex: '0 0 42%', borderRight: '1px solid #e2e8f0', backgroundColor: '#f8fafc', padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontWeight: '800', fontSize: '0.85rem', color: '#64748b' }}>ภาพถ่ายสลิปใบเสร็จต้นฉบับ</span>
+                                {image && (
+                                    <button onClick={() => window.open(image!, '_blank')} style={{ color: '#0052cc', fontSize: '0.8rem', fontWeight: '700', background: 'none', border: 'none', cursor: 'pointer' }}>
+                                        ดูขนาดจริง ↗
+                                    </button>
+                                )}
+                            </div>
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                {image ? (
+                                    <img src={image} alt="Receipt" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }} />
+                                ) : (
+                                    <div style={{ color: '#94a3b8', textAlign: 'center', fontSize: '0.9rem' }}>ไม่มีรูปภาพ</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Right: Editable form */}
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px', backgroundColor: '#ffffff' }}>
+                            {/* 2-col grid for main fields */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                                <div>
+                                    <label style={labelStyle}>ร้านค้า / ผู้ให้บริการ</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>🏪</span>
+                                        <input value={verStore} onChange={e => setVerStore(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} placeholder="ชื่อร้านค้า" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>หมวดหมู่ค่าใช้จ่าย</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>🏷️</span>
+                                        <input value={verCategory} onChange={e => setVerCategory(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} placeholder="เช่น Utilities, Food" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>วันที่ในใบเสร็จ</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>📅</span>
+                                        <input type="date" value={verDate} onChange={e => setVerDate(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>เวลาในใบเสร็จ</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>🕐</span>
+                                        <input type="time" value={verTime} onChange={e => setVerTime(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>วิธีการชำระเงิน</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>💳</span>
+                                        <input value={verPaymentMethod} onChange={e => setVerPaymentMethod(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} placeholder="Mobile Banking" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>สกุลเงิน</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>$</span>
+                                        <input value={verCurrency} onChange={e => setVerCurrency(e.target.value)} style={{ ...inputStyle, paddingLeft: '28px' }} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Tax ID */}
+                            <div style={{ marginBottom: '20px' }}>
+                                <label style={labelStyle}>เลขประจำตัวผู้เสียภาษีของร้านค้า (TAX ID)</label>
+                                <input value={verTaxId} onChange={e => setVerTaxId(e.target.value)} placeholder="เลข 13 หลักของบริษัท (ถ้ามี)" style={inputStyle} />
+                            </div>
+
+                            {/* Line items table */}
+                            <div style={{ marginBottom: '20px', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                                <div style={{ padding: '14px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <h4 style={{ fontWeight: '900', fontSize: '0.95rem', margin: 0 }}>รายการสินค้าและบริการ ({verItems.length})</h4>
+                                </div>
+
+                                {/* Header row */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                    {['รายการ', 'จำนวน', 'ราคา/หน่วย', 'รวม', ''].map((h, i) => (
+                                        <div key={i} style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textAlign: i >= 2 ? 'right' : 'left' }}>{h}</div>
+                                    ))}
+                                </div>
+
+                                {/* Item rows */}
+                                {verItems.map(item => (
+                                    <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
+                                        <input
+                                            value={item.description}
+                                            onChange={e => updateVerItem(item.id, { description: e.target.value })}
+                                            placeholder="ชื่อสินค้า/บริการ"
+                                            style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem' }}
+                                        />
+                                        <input
+                                            type="number"
+                                            value={item.quantity}
+                                            onChange={e => {
+                                                const q = parseInt(e.target.value) || 1;
+                                                updateVerItem(item.id, { quantity: q });
+                                            }}
+                                            style={{ ...inputStyle, padding: '7px 8px', fontSize: '0.88rem', textAlign: 'center' }}
+                                        />
+                                        <input
+                                            type="number"
+                                            value={item.unitPrice}
+                                            onChange={e => updateVerItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })}
+                                            style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem', textAlign: 'right' }}
+                                        />
+                                        <div style={{ padding: '7px 10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.88rem', fontWeight: '700', textAlign: 'right', color: '#1e293b' }}>
+                                            {(item.quantity * item.unitPrice).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                                        </div>
+                                        <button
+                                            onClick={() => removeVerItem(item.id)}
+                                            style={{ background: '#fff1f2', border: 'none', borderRadius: '6px', cursor: 'pointer', padding: '6px', color: '#e11d48', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                        </button>
+                                    </div>
+                                ))}
+
+                                {/* Add row */}
+                                <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'flex-end' }}>
+                                    <button
+                                        onClick={addVerItem}
+                                        style={{ padding: '7px 16px', backgroundColor: '#7c3aed', border: 'none', borderRadius: '6px', color: 'white', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                    >
+                                        <span>+</span> เพิ่มสินค้า
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Discount & VAT */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                                <div>
+                                    <label style={labelStyle}>ส่วนลดท้ายบิล</label>
+                                    <input type="number" value={verDiscount} onChange={e => setVerDiscount(parseFloat(e.target.value) || 0)} style={inputStyle} />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>ภาษีมูลค่าเพิ่ม (VAT)</label>
+                                    <input type="number" value={verVat} onChange={e => setVerVat(parseFloat(e.target.value) || 0)} style={inputStyle} />
+                                </div>
+                            </div>
+
+                            {/* Totals */}
+                            <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', padding: '20px', border: '1px solid #e2e8f0' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#64748b', fontSize: '0.9rem' }}>
+                                    <span>ยอดรวมก่อนหักรายการ:</span>
+                                    <span style={{ fontWeight: '700', color: '#1e293b' }}>{calcVerSubtotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })} THB</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '14px', borderTop: '2px solid #e2e8f0', alignItems: 'center' }}>
+                                    <span style={{ fontWeight: '900', fontSize: '1.05rem', color: '#1e293b' }}>ยอดสุทธิทั้งหมด:</span>
+                                    <span style={{ fontWeight: '900', fontSize: '1.4rem', color: '#7c3aed' }}>
+                                        {calcVerTotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })} THB
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Bottom action bar */}
+                    <div style={{ padding: '16px 32px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', flexShrink: 0 }}>
+                        <button
+                            onClick={() => setShowVerification(false)}
+                            style={{ padding: '10px 24px', border: '1.5px solid #e2e8f0', borderRadius: '8px', background: 'white', fontWeight: '700', cursor: 'pointer', color: '#64748b' }}
+                        >
+                            ยกเลิก
+                        </button>
+                        <button
+                            onClick={handleVerificationSave}
+                            disabled={isSaving}
+                            style={{ padding: '12px 32px', borderRadius: '10px', backgroundColor: isSaving ? '#a78bfa' : '#7c3aed', color: 'white', fontWeight: '800', border: 'none', cursor: isSaving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95rem' }}
+                        >
+                            {isSaving ? <><LoadingSpinner /> กำลังบันทึก...</> : <>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                อนุมัติ & บันทึกตาราง
+                            </>}
+                        </button>
+                    </div>
+                </div>
+            ) : (
+            /* ===== NORMAL SHEET VIEW ===== */
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-                {/* LEFT SIDE: รูปภาพ (Visible only after selected) */}
+                {/* LEFT SIDE: รูปภาพ */}
                 {selectedFile && (
-                    <div style={{ 
-                        flex: '1.2', 
-                        borderRight: '1px solid #f1f5f9', 
-                        background: '#f1f5f9', 
-                        display: 'flex', 
-                        flexDirection: 'column', 
+                    <div style={{
+                        flex: '1.2',
+                        borderRight: '1px solid #f1f5f9',
+                        background: '#f1f5f9',
+                        display: 'flex',
+                        flexDirection: 'column',
                         position: 'relative',
                         height: '100%'
                     }}>
-                        <div 
-                            style={{ 
-                                flex: 1, 
-                                position: 'relative', 
+                        <div
+                            style={{
+                                flex: 1,
+                                position: 'relative',
                                 overflow: 'hidden',
                                 cursor: isDraggingImage ? 'grabbing' : 'grab',
                                 display: 'flex',
@@ -396,8 +656,8 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                             onMouseUp={handleMouseUp}
                             onMouseLeave={handleMouseUp}
                         >
-                            <div style={{ 
-                                transition: isDraggingImage ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+                            <div style={{
+                                transition: isDraggingImage ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                 transform: `translate(${position.x}px, ${position.y}px) scale(${zoom}) rotate(${rotation}deg)`,
                                 display: 'flex',
                                 alignItems: 'center',
@@ -405,17 +665,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                             }}>
                                 {image ? (
                                     selectedFile?.type === 'application/pdf' ? (
-                                        <embed 
-                                            src={image} 
-                                            type="application/pdf"
-                                            style={{ width: '80vw', height: '85vh', borderRadius: '4px', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }} 
-                                        />
+                                        <embed src={image} type="application/pdf" style={{ width: '80vw', height: '85vh', borderRadius: '4px', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }} />
                                     ) : (
-                                        <img 
-                                            src={image} 
-                                            style={{ maxWidth: '90%', maxHeight: '85vh', borderRadius: '4px', boxShadow: '0 4px 24px rgba(0,0,0,0.15)', pointerEvents: 'none' }} 
-                                            alt="Receipt" 
-                                        />
+                                        <img src={image} style={{ maxWidth: '90%', maxHeight: '85vh', borderRadius: '4px', boxShadow: '0 4px 24px rgba(0,0,0,0.15)', pointerEvents: 'none' }} alt="Receipt" />
                                     )
                                 ) : (
                                     <div style={{ textAlign: 'center', color: '#94a3b8' }}>
@@ -425,7 +677,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                 )}
                             </div>
 
-                            {/* Processing Overlay */}
                             {isProcessing && (
                                 <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(4px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
                                     <LoadingSpinner />
@@ -441,20 +692,14 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                 <button onClick={() => setRotation(r => r - 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2.5 2v6h6"/><path d="M2.66 15.57a10 10 0 1 0 .57-8.38"/></svg></button>
                                 <button onClick={() => setRotation(r => r + 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg></button>
                                 <div style={{ width: '1px', height: '20px', backgroundColor: '#e2e8f0' }} />
-                                <button onClick={() => {setZoom(1); setRotation(0); setPosition({x:0, y:0});}} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><span style={{ fontSize: '0.85rem' }}>รีเซ็ต</span></button>
+                                <button onClick={() => { setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><span style={{ fontSize: '0.85rem' }}>รีเซ็ต</span></button>
                             </div>
                         </div>
                     </div>
                 )}
 
                 {/* RIGHT SIDE: ข้อมูล */}
-                <div style={{ 
-                    flex: '1', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    backgroundColor: '#ffffff'
-                }}>
-                    {/* Sheet Header Inside Data Column */}
+                <div style={{ flex: '1', display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
                     <div style={{ padding: '20px 32px 0 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <h3 style={{ fontSize: '1.3rem', fontWeight: '900', color: '#1e293b' }}>อัปโหลดใบเสร็จ</h3>
                         <button onClick={onClose} style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#f8fafc', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -462,7 +707,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                         </button>
                     </div>
 
-                    {/* Tabs */}
                     <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9', padding: '0 32px' }}>
                         <button onClick={() => setFormTab('info')} style={{ padding: '16px 16px', marginRight: '16px', backgroundColor: 'transparent', border: 'none', borderBottom: formTab === 'info' ? '3px solid #0052cc' : '3px solid transparent', color: formTab === 'info' ? '#0052cc' : '#94a3b8', fontSize: '0.9rem', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>
                             ข้อมูลรายจ่าย
@@ -481,7 +725,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                         )}
                         {formTab === 'info' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                {/* รายจ่ายสำหรับ */}
                                 <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
                                     <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' }}>รายจ่ายสำหรับ</p>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -495,7 +738,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                     </div>
                                 </div>
 
-                                {/* วิธีการอัปโหลดรายจ่าย */}
                                 <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
                                     <h3 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '16px' }}>วิธีการอัปโหลดรายจ่าย</h3>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -514,13 +756,12 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                             </div>
                                             <div>
                                                 <div style={{ fontWeight: '800', fontSize: '0.95rem' }}>กรอกข้อมูลเอง</div>
-                                                <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>ไม่มีไฟล์อะไรเลย อยากมาบันทึกค่าใช้จ่าย</p>
+                                                <p style={{ fontSize: '0.75rem', color: '#94a3b8' }}>ไม่มีไฟล์ อยากบันทึกค่าใช้จ่าย</p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Main Dropzone for Upload Mode */}
                                 {creationMethod === 'upload' && (
                                     <div onClick={() => fileInputRef.current?.click()} style={{ width: '100%', height: '180px', border: '1.5px dashed #cbd5e1', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', cursor: 'pointer', backgroundColor: '#fcfcfd' }}>
                                         <div style={{ color: '#0052cc' }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
@@ -532,60 +773,33 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                 )}
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept=".jpg,.jpeg,.png,.webp,.heic,.pdf" />
 
-                                {/* ข้อมูลรายจ่าย & ข้อมูลผู้ขาย Section - Hidden until upload if in upload mode */}
                                 {(creationMethod === 'manual' || (creationMethod === 'upload' && image)) && (
                                     <>
                                         <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
                                             <h3 style={{ fontSize: '1.2rem', fontWeight: '900', marginBottom: '24px' }}>ข้อมูลรายจ่าย</h3>
-                                            
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                                                    {/* วันที่ออกใบเสร็จ */}
                                                     <div>
                                                         <label style={labelStyle}>วันที่ *</label>
                                                         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
                                                     </div>
-                                                    {/* หมวดหมู่ */}
                                                     <div>
                                                         <label style={labelStyle}>หมวดหมู่ *</label>
                                                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                                             {['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'].map(cat => (
-                                                                <button
-                                                                    key={cat}
-                                                                    onClick={() => setMainCategory(cat)}
-                                                                    style={{
-                                                                        padding: '8px 16px',
-                                                                        borderRadius: '20px',
-                                                                        border: `1.5px solid ${mainCategory === cat ? '#0052cc' : '#e2e8f0'}`,
-                                                                        backgroundColor: mainCategory === cat ? '#f0f7ff' : 'white',
-                                                                        color: mainCategory === cat ? '#0052cc' : '#64748b',
-                                                                        fontWeight: '700',
-                                                                        fontSize: '0.85rem',
-                                                                        cursor: 'pointer',
-                                                                        transition: 'all 0.2s',
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '6px'
-                                                                    }}
-                                                                >
-                                                                    {cat === 'อาหาร' && '🍴'}
-                                                                    {cat === 'เดินทาง' && '🚗'}
-                                                                    {cat === 'ช้อปปิ้ง' && '🛍️'}
-                                                                    {cat === 'อื่นๆ' && '✨'}
+                                                                <button key={cat} onClick={() => setMainCategory(cat)} style={{ padding: '8px 16px', borderRadius: '20px', border: `1.5px solid ${mainCategory === cat ? '#0052cc' : '#e2e8f0'}`, backgroundColor: mainCategory === cat ? '#f0f7ff' : 'white', color: mainCategory === cat ? '#0052cc' : '#64748b', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                    {cat === 'อาหาร' && '🍴'}{cat === 'เดินทาง' && '🚗'}{cat === 'ช้อปปิ้ง' && '🛍️'}{cat === 'อื่นๆ' && '✨'}
                                                                     {cat}
                                                                 </button>
                                                             ))}
                                                         </div>
                                                     </div>
                                                 </div>
-
                                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                                                    {/* ผู้ขาย */}
                                                     <div>
                                                         <label style={labelStyle}>ผู้ขาย/ผู้ให้บริการ *</label>
                                                         <input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="ระบุชื่อผู้ขาย" style={inputStyle} />
                                                     </div>
-                                                    {/* จำนวนเงิน */}
                                                     <div>
                                                         <label style={labelStyle}>จำนวนเงิน (รวม) *</label>
                                                         <div style={{ position: 'relative' }}>
@@ -594,51 +808,24 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                         </div>
                                                     </div>
                                                 </div>
-
                                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                                                    {/* ช่องทางชำระเงิน */}
                                                     <div>
                                                         <label style={labelStyle}>ช่องทางชำระเงิน *</label>
                                                         <div style={{ display: 'flex', gap: '12px' }}>
                                                             {['โอน', 'เงินสด'].map(method => (
-                                                                <button
-                                                                    key={method}
-                                                                    onClick={() => setPaymentMethod(method)}
-                                                                    style={{
-                                                                        flex: 1,
-                                                                        padding: '10px',
-                                                                        borderRadius: '10px',
-                                                                        border: `1.5px solid ${paymentMethod === method ? '#0052cc' : '#e2e8f0'}`,
-                                                                        backgroundColor: paymentMethod === method ? '#f0f7ff' : 'white',
-                                                                        color: paymentMethod === method ? '#0052cc' : '#64748b',
-                                                                        fontWeight: '700',
-                                                                        fontSize: '0.9rem',
-                                                                        cursor: 'pointer',
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        gap: '8px',
-                                                                        transition: 'all 0.2s'
-                                                                    }}
-                                                                >
-                                                                    {method === 'โอน' ? '🏦' : '💵'}
-                                                                    {method}
+                                                                <button key={method} onClick={() => setPaymentMethod(method)} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: `1.5px solid ${paymentMethod === method ? '#0052cc' : '#e2e8f0'}`, backgroundColor: paymentMethod === method ? '#f0f7ff' : 'white', color: paymentMethod === method ? '#0052cc' : '#64748b', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s' }}>
+                                                                    {method === 'โอน' ? '🏦' : '💵'}{method}
                                                                 </button>
                                                             ))}
                                                         </div>
                                                     </div>
-                                                    {/* รายละเอียด */}
                                                     <div>
                                                         <label style={labelStyle}>รายละเอียด *</label>
                                                         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="ระบุรายละเอียดเพิ่มเติม" style={{ ...inputStyle, height: '44px', resize: 'none' }} />
                                                     </div>
                                                 </div>
-
-
                                             </div>
                                         </div>
-
-                                        {/* ข้อมูลเพิ่มเติมสำหรับใบกำกับภาษี */}
                                         {isTaxInvoice && (
                                             <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
                                                 <h3 style={{ fontSize: '1.2rem', fontWeight: '900', marginBottom: '24px' }}>ข้อมูลเพิ่มเติมสำหรับใบกำกับภาษี</h3>
@@ -678,21 +865,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                 </div>
 
                                 <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '20px', minHeight: '500px' }}>
-                                    {/* Left Sidebar: Item List */}
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                         {expenseItems.map((item, idx) => (
-                                            <div 
-                                                key={item.id} 
-                                                onClick={() => setSelectedItemId(item.id)}
-                                                style={{ 
-                                                    padding: '16px', 
-                                                    borderRadius: '10px', 
-                                                    border: `2px solid ${selectedItemId === item.id ? '#0052cc' : '#f1f5f9'}`, 
-                                                    background: selectedItemId === item.id ? '#f0f7ff' : 'white',
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.2s'
-                                                }}
-                                            >
+                                            <div key={item.id} onClick={() => setSelectedItemId(item.id)} style={{ padding: '16px', borderRadius: '10px', border: `2px solid ${selectedItemId === item.id ? '#0052cc' : '#f1f5f9'}`, background: selectedItemId === item.id ? '#f0f7ff' : 'white', cursor: 'pointer', transition: 'all 0.2s' }}>
                                                 <div style={{ fontWeight: '800', fontSize: '0.95rem', marginBottom: '8px' }}>#{idx + 1} {item.description || 'ไม่มีรายละเอียด'}</div>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '0.85rem' }}>
                                                     <span>ยอดชำระ</span>
@@ -705,7 +880,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                         </button>
                                     </div>
 
-                                    {/* Right Content: Item Details */}
                                     <div style={{ background: 'white', border: '1px solid #f1f5f9', borderRadius: '12px', padding: '24px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                                             <h4 style={{ fontSize: '1.1rem', fontWeight: '900' }}>รายการที่ {expenseItems.findIndex(it => it.id === selectedItemId) + 1}</h4>
@@ -713,13 +887,11 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                             </button>
                                         </div>
-
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                             <div>
                                                 <label style={labelStyle}>รายละเอียด *</label>
                                                 <input type="text" value={selectedItem.description} onChange={(e) => updateItem(selectedItemId, { description: e.target.value })} placeholder="ชื่อสินค้า/บริการ" style={inputStyle} />
                                             </div>
-
                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                                 <div>
                                                     <label style={labelStyle}>ประเภท *</label>
@@ -739,37 +911,14 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                     <input type="number" value={selectedItem.quantity} onChange={(e) => updateItem(selectedItemId, { quantity: parseInt(e.target.value) || 0 })} style={inputStyle} />
                                                 </div>
                                             </div>
-
-                                            <div>
-                                                <label style={labelStyle}>หมวดหมู่ *</label>
-                                                <select value={selectedItem.category} onChange={(e) => updateItem(selectedItemId, { category: e.target.value })} style={inputStyle}>
-                                                    <option value="">เลือกหมวดหมู่</option>
-                                                    <option value="travel">ค่าเดินทาง</option>
-                                                    <option value="office">อุปกรณ์สำนักงาน</option>
-                                                </select>
-                                            </div>
-
                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                                 <div>
                                                     <label style={labelStyle}>ยอดชำระ</label>
                                                     <div style={{ position: 'relative' }}>
-                                                        <input type="number" value={selectedItem.amount * selectedItem.quantity} onChange={(e) => {
-                                                            const total = parseFloat(e.target.value) || 0;
-                                                            updateItem(selectedItemId, { amount: total / (selectedItem.quantity || 1) });
-                                                        }} style={{ ...inputStyle, paddingRight: '40px' }} />
+                                                        <input type="number" value={selectedItem.amount * selectedItem.quantity} onChange={(e) => { const t = parseFloat(e.target.value) || 0; updateItem(selectedItemId, { amount: t / (selectedItem.quantity || 1) }); }} style={{ ...inputStyle, paddingRight: '40px' }} />
                                                         <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
                                                     </div>
                                                 </div>
-                                                <div>
-                                                    <label style={labelStyle}>ยอดรวมก่อนภาษี</label>
-                                                    <div style={{ position: 'relative' }}>
-                                                        <input type="number" value={selectedItem.amount * selectedItem.quantity} readOnly style={{ ...inputStyle, backgroundColor: '#f8fafc', paddingRight: '40px' }} />
-                                                        <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                                 <div>
                                                     <label style={labelStyle}>ภาษีมูลค่าเพิ่ม (VAT)</label>
                                                     <div style={{ position: 'relative' }}>
@@ -777,15 +926,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                         <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
                                                     </div>
                                                 </div>
-                                                <div>
-                                                    <label style={labelStyle}>ภาษีหัก ณ ที่จ่าย (WHT)</label>
-                                                    <div style={{ position: 'relative' }}>
-                                                        <input type="number" value={selectedItem.wht} onChange={(e) => updateItem(selectedItemId, { wht: parseFloat(e.target.value) || 0 })} style={{ ...inputStyle, paddingRight: '40px' }} />
-                                                        <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
-                                                    </div>
-                                                </div>
                                             </div>
-
                                             <div>
                                                 <label style={labelStyle}>หมายเหตุ</label>
                                                 <textarea value={selectedItem.note} onChange={(e) => updateItem(selectedItemId, { note: e.target.value })} placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)" style={{ ...inputStyle, height: '80px', resize: 'none' }} />
@@ -794,61 +935,18 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                     </div>
                                 </div>
 
-                                {/* สรุปรวมค่าใช้จ่าย */}
                                 <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #f1f5f9', marginTop: '20px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                                        <h3 style={{ fontSize: '1.2rem', fontWeight: '900' }}>สรุปรวมค่าใช้จ่าย</h3>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <div onClick={() => setEditSummaryManually(!editSummaryManually)} style={{ width: '40px', height: '22px', background: editSummaryManually ? '#0052cc' : '#cbd5e1', borderRadius: '12px', position: 'relative', cursor: 'pointer', transition: 'all 0.2s' }}>
-                                                <div style={{ width: '18px', height: '18px', background: 'white', borderRadius: '50%', position: 'absolute', top: '2px', left: editSummaryManually ? '20px' : '2px', transition: 'all 0.2s' }} />
+                                    <h3 style={{ fontSize: '1.2rem', fontWeight: '900', marginBottom: '24px' }}>สรุปรวมค่าใช้จ่าย</h3>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+                                        {[['ยอดรวม', total], ['ยอดก่อนภาษี', subtotal], ['VAT', vat]].map(([lbl, val]) => (
+                                            <div key={lbl as string}>
+                                                <label style={{ ...labelStyle, color: '#64748b' }}>{lbl}</label>
+                                                <div style={{ position: 'relative' }}>
+                                                    <input type="text" value={(val as number).toLocaleString(undefined, { minimumFractionDigits: 2 })} readOnly style={{ ...inputStyle, backgroundColor: '#f8fafc', paddingRight: '40px', fontWeight: '800' }} />
+                                                    <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
+                                                </div>
                                             </div>
-                                            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>แก้ไขยอดรวมด้วยตนเอง</span>
-                                        </div>
-                                    </div>
-
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
-                                        <div>
-                                            <label style={{ ...labelStyle, color: '#64748b' }}>ยอดชำระ</label>
-                                            <div style={{ position: 'relative' }}>
-                                                <input type="text" value={total.toLocaleString(undefined, { minimumFractionDigits: 2 })} readOnly style={{ ...inputStyle, backgroundColor: '#f8fafc', paddingRight: '40px', fontWeight: '800' }} />
-                                                <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label style={{ ...labelStyle, color: '#64748b' }}>ยอดรวมก่อนภาษี</label>
-                                            <div style={{ position: 'relative' }}>
-                                                <input type="text" value={subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} readOnly style={{ ...inputStyle, backgroundColor: '#f8fafc', paddingRight: '40px' }} />
-                                                <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label style={{ ...labelStyle, color: '#64748b' }}>ภาษีมูลค่าเพิ่ม (VAT)</label>
-                                            <div style={{ position: 'relative' }}>
-                                                <input type="text" value={vat.toLocaleString(undefined, { minimumFractionDigits: 2 })} readOnly style={{ ...inputStyle, backgroundColor: '#f8fafc', paddingRight: '40px' }} />
-                                                <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label style={{ ...labelStyle, color: '#64748b' }}>ภาษีหัก ณ ที่จ่าย (WHT)</label>
-                                            <div style={{ position: 'relative' }}>
-                                                <input type="text" value={wht.toLocaleString(undefined, { minimumFractionDigits: 2 })} readOnly style={{ ...inputStyle, backgroundColor: '#f8fafc', paddingRight: '40px' }} />
-                                                <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#94a3b8' }}>THB</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* ใบแทนใบเสร็จ */}
-                                <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #f1f5f9', marginTop: '20px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                                        <h3 style={{ fontSize: '1.2rem', fontWeight: '900' }}>ใบแทนใบเสร็จ</h3>
-                                        <button style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', background: 'white', fontSize: '0.8rem', fontWeight: '600', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> แก้ไขชื่อผู้อนุมัติ
-                                        </button>
-                                    </div>
-                                    <div style={{ padding: '16px', background: '#f0f7ff', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <div style={{ color: '#0052cc' }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
-                                        <span style={{ fontSize: '0.9rem', color: '#0052cc', fontWeight: '600' }}>ระบบจะสร้างใบรับรองใบแทนใบเสร็จให้โดยอัตโนมัติ</span>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
@@ -863,6 +961,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     </div>
                 </div>
             </div>
+            )}
         </div>
     );
 };

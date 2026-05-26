@@ -3,6 +3,7 @@
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import CreateReceiptSheet from '@/components/CreateReceiptSheet';
+import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
 
 import { StatCard, FilterBar, ReceiptTable, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
 import { useState, useEffect } from 'react';
@@ -17,6 +18,7 @@ export default function DashboardPage() {
   const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
   const { receipts, fetchReceipts, loading } = useReceipts();
 
 
@@ -127,7 +129,7 @@ export default function DashboardPage() {
                 <div className={styles.chartColSpan2}>
                   <ExpenseChart receipts={receipts} />
                 </div>
-                <RecentUploads receipts={receipts} />
+                <RecentUploads receipts={receipts} onReceiptClick={setSelectedReceipt} />
               </>
             )}
           </div>
@@ -147,6 +149,18 @@ export default function DashboardPage() {
           }
         }}
         userId={session?.user?.id || 'user123'}
+      />
+
+      <ReceiptDetailSheet
+        isOpen={!!selectedReceipt}
+        receipt={selectedReceipt}
+        onClose={() => setSelectedReceipt(null)}
+        onSuccess={() => {
+          if (session?.user?.id) {
+            fetchReceipts(session.user.id);
+          }
+          setSelectedReceipt(null);
+        }}
       />
     </div>
   );

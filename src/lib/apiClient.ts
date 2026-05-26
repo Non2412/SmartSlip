@@ -102,6 +102,12 @@ export const receiptApi = {
     body: JSON.stringify(data),
   }),
 
+  update: (id: string, data: { storeName?: string; totalAmount?: number; extractedData?: unknown }) =>
+    apiRequest<Receipt>(`/receipts?id=${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
   // ประมวลผล OCR และอัปโหลดขึ้น Drive
   extract: (file: File, userId: string) => {
     const formData = new FormData();
