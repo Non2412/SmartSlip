@@ -510,7 +510,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess }: CreateReceiptSheetPr
                             บันทึกข้อมูลเข้าสู่ระบบ
                         </button>
                     </div>
-                </div>
+                )}
             </div>
         </>
     );
