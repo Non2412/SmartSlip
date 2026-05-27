@@ -372,6 +372,23 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         setIsSaving(true);
         setErrorMsg(null);
         try {
+            let finalImageUrl = image;
+            if (image && image.startsWith('data:')) {
+                try {
+                    const uploadRes = await fetch('/api/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ imageBase64: image })
+                    });
+                    const uploadData = await uploadRes.json();
+                    if (uploadData.success && uploadData.data?.imageUrl) {
+                        finalImageUrl = uploadData.data.imageUrl;
+                    }
+                } catch (e) {
+                    console.error("Upload failed", e);
+                }
+            }
+
             const grandTotal = calcVerTotal();
             const result = await createReceipt({
                 userId: userId ?? '',
@@ -386,7 +403,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     currency: verCurrency,
                     vendorTaxId: verTaxId,
                     notes: `หมวดหมู่: ${verCategory}`,
-                    imageData: image,
+                    imageData: finalImageUrl,
                     items: verItems,
                     summary: {
                         subtotal: calcVerSubtotal(),
@@ -418,6 +435,23 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         setIsSaving(true);
         setErrorMsg(null);
         try {
+            let finalImageUrl = image;
+            if (image && image.startsWith('data:')) {
+                try {
+                    const uploadRes = await fetch('/api/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ imageBase64: image })
+                    });
+                    const uploadData = await uploadRes.json();
+                    if (uploadData.success && uploadData.data?.imageUrl) {
+                        finalImageUrl = uploadData.data.imageUrl;
+                    }
+                } catch (e) {
+                    console.error("Upload failed", e);
+                }
+            }
+
             const { subtotal, vat, wht, total } = calculateTotals();
             const finalTotal = parseFloat(amount) || total;
             const result = await createReceipt({
