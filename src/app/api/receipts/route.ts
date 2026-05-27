@@ -63,6 +63,7 @@ export async function POST(request: Request) {
       userId: userId || 'user123',
       extractedData: extractedData || null,
       imageFileId: imageFileId || null,
+      transactionId: `web-${new ObjectId().toHexString()}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -77,10 +78,48 @@ export async function POST(request: Request) {
       }
     });
   } catch (error: any) {
+    console.error('[POST /api/receipts]', error.message, error.stack);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
     );
+  }
+}
+
+// PATCH: อัปเดตข้อมูลใบเสร็จ
+export async function PATCH(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ success: false, error: 'ID required' }, { status: 400 });
+
+    const body = await request.json();
+    const { storeName, totalAmount, extractedData } = body;
+
+    const client = await clientPromise;
+    const db = client.db('smartslip_api');
+
+    const updateFields: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+    if (storeName !== undefined) updateFields.storeName = storeName;
+    if (totalAmount !== undefined) updateFields.totalAmount = parseFloat(totalAmount.toString());
+    if (extractedData !== undefined) updateFields.extractedData = extractedData;
+
+    const result = await db.collection('receipts').findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: updateFields },
+      { returnDocument: 'after' }
+    );
+
+    if (!result) {
+      return NextResponse.json({ success: false, error: 'Receipt not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: { ...result, id: result._id.toString(), _id: undefined }
+    });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 

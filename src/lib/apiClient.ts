@@ -15,8 +15,20 @@ export interface Receipt {
   updatedAt: string;
   extractedData?: {
     date?: string;
+    time?: string;
     method?: string;
+    paymentMethod?: string;
     receiver?: string;
+    sender?: string;
+    payee?: string;
+    category?: string;
+    notes?: string;
+    receiptNo?: string;
+    vendorTaxId?: string;
+    vendorAddress?: string;
+    currency?: string;
+    items?: unknown;
+    summary?: unknown;
   };
 }
 
@@ -89,6 +101,16 @@ export const receiptApi = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
+
+  update: (id: string, data: { storeName?: string; totalAmount?: number; extractedData?: unknown }) =>
+    apiRequest<Receipt>(`/receipts?id=${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  // ลบใบเสร็จ
+  delete: (id: string) =>
+    apiRequest(`/receipts?id=${id}`, { method: 'DELETE' }),
 
   // ประมวลผล OCR และอัปโหลดขึ้น Drive
   extract: (file: File, userId: string) => {

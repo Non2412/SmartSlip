@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>สร้างใบเสร็จด้วย AI</title>
+  <link rel="stylesheet" href="receipt-ai-ui.css" />
+</head>
+<body>
+  <div class="overlay">
+    <div class="modal-card">
+      <button class="close-button" type="button" aria-label="ปิด">✕</button>
+      <div class="modal-content">
+        <section class="left-panel">
+          <div class="panel-title-row">
+            <div>
+              <p class="panel-label">ตัวอย่างใบเสร็จ</p>
+            </div>
+            <button type="button" class="secondary-button small">เพิ่มไฟล์ใหม่</button>
+          </div>
+
+          <div class="dropzone" id="dropzone">
+            <span class="dropzone-icon">⬆️</span>
+            <p class="dropzone-title">คลิกเพื่ออัปโหลด หรือลากไฟล์มาวาง</p>
+            <p class="dropzone-subtitle">รองรับ JPG, PNG, PDF</p>
+          </div>
+
+          <div class="dropzone-meta">
+            <span class="status-text" id="statusText">ยังไม่มีไฟล์อัปโหลด</span>
+            <span class="support-text">รองรับ JPG, PNG, PDF</span>
+          </div>
+        </section>
+
+        <section class="right-panel">
+          <div class="panel-title-row">
+            <div>
+              <p class="panel-heading">ข้อมูลรายจ่าย</p>
+              <p class="panel-note">ตรวจสอบข้อมูลก่อนบันทึก</p>
+            </div>
+            <div class="user-chip">ผู้ใช้งาน</div>
+          </div>
+
+          <div class="upload-tabs">
+            <button type="button" class="tab-card active" id="uploadTab">อัปโหลดไฟล์</button>
+            <button type="button" class="tab-card" id="manualTab">กรอกเอง</button>
+          </div>
+
+          <div class="menu-switch">
+            <button type="button" class="tab-button active">ข้อมูลรายจ่าย</button>
+            <button type="button" class="tab-button">รายการและสรุป</button>
+          </div>
+
+          <div class="form-card" id="formCard">
+            <div class="form-grid">
+              <label class="form-group">
+                <span class="form-label">ชื่อร้าน / รายการ</span>
+                <input type="text" placeholder="เช่น ร้านอาหารแสนสุข" />
+              </label>
+              <label class="form-group">
+                <span class="form-label">วันที่</span>
+                <input type="date" />
+              </label>
+            </div>
+
+            <div class="form-grid">
+              <label class="form-group">
+                <span class="form-label">วิธีชำระ</span>
+                <select>
+                  <option>โอนเงิน</option>
+                  <option>เงินสด</option>
+                  <option>บัตรเครดิต</option>
+                </select>
+              </label>
+              <label class="form-group">
+                <span class="form-label">หมวดหมู่</span>
+                <select>
+                  <option>อาหาร</option>
+                  <option>เดินทาง</option>
+                  <option>อื่นๆ</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="form-group full-width">
+              <span class="form-label">หมายเหตุ</span>
+              <textarea rows="4" placeholder="เขียนรายละเอียดเพิ่มเติม"></textarea>
+            </label>
+          </div>
+
+          <div class="stepper-row">
+            <span class="step-chip active">1 อัปโหลด</span>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="button-secondary">ยกเลิก</button>
+            <button type="button" class="button-primary">สร้างรายจ่าย</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="state-controls">
+        <button type="button" class="state-button" onclick="setState(1)">State 1</button>
+        <button type="button" class="state-button" onclick="setState(2)">State 2</button>
+        <button type="button" class="state-button" onclick="setState(3)">State 3</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const previewBox = document.getElementById('dropzone');
+    const statusText = document.getElementById('statusText');
+    const formCard = document.getElementById('formCard');
+    const uploadTab = document.getElementById('uploadTab');
+    const manualTab = document.getElementById('manualTab');
+
+    let currentState = 1;
+
+    function setState(state) {
+      currentState = state;
+      renderState();
+    }
+
+    function renderState() {
+      uploadTab.classList.toggle('active', true);
+      manualTab.classList.remove('active');
+
+      if (currentState === 1) {
+        previewBox.classList.remove('uploaded');
+        formCard.style.display = 'none';
+        statusText.textContent = 'ยังไม่มีไฟล์อัปโหลด';
+        previewBox.querySelector('.dropzone-title').textContent = 'คลิกเพื่ออัปโหลด หรือลากไฟล์มาวาง';
+      }
+
+      if (currentState === 2) {
+        previewBox.classList.add('uploaded');
+        formCard.style.display = 'none';
+        statusText.textContent = 'ไฟล์พร้อมใช้งาน';
+        previewBox.querySelector('.dropzone-title').textContent = 'ใบเสร็จถูกอัปโหลดแล้ว';
+      }
+
+      if (currentState === 3) {
+        previewBox.classList.add('uploaded');
+        formCard.style.display = 'block';
+        statusText.textContent = 'ข้อมูลสลิปพร้อมกรอก';
+        previewBox.querySelector('.dropzone-title').textContent = 'ใบเสร็จถูกวางแล้ว';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderState();
+      formCard.style.display = 'none';
+    });
+  </script>
+</body>
+</html>
