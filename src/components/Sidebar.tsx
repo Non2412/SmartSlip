@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
@@ -17,6 +17,23 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
   const pathname = usePathname();
   const { data: session } = useSession();
   const user = session?.user;
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const update = () => {
+      try {
+        const count = parseInt(localStorage.getItem('smartslip_unread_count') || '0', 10);
+        setUnreadCount(isNaN(count) ? 0 : count);
+      } catch { setUnreadCount(0); }
+    };
+    update();
+    window.addEventListener('smartslip_unread_update', update);
+    window.addEventListener('storage', update);
+    return () => {
+      window.removeEventListener('smartslip_unread_update', update);
+      window.removeEventListener('storage', update);
+    };
+  }, []);
   const userId = user?.id || 'guest';
   
   // Show LINE user info as primary account, fallback to current user
@@ -49,7 +66,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
         </div>
         <ul className={styles.navList}>
           <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="รายการใบเสร็จ" icon={<ListIcon />} />
-          <SidebarItem href="/line-receipts" active={pathname === '/line-receipts'} label="รูปภาพจาก LINE" icon={<ImageIcon />} />
+          <SidebarItem href="/line-receipts" active={pathname === '/line-receipts'} label="รูปภาพจาก LINE" icon={<ImageIcon />} badge={unreadCount} />
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} onClick={onAddReceipt} />
         </ul>
 
@@ -96,14 +113,16 @@ const SidebarItem = ({
   icon,
   active = false,
   isExternal = false,
-  onClick
+  onClick,
+  badge = 0,
 }: {
   href?: string,
   label: string,
   icon: React.ReactNode,
   active?: boolean,
   isExternal?: boolean,
-  onClick?: () => void
+  onClick?: () => void,
+  badge?: number,
 }) => {
   const content = (
     <>
@@ -111,6 +130,17 @@ const SidebarItem = ({
         {icon}
       </span>
       <span className={styles.sidebarLinkLabel}>{label}</span>
+      {badge > 0 && (
+        <span style={{
+          marginLeft: 'auto', minWidth: '20px', height: '20px',
+          background: '#ef4444', color: 'white', borderRadius: '10px',
+          fontSize: '0.7rem', fontWeight: '800',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '0 5px', lineHeight: 1,
+        }}>
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
       {isExternal && (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
       )}

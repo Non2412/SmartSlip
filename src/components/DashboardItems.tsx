@@ -83,7 +83,6 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                     <th>ร้านค้า</th>
                     <th>หมวดหมู่</th>
                     <th>ยอดสุทธิ</th>
-                    <th>ชำระโดย</th>
                     <th>สถานะ</th>
                     <th>วันที่</th>
                 </tr>
@@ -101,14 +100,32 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                     receipts.map((receipt) => (
                         <tr key={receipt.id}>
                             <td className={styles.storeCell}>
-                                <div className={styles.storeIcon}>
-                                    {receipt.storeName?.charAt(0) || 'R'}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{
+                                        width: '36px', height: '36px', borderRadius: '8px',
+                                        overflow: 'hidden', flexShrink: 0,
+                                        border: '1px solid #e5e7eb',
+                                        background: '#f1f5f9',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: '0.85rem', fontWeight: '700', color: '#64748b',
+                                    }}>
+                                        {receipt.extractedData?.imageData ? (
+                                            <img
+                                                src={receipt.extractedData.imageData}
+                                                alt={receipt.storeName}
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                            />
+                                        ) : (
+                                            receipt.storeName?.charAt(0) || 'R'
+                                        )}
+                                    </div>
+                                    <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                                        {receipt.storeName || 'ไม่ระบุ'}
+                                    </span>
                                 </div>
-                                {receipt.storeName || 'ไม่ระบุ'}
                             </td>
-                            <td>{/* No category field in API currently */ 'ไม่ระบุหมวดหมู่'}</td>
+                            <td>{receipt.extractedData?.category || 'ไม่ระบุ'}</td>
                             <td className={styles.amountCell}>฿ {receipt.totalAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</td>
-                            <td>{receipt.extractedData?.paymentMethod || receipt.extractedData?.method || 'เงินสด'}</td>
                             <td>
                                 <span className={!receipt.extractedData ? styles.statusWarning : styles.statusSuccess}>
                                     {!receipt.extractedData ? 'รอตรวจสอบ' : 'สำเร็จ'}

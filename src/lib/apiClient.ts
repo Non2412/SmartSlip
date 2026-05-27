@@ -27,6 +27,7 @@ export interface Receipt {
     vendorTaxId?: string;
     vendorAddress?: string;
     currency?: string;
+    imageData?: string;
     items?: unknown;
     summary?: unknown;
   };

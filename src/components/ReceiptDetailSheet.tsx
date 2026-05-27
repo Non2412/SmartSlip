@@ -222,24 +222,12 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                             </div>
                         </div>
                         <div>
-                            <label style={labelStyle}>วิธีการชำระเงิน</label>
-                            <div style={{ position: 'relative' }}>
-                                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>💳</span>
-                                <input value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} placeholder="Mobile Banking" />
-                            </div>
-                        </div>
-                        <div>
                             <label style={labelStyle}>สกุลเงิน</label>
                             <div style={{ position: 'relative' }}>
                                 <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>$</span>
                                 <input value={currency} onChange={e => setCurrency(e.target.value)} style={{ ...inputStyle, paddingLeft: '28px' }} />
                             </div>
                         </div>
-                    </div>
-
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={labelStyle}>เลขประจำตัวผู้เสียภาษีของร้านค้า (TAX ID)</label>
-                        <input value={taxId} onChange={e => setTaxId(e.target.value)} placeholder="เลข 13 หลักของบริษัท (ถ้ามี)" style={inputStyle} />
                     </div>
 
                     {/* Line items */}
