@@ -66,7 +66,7 @@ interface CreateReceiptSheetProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess?: () => void;
-    userId: string;
+    userId?: string;
 }
 
 type CreationMethod = 'upload' | 'manual';
@@ -281,7 +281,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         setErrorMsg(null);
 
         try {
-            const result = await extractFromImage(fileToProcess, userId) as any;
+            const result = await extractFromImage(fileToProcess, userId ?? '') as any;
             if (result) {
                 // Populate verification form
                 setVerStore(result.store || result.vendor || '');
@@ -331,7 +331,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         try {
             const grandTotal = calcVerTotal();
             const result = await createReceipt({
-                userId,
+                userId: userId ?? '',
                 storeName: verStore,
                 totalAmount: grandTotal,
                 extractedData: {
@@ -378,7 +378,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
             const { subtotal, vat, wht, total } = calculateTotals();
             const finalTotal = parseFloat(amount) || total;
             const result = await createReceipt({
-                userId,
+                userId: userId ?? '',
                 storeName: shopName,
                 totalAmount: finalTotal,
                 extractedData: {
