@@ -8,6 +8,7 @@ export interface UseReceiptsReturn {
   fetchReceipts: (userId: string) => Promise<void>;
   createReceipt: (data: CreateReceiptData) => Promise<{ success: boolean; data?: Receipt; error?: string }>;
   updateReceipt: (id: string, data: { storeName?: string; totalAmount?: number; extractedData?: unknown }) => Promise<{ success: boolean; data?: Receipt; error?: string }>;
+  deleteReceipt: (id: string) => Promise<{ success: boolean; error?: string }>;
   extractFromImage: (file: File, userId: string) => Promise<any>;
   loading: boolean;
   error: string | null;
@@ -67,6 +68,20 @@ export const useReceipts = (): UseReceiptsReturn => {
     }
   }, []);
 
+  const deleteReceipt = useCallback(async (id: string) => {
+    try {
+      const result = await receiptApi.delete(id) as any;
+      if (result.success) {
+        setReceipts(prev => prev.filter(r => r.id !== id));
+        return { success: true };
+      } else {
+        return { success: false, error: result.error || 'Failed to delete receipt' };
+      }
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+    }
+  }, []);
+
   const extractFromImage = useCallback(async (file: File, userId?: string) => {
     setLoading(true);
     setError(null);
@@ -93,6 +108,7 @@ export const useReceipts = (): UseReceiptsReturn => {
     fetchReceipts,
     createReceipt,
     updateReceipt,
+    deleteReceipt,
     extractFromImage,
     loading,
     error,

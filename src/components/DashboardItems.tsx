@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styles from './DashboardItems.module.css';
 import { TableRowSkeleton } from './Skeleton';
 
@@ -180,15 +180,39 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
     );
 };
 
-export const RecentUploads = ({ receipts = [], onReceiptClick }: { receipts?: any[]; onReceiptClick?: (receipt: any) => void }) => {
+export const RecentUploads = ({
+    receipts = [],
+    onReceiptClick,
+    onEdit,
+    onDelete,
+}: {
+    receipts?: any[];
+    onReceiptClick?: (receipt: any) => void;
+    onEdit?: (receipt: any) => void;
+    onDelete?: (receipt: any) => void;
+}) => {
     const recentReceipts = [...receipts]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5);
 
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // ปิด dropdown เมื่อคลิกนอกพื้นที่
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setOpenMenuId(null);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
     return (
         <div className={styles.recentCard}>
             <div className={styles.recentTitle}>รูปภาพจาก LINE</div>
-            <div className={styles.uploadList}>
+            <div className={styles.uploadList} ref={menuRef}>
                 {recentReceipts.length === 0 ? (
                     <div className={styles.emptyState} style={{ padding: '20px 0', textAlign: 'center', color: '#6b7280', fontSize: '14px' }}>
                         ไม่มีรายการอัปโหลดล่าสุด
@@ -196,13 +220,15 @@ export const RecentUploads = ({ receipts = [], onReceiptClick }: { receipts?: an
                 ) : (
                     recentReceipts.map((receipt) => {
                         const imageData = receipt.extractedData?.imageData;
+                        const isMenuOpen = openMenuId === receipt.id;
                         return (
                             <div
                                 key={receipt.id}
                                 className={styles.uploadItem}
                                 onClick={() => onReceiptClick?.(receipt)}
-                                style={{ cursor: onReceiptClick ? 'pointer' : 'default', transition: 'background 0.15s' }}
+                                style={{ cursor: onReceiptClick ? 'pointer' : 'default', transition: 'background 0.15s', position: 'relative' }}
                             >
+                                {/* Thumbnail */}
                                 <div style={{ width: '44px', height: '44px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, border: '1px solid #e5e7eb' }}>
                                     {imageData ? (
                                         <img src={imageData} alt="slip" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -212,15 +238,100 @@ export const RecentUploads = ({ receipts = [], onReceiptClick }: { receipts?: an
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Info */}
                                 <div className={styles.uploadInfo}>
                                     <div className={styles.uploadName}>{receipt.storeName || 'ไม่ระบุร้านค้า'}</div>
                                     <div className={styles.uploadDate}>
                                         {new Date(receipt.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} • {receipt.totalAmount ? `฿${receipt.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}` : '—'}
                                     </div>
                                 </div>
-                                {onReceiptClick && (
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" style={{ flexShrink: 0 }}><polyline points="9 18 15 12 9 6"/></svg>
-                                )}
+
+                                {/* Three-dot menu button */}
+                                <div style={{ position: 'relative', flexShrink: 0 }}>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenMenuId(isMenuOpen ? null : receipt.id);
+                                        }}
+                                        style={{
+                                            width: '28px', height: '28px', borderRadius: '6px',
+                                            border: '1px solid transparent', background: 'transparent',
+                                            color: '#9ca3af', cursor: 'pointer',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            fontSize: '1.1rem', fontWeight: '900', letterSpacing: '0.05em',
+                                            transition: 'all 0.15s',
+                                        }}
+                                        onMouseEnter={e => {
+                                            (e.currentTarget as HTMLButtonElement).style.background = '#f3f4f6';
+                                            (e.currentTarget as HTMLButtonElement).style.borderColor = '#e5e7eb';
+                                            (e.currentTarget as HTMLButtonElement).style.color = '#374151';
+                                        }}
+                                        onMouseLeave={e => {
+                                            if (!isMenuOpen) {
+                                                (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                                                (e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent';
+                                                (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af';
+                                            }
+                                        }}
+                                        title="ตัวเลือก"
+                                    >
+                                        ⋮
+                                    </button>
+
+                                    {/* Dropdown */}
+                                    {isMenuOpen && (
+                                        <div
+                                            onClick={e => e.stopPropagation()}
+                                            style={{
+                                                position: 'absolute', right: 0, top: '32px', zIndex: 100,
+                                                background: 'white', borderRadius: '10px',
+                                                border: '1px solid #e5e7eb',
+                                                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                                                minWidth: '140px', overflow: 'hidden',
+                                            }}
+                                        >
+                                            {/* แก้ไข */}
+                                            <button
+                                                onClick={() => { setOpenMenuId(null); onEdit?.(receipt); }}
+                                                style={{
+                                                    width: '100%', padding: '10px 16px',
+                                                    background: 'transparent', border: 'none',
+                                                    textAlign: 'left', cursor: 'pointer',
+                                                    fontSize: '0.875rem', fontWeight: '600', color: '#374151',
+                                                    display: 'flex', alignItems: 'center', gap: '10px',
+                                                    transition: 'background 0.1s',
+                                                }}
+                                                onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                                                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                                แก้ไข
+                                            </button>
+
+                                            {/* เส้นแบ่ง */}
+                                            <div style={{ height: '1px', background: '#f3f4f6', margin: '0 12px' }} />
+
+                                            {/* ลบ */}
+                                            <button
+                                                onClick={() => { setOpenMenuId(null); onDelete?.(receipt); }}
+                                                style={{
+                                                    width: '100%', padding: '10px 16px',
+                                                    background: 'transparent', border: 'none',
+                                                    textAlign: 'left', cursor: 'pointer',
+                                                    fontSize: '0.875rem', fontWeight: '600', color: '#ef4444',
+                                                    display: 'flex', alignItems: 'center', gap: '10px',
+                                                    transition: 'background 0.1s',
+                                                }}
+                                                onMouseEnter={e => (e.currentTarget.style.background = '#fff1f2')}
+                                                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                                ลบ
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         );
                     })

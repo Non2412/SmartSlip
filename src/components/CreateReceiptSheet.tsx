@@ -40,17 +40,21 @@ input[type=number] {
   .sr-grid-items { grid-template-columns: 1fr !important; min-height: unset !important; }
 
   /* Verification view */
-  .sr-ver-header { padding: 12px 16px !important; }
+  .sr-ver-header { padding: 0 16px !important; min-height: 56px !important; }
   .sr-ver-layout { flex-direction: column !important; overflow-y: auto !important; }
-  .sr-ver-img    { flex: none !important; height: 200px !important; min-height: unset !important;
+  .sr-ver-img    { flex: none !important; height: 220px !important; min-height: unset !important;
                    border-right: none !important; border-bottom: 1px solid #e2e8f0 !important; }
-  .sr-ver-form   { padding: 16px !important; }
-  .sr-ver-footer { padding: 12px 16px !important; flex-wrap: wrap !important; gap: 8px !important; }
+  .sr-ver-form   { padding: 14px 14px !important; }
+  .sr-ver-footer { padding: 10px 14px !important; flex-wrap: wrap !important; gap: 8px !important; }
 
-  /* Line-items table on verification */
+  /* Line-items table on verification — collapse to 4-col */
   .sr-tbl-header { display: none !important; }
-  .sr-tbl-row    { grid-template-columns: 1fr 44px 80px 30px !important;
-                   gap: 5px !important; padding: 6px 10px !important; }
+  .sr-tbl-row    { grid-template-columns: 1fr 44px 84px 32px !important;
+                   gap: 5px !important; padding: 7px 12px !important; }
+  /* hide row number col on mobile */
+  .sr-tbl-row > span:first-child { display: none !important; }
+  /* hide subtotal read-only col on mobile (4-col: desc qty price del) */
+  .sr-tbl-row > div:nth-child(5) { display: none !important; }
 
   /* ซ่อน left image panel บนมือถือ — ภาพจะแสดงใน dropzone แทน */
   .sr-left-panel { display: none !important; }
@@ -290,7 +294,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 setVerTime(result.time || '');
                 setVerPaymentMethod(detectPaymentMethodFromText(result.method || result.paymentMethod));
                 setVerCurrency('THB');
-                setVerTaxId(result.tax_id || result.taxId || '');
+                setVerTaxId(result.taxId || result.tax_id || '');
                 setVerDiscount(typeof result.discount === 'number' ? result.discount : 0);
                 setVerVat(typeof result.vat === 'number' ? result.vat : 0);
 
@@ -473,208 +477,482 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
             {/* ===== VERIFICATION VIEW ===== */}
             {showVerification ? (
                 <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-                    {/* Dark header */}
-                    <div className="sr-ver-header" style={{ padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', flexShrink: 0 }}>
-                        <h2 style={{ color: 'white', fontWeight: '900', fontSize: '1.15rem', margin: 0 }}>ตรวจสอบและยืนยันข้อมูลใบเสร็จ</h2>
-                        <button onClick={() => setShowVerification(false)} style={{ color: '#94a3b8', background: 'none', border: 'none', fontSize: '0.9rem', cursor: 'pointer', fontWeight: '700' }}>ยกเลิก</button>
+
+                    {/* ── Header ── */}
+                    <div className="sr-ver-header" style={{
+                        padding: '0 32px',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        background: 'linear-gradient(135deg,#0f172a 0%,#1e293b 100%)',
+                        flexShrink: 0, minHeight: '64px', gap: '16px'
+                    }}>
+                        {/* Left: back + title */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+                            <button
+                                onClick={() => setShowVerification(false)}
+                                style={{ width: '34px', height: '34px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}
+                                title="กลับ"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                            </button>
+                            <div style={{ minWidth: 0 }}>
+                                <h2 style={{ color: 'white', fontWeight: '900', fontSize: '1.05rem', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    ตรวจสอบและยืนยันข้อมูล
+                                </h2>
+                                <p style={{ color: '#64748b', fontSize: '0.75rem', margin: '2px 0 0', fontWeight: '500' }}>
+                                    แก้ไขข้อมูลที่ AI ถอดได้ให้ถูกต้องก่อนบันทึก
+                                </p>
+                            </div>
+                        </div>
+                        {/* Right: step pills */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                            {[{ n: '1', label: 'อัปโหลด', done: true }, { n: '2', label: 'ตรวจสอบ', active: true }, { n: '3', label: 'ยืนยัน' }].map((s, i) => (
+                                <React.Fragment key={s.n}>
+                                    {i > 0 && <div style={{ width: '20px', height: '1px', background: s.active ? '#7c3aed' : '#334155' }} />}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '20px', background: s.active ? 'rgba(124,58,237,0.25)' : s.done ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${s.active ? '#7c3aed' : s.done ? '#22c55e' : 'rgba(255,255,255,0.08)'}` }}>
+                                        <span style={{ width: '16px', height: '16px', borderRadius: '50%', background: s.active ? '#7c3aed' : s.done ? '#22c55e' : '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: '900', color: 'white' }}>
+                                            {s.done ? <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg> : s.n}
+                                        </span>
+                                        <span style={{ fontSize: '0.72rem', fontWeight: '700', color: s.active ? '#c4b5fd' : s.done ? '#86efac' : '#475569' }}>{s.label}</span>
+                                    </div>
+                                </React.Fragment>
+                            ))}
+                        </div>
                     </div>
 
-                    {/* Success */}
+                    {/* ── Alert banner ── */}
                     {successMsg && !errorMsg && (
-                        <div style={{ padding: '10px 32px', backgroundColor: '#f0fdf4', borderBottom: '1px solid #bbf7d0', color: '#166534', fontSize: '0.85rem', fontWeight: '600', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <div style={{ padding: '9px 28px', background: 'linear-gradient(90deg,#f0fdf4,#dcfce7)', borderBottom: '1px solid #bbf7d0', color: '#15803d', fontSize: '0.82rem', fontWeight: '700', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ width: '20px', height: '20px', background: '#22c55e', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                            </span>
                             {successMsg}
+                            <span style={{ marginLeft: 'auto', padding: '2px 8px', background: '#bbf7d0', borderRadius: '20px', fontSize: '0.72rem', color: '#166534', fontWeight: '800' }}>AI ✓</span>
                         </div>
                     )}
-                    {/* Error */}
                     {errorMsg && (
-                        <div style={{ padding: '10px 32px', backgroundColor: '#fef2f2', borderBottom: '1px solid #fee2e2', color: '#991b1b', fontSize: '0.85rem', fontWeight: '600', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ padding: '9px 28px', backgroundColor: '#fef2f2', borderBottom: '1px solid #fee2e2', color: '#991b1b', fontSize: '0.82rem', fontWeight: '700', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                             {errorMsg}
                         </div>
                     )}
 
-                    {/* Two-column body */}
+                    {/* ── Two-column body ── */}
                     <div className="sr-ver-layout" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-                        {/* Left: Image */}
-                        <div className="sr-ver-img" style={{ flex: '0 0 42%', borderRight: '1px solid #e2e8f0', backgroundColor: '#f8fafc', padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontWeight: '800', fontSize: '0.85rem', color: '#64748b' }}>ภาพถ่ายสลิปใบเสร็จต้นฉบับ</span>
-                                {image && (
-                                    <button onClick={() => window.open(image!, '_blank')} style={{ color: '#0052cc', fontSize: '0.8rem', fontWeight: '700', background: 'none', border: 'none', cursor: 'pointer' }}>
-                                        ดูขนาดจริง ↗
-                                    </button>
-                                )}
+
+                        {/* ═══ LEFT: Receipt image panel ═══ */}
+                        <div className="sr-ver-img" style={{ flex: '0 0 38%', borderRight: '1px solid #e2e8f0', background: '#f1f5f9', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                            {/* panel toolbar */}
+                            <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', background: 'white', flexShrink: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 0 3px rgba(34,197,94,0.2)' }} />
+                                    <span style={{ fontWeight: '800', fontSize: '0.8rem', color: '#334155' }}>ต้นฉบับใบเสร็จ</span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                    {image && (
+                                        <button
+                                            onClick={() => window.open(image!, '_blank')}
+                                            style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', background: 'white', color: '#0052cc', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                        >
+                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                            ขยายเต็มจอ
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+
+                            {/* image display */}
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '20px', position: 'relative' }}>
                                 {image ? (
-                                    <img src={image} alt="Receipt" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }} />
+                                    <>
+                                        <img
+                                            src={image}
+                                            alt="Receipt"
+                                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '10px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)', transition: 'box-shadow 0.2s' }}
+                                        />
+                                        {/* AI badge */}
+                                        <div style={{ position: 'absolute', top: '28px', left: '28px', padding: '4px 10px', background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 12px rgba(124,58,237,0.4)' }}>
+                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                                            <span style={{ fontSize: '0.68rem', fontWeight: '800', color: 'white', letterSpacing: '0.03em' }}>วิเคราะห์โดย AI</span>
+                                        </div>
+                                    </>
                                 ) : (
-                                    <div style={{ color: '#94a3b8', textAlign: 'center', fontSize: '0.9rem' }}>ไม่มีรูปภาพ</div>
+                                    <div style={{ textAlign: 'center', color: '#94a3b8' }}>
+                                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.4, marginBottom: '8px' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                        <p style={{ fontSize: '0.85rem', fontWeight: '600' }}>ไม่มีรูปภาพ</p>
+                                    </div>
                                 )}
                             </div>
+
+                            {/* filename chip */}
+                            {selectedFile && (
+                                <div style={{ padding: '10px 16px', borderTop: '1px solid #e2e8f0', background: 'white', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                                    <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedFile.name}</div>
+                                        <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>{(selectedFile.size / 1024).toFixed(1)} KB</div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        {/* Right: Editable form */}
-                        <div className="sr-ver-form" style={{ flex: 1, overflowY: 'auto', padding: '28px 32px', backgroundColor: '#ffffff' }}>
-                            {/* 2-col grid for main fields */}
-                            <div className="sr-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                                <div>
-                                    <label style={labelStyle}>ร้านค้า / ผู้ให้บริการ</label>
-                                    <div style={{ position: 'relative' }}>
-                                        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>🏪</span>
-                                        <input value={verStore} onChange={e => setVerStore(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} placeholder="ชื่อร้านค้า" />
+                        {/* ═══ RIGHT: Editable verification form ═══ */}
+                        <div className="sr-ver-form" style={{ flex: 1, overflowY: 'auto', padding: '24px 28px', backgroundColor: '#f8fafc' }}>
+
+                            {/* ── Card 1: ข้อมูลร้านค้า ── */}
+                            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px', overflow: 'hidden' }}>
+                                <div style={{ padding: '12px 18px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '8px', background: '#fafbfc' }}>
+                                    <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                                     </div>
+                                    <span style={{ fontWeight: '800', fontSize: '0.82rem', color: '#1e293b' }}>ข้อมูลร้านค้า / ผู้ให้บริการ</span>
                                 </div>
-                                <div>
-                                    <label style={labelStyle}>หมวดหมู่ค่าใช้จ่าย</label>
-                                    <div style={{ position: 'relative' }}>
-                                        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>🏷️</span>
-                                        <input value={verCategory} onChange={e => setVerCategory(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} placeholder="เช่น Utilities, Food" />
+                                <div style={{ padding: '16px 18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }} className="sr-grid-2">
+                                    <div style={{ gridColumn: '1 / -1' }}>
+                                        <label style={{ ...labelStyle, color: '#475569' }}>ชื่อร้านค้า / ผู้ให้บริการ <span style={{ color: '#ef4444' }}>*</span></label>
+                                        <div style={{ position: 'relative' }}>
+                                            <span style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem', pointerEvents: 'none' }}>🏪</span>
+                                            <input
+                                                value={verStore}
+                                                onChange={e => setVerStore(e.target.value)}
+                                                style={{ ...inputStyle, paddingLeft: '34px', borderColor: verStore ? '#e2e8f0' : '#fca5a5', background: verStore ? '#fff' : '#fff5f5' }}
+                                                placeholder="ชื่อร้านค้าหรือบริษัท"
+                                            />
+                                        </div>
                                     </div>
-                                </div>
-                                <div>
-                                    <label style={labelStyle}>วันที่ในใบเสร็จ</label>
-                                    <div style={{ position: 'relative' }}>
-                                        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>📅</span>
-                                        <input type="date" value={verDate} onChange={e => setVerDate(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} />
+                                    <div>
+                                        <label style={{ ...labelStyle, color: '#475569' }}>เลขประจำตัวผู้เสียภาษี (TAX ID)</label>
+                                        <input
+                                            value={verTaxId}
+                                            onChange={e => setVerTaxId(e.target.value)}
+                                            placeholder="เลข 13 หลัก (ถ้ามี)"
+                                            style={{ ...inputStyle, fontFamily: 'monospace', letterSpacing: '0.05em' }}
+                                        />
                                     </div>
-                                </div>
-                                <div>
-                                    <label style={labelStyle}>เวลาในใบเสร็จ</label>
-                                    <div style={{ position: 'relative' }}>
-                                        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>🕐</span>
-                                        <input type="time" value={verTime} onChange={e => setVerTime(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label style={labelStyle}>วิธีการชำระเงิน</label>
-                                    <div style={{ position: 'relative' }}>
-                                        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>💳</span>
-                                        <input value={verPaymentMethod} onChange={e => setVerPaymentMethod(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} placeholder="Mobile Banking" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label style={labelStyle}>สกุลเงิน</label>
-                                    <div style={{ position: 'relative' }}>
-                                        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>$</span>
-                                        <input value={verCurrency} onChange={e => setVerCurrency(e.target.value)} style={{ ...inputStyle, paddingLeft: '28px' }} />
+                                    <div>
+                                        <label style={{ ...labelStyle, color: '#475569' }}>สกุลเงิน</label>
+                                        <select
+                                            value={verCurrency}
+                                            onChange={e => setVerCurrency(e.target.value)}
+                                            style={{ ...inputStyle, cursor: 'pointer' }}
+                                        >
+                                            {['THB', 'USD', 'EUR', 'JPY', 'CNY', 'SGD'].map(c => (
+                                                <option key={c} value={c}>{c}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Tax ID */}
-                            <div style={{ marginBottom: '20px' }}>
-                                <label style={labelStyle}>เลขประจำตัวผู้เสียภาษีของร้านค้า (TAX ID)</label>
-                                <input value={verTaxId} onChange={e => setVerTaxId(e.target.value)} placeholder="เลข 13 หลักของบริษัท (ถ้ามี)" style={inputStyle} />
+                            {/* ── Card 2: วันเวลา & หมวดหมู่ ── */}
+                            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px', overflow: 'hidden' }}>
+                                <div style={{ padding: '12px 18px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '8px', background: '#fafbfc' }}>
+                                    <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                                    </div>
+                                    <span style={{ fontWeight: '800', fontSize: '0.82rem', color: '#1e293b' }}>วันเวลาและหมวดหมู่</span>
+                                </div>
+                                <div style={{ padding: '16px 18px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }} className="sr-grid-2">
+                                        <div>
+                                            <label style={{ ...labelStyle, color: '#475569' }}>วันที่ในใบเสร็จ <span style={{ color: '#ef4444' }}>*</span></label>
+                                            <input
+                                                type="date"
+                                                value={verDate}
+                                                onChange={e => setVerDate(e.target.value)}
+                                                style={{ ...inputStyle, borderColor: verDate ? '#e2e8f0' : '#fca5a5' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ ...labelStyle, color: '#475569' }}>เวลา</label>
+                                            <input type="time" value={verTime} onChange={e => setVerTime(e.target.value)} style={inputStyle} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label style={{ ...labelStyle, color: '#475569' }}>หมวดหมู่ค่าใช้จ่าย</label>
+                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            {[
+                                                { id: 'อาหาร', icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
+                                                { id: 'เดินทาง', icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
+                                                { id: 'ช้อปปิ้ง', icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
+                                                { id: 'สาธารณูปโภค', icon: '💡', color: '#ecfdf5', border: '#22c55e', text: '#166534' },
+                                                { id: 'บันเทิง', icon: '🎬', color: '#fff1f2', border: '#f43f5e', text: '#9f1239' },
+                                                { id: 'อื่นๆ', icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
+                                            ].map(cat => {
+                                                const active = verCategory === cat.id;
+                                                return (
+                                                    <button
+                                                        key={cat.id}
+                                                        onClick={() => setVerCategory(cat.id)}
+                                                        style={{
+                                                            padding: '6px 14px', borderRadius: '20px',
+                                                            border: `1.5px solid ${active ? cat.border : '#e2e8f0'}`,
+                                                            background: active ? cat.color : 'white',
+                                                            color: active ? cat.text : '#64748b',
+                                                            fontWeight: active ? '800' : '600',
+                                                            fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.15s',
+                                                            display: 'flex', alignItems: 'center', gap: '5px',
+                                                            boxShadow: active ? `0 0 0 3px ${cat.border}22` : 'none'
+                                                        }}
+                                                    >
+                                                        {cat.icon} {cat.id}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        {/* fallback text if not in chips */}
+                                        {!['อาหาร','เดินทาง','ช้อปปิ้ง','สาธารณูปโภค','บันเทิง','อื่นๆ'].includes(verCategory) && (
+                                            <input
+                                                value={verCategory}
+                                                onChange={e => setVerCategory(e.target.value)}
+                                                style={{ ...inputStyle, marginTop: '10px' }}
+                                                placeholder="ระบุหมวดหมู่กำหนดเอง"
+                                            />
+                                        )}
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Line items table */}
-                            <div style={{ marginBottom: '20px', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-                                <div style={{ padding: '14px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                    <h4 style={{ fontWeight: '900', fontSize: '0.95rem', margin: 0 }}>รายการสินค้าและบริการ ({verItems.length})</h4>
+                            {/* ── Card 3: ช่องทางชำระเงิน ── */}
+                            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px', overflow: 'hidden' }}>
+                                <div style={{ padding: '12px 18px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '8px', background: '#fafbfc' }}>
+                                    <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#fdf4ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2.5"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                                    </div>
+                                    <span style={{ fontWeight: '800', fontSize: '0.82rem', color: '#1e293b' }}>ช่องทางชำระเงิน</span>
+                                </div>
+                                <div style={{ padding: '14px 18px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                    {[
+                                        { id: 'Mobile Banking', icon: '📱', label: 'Mobile Banking' },
+                                        { id: 'PromptPay', icon: '⚡', label: 'พร้อมเพย์' },
+                                        { id: 'Credit Card', icon: '💳', label: 'บัตรเครดิต' },
+                                        { id: 'Debit Card', icon: '💰', label: 'บัตรเดบิต' },
+                                        { id: 'Cash', icon: '💵', label: 'เงินสด' },
+                                    ].map(pm => {
+                                        const active = verPaymentMethod === pm.id;
+                                        return (
+                                            <button
+                                                key={pm.id}
+                                                onClick={() => setVerPaymentMethod(pm.id)}
+                                                style={{
+                                                    padding: '8px 16px', borderRadius: '10px',
+                                                    border: `1.5px solid ${active ? '#7c3aed' : '#e2e8f0'}`,
+                                                    background: active ? 'linear-gradient(135deg,#ede9fe,#f5f3ff)' : 'white',
+                                                    color: active ? '#5b21b6' : '#64748b',
+                                                    fontWeight: active ? '800' : '600',
+                                                    fontSize: '0.82rem', cursor: 'pointer', transition: 'all 0.15s',
+                                                    display: 'flex', alignItems: 'center', gap: '6px',
+                                                    boxShadow: active ? '0 0 0 3px rgba(124,58,237,0.15)' : 'none'
+                                                }}
+                                            >
+                                                <span style={{ fontSize: '0.9rem' }}>{pm.icon}</span> {pm.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* ── Card 4: รายการสินค้า ── */}
+                            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px', overflow: 'hidden' }}>
+                                <div style={{ padding: '12px 18px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafbfc' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                                        </div>
+                                        <span style={{ fontWeight: '800', fontSize: '0.82rem', color: '#1e293b' }}>รายการสินค้าและบริการ</span>
+                                        <span style={{ padding: '2px 8px', borderRadius: '20px', background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', fontSize: '0.72rem', fontWeight: '800' }}>
+                                            {verItems.length} รายการ
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={addVerItem}
+                                        style={{ padding: '6px 14px', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '700', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 8px rgba(124,58,237,0.35)' }}
+                                    >
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                        เพิ่มรายการ
+                                    </button>
                                 </div>
 
-                                {/* Header row */}
-                                <div className="sr-tbl-header" style={{ display: 'grid', gridTemplateColumns: '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                                    {['รายการ', 'จำนวน', 'ราคา/หน่วย', 'รวม', ''].map((h, i) => (
-                                        <div key={i} style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textAlign: i >= 2 ? 'right' : 'left' }}>{h}</div>
+                                {/* Table header */}
+                                <div className="sr-tbl-header" style={{ display: 'grid', gridTemplateColumns: '24px 1fr 64px 108px 92px 36px', gap: '8px', padding: '8px 16px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                                    {['#', 'ชื่อสินค้า / บริการ', 'จำนวน', 'ราคา/หน่วย', 'รวม (฿)', ''].map((h, i) => (
+                                        <div key={i} style={{ fontSize: '0.72rem', fontWeight: '800', color: '#94a3b8', textAlign: i >= 4 ? 'right' : i === 2 ? 'center' : 'left', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</div>
                                     ))}
                                 </div>
 
                                 {/* Item rows */}
-                                {verItems.map(item => (
-                                    <div key={item.id} className="sr-tbl-row" style={{ display: 'grid', gridTemplateColumns: '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
+                                {verItems.length === 0 ? (
+                                    <div style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>
+                                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.4, marginBottom: '8px' }}><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1" ry="1"/></svg>
+                                        <p style={{ fontSize: '0.85rem', fontWeight: '600' }}>ยังไม่มีรายการ — กด "เพิ่มรายการ"</p>
+                                    </div>
+                                ) : verItems.map((item, idx) => (
+                                    <div
+                                        key={item.id}
+                                        className="sr-tbl-row"
+                                        style={{ display: 'grid', gridTemplateColumns: '24px 1fr 64px 108px 92px 36px', gap: '8px', padding: '8px 16px', borderBottom: '1px solid #f8fafc', alignItems: 'center', transition: 'background 0.1s' }}
+                                        onMouseEnter={e => (e.currentTarget.style.background = '#fafbfc')}
+                                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                    >
+                                        <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#94a3b8', textAlign: 'center' }}>{idx + 1}</span>
                                         <input
                                             value={item.description}
                                             onChange={e => updateVerItem(item.id, { description: e.target.value })}
-                                            placeholder="ชื่อสินค้า/บริการ"
-                                            style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem' }}
+                                            placeholder="ชื่อสินค้า / บริการ"
+                                            style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.85rem' }}
                                         />
                                         <input
                                             type="number"
                                             value={item.quantity}
-                                            onChange={e => {
-                                                const q = parseInt(e.target.value) || 1;
-                                                updateVerItem(item.id, { quantity: q });
-                                            }}
-                                            style={{ ...inputStyle, padding: '7px 8px', fontSize: '0.88rem', textAlign: 'center' }}
+                                            min={1}
+                                            onChange={e => updateVerItem(item.id, { quantity: parseInt(e.target.value) || 1 })}
+                                            style={{ ...inputStyle, padding: '7px 8px', fontSize: '0.85rem', textAlign: 'center' }}
                                         />
                                         <input
                                             type="number"
                                             value={item.unitPrice}
                                             onChange={e => updateVerItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })}
-                                            style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem', textAlign: 'right' }}
+                                            style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.85rem', textAlign: 'right' }}
                                         />
-                                        <div style={{ padding: '7px 10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.88rem', fontWeight: '700', textAlign: 'right', color: '#1e293b' }}>
+                                        <div style={{ padding: '7px 10px', background: 'linear-gradient(135deg,#f8fafc,#f1f5f9)', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '800', textAlign: 'right', color: '#1e293b', letterSpacing: '-0.02em' }}>
                                             {(item.quantity * item.unitPrice).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                                         </div>
                                         <button
                                             onClick={() => removeVerItem(item.id)}
-                                            style={{ background: '#fff1f2', border: 'none', borderRadius: '6px', cursor: 'pointer', padding: '6px', color: '#e11d48', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                            style={{ background: 'transparent', border: '1px solid transparent', borderRadius: '6px', cursor: 'pointer', padding: '6px', color: '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#fff1f2'; (e.currentTarget as HTMLButtonElement).style.color = '#e11d48'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#fee2e2'; }}
+                                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#cbd5e1'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent'; }}
                                         >
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                         </button>
                                     </div>
                                 ))}
+                            </div>
 
-                                {/* Add row */}
-                                <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'flex-end' }}>
-                                    <button
-                                        onClick={addVerItem}
-                                        style={{ padding: '7px 16px', backgroundColor: '#7c3aed', border: 'none', borderRadius: '6px', color: 'white', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                                    >
-                                        <span>+</span> เพิ่มสินค้า
-                                    </button>
+                            {/* ── Card 5: สรุปยอดเงิน ── */}
+                            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                                <div style={{ padding: '12px 18px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '8px', background: '#fafbfc' }}>
+                                    <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                    </div>
+                                    <span style={{ fontWeight: '800', fontSize: '0.82rem', color: '#1e293b' }}>สรุปยอดเงิน</span>
+                                </div>
+                                <div style={{ padding: '16px 18px' }}>
+                                    {/* Discount + VAT inputs */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }} className="sr-grid-2">
+                                        <div>
+                                            <label style={{ ...labelStyle, color: '#475569' }}>ส่วนลดท้ายบิล (฿)</label>
+                                            <div style={{ position: 'relative' }}>
+                                                <input
+                                                    type="number"
+                                                    value={verDiscount}
+                                                    onChange={e => setVerDiscount(parseFloat(e.target.value) || 0)}
+                                                    style={{ ...inputStyle, paddingRight: '36px', color: '#ef4444', fontWeight: '700' }}
+                                                    placeholder="0.00"
+                                                />
+                                                <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#ef4444', fontWeight: '700' }}>−</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style={{ ...labelStyle, color: '#475569' }}>ภาษีมูลค่าเพิ่ม VAT (฿)</label>
+                                            <div style={{ position: 'relative' }}>
+                                                <input
+                                                    type="number"
+                                                    value={verVat}
+                                                    onChange={e => setVerVat(parseFloat(e.target.value) || 0)}
+                                                    style={{ ...inputStyle, paddingRight: '36px', color: '#16a34a', fontWeight: '700' }}
+                                                    placeholder="0.00"
+                                                />
+                                                <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: '#16a34a', fontWeight: '700' }}>+</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {/* Totals breakdown */}
+                                    <div style={{ background: '#f8fafc', borderRadius: '10px', padding: '16px', border: '1px solid #f1f5f9' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#64748b', marginBottom: '8px' }}>
+                                            <span>ยอดรวมรายการ</span>
+                                            <span style={{ fontWeight: '700', color: '#334155', fontVariantNumeric: 'tabular-nums' }}>
+                                                ฿{calcVerSubtotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                        {verDiscount > 0 && (
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#ef4444', marginBottom: '8px' }}>
+                                                <span>ส่วนลด</span>
+                                                <span style={{ fontWeight: '700', fontVariantNumeric: 'tabular-nums' }}>−฿{verDiscount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                        )}
+                                        {verVat > 0 && (
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#16a34a', marginBottom: '8px' }}>
+                                                <span>ภาษีมูลค่าเพิ่ม (VAT)</span>
+                                                <span style={{ fontWeight: '700', fontVariantNumeric: 'tabular-nums' }}>+฿{verVat.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                        )}
+                                        <div style={{ height: '1px', background: 'linear-gradient(90deg,transparent,#e2e8f0,transparent)', margin: '12px 0' }} />
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div>
+                                                <div style={{ fontWeight: '900', fontSize: '0.95rem', color: '#0f172a' }}>ยอดสุทธิทั้งหมด</div>
+                                                <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '1px' }}>รวม VAT {verDiscount > 0 ? '/ หักส่วนลดแล้ว' : ''}</div>
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <div style={{ fontWeight: '900', fontSize: '1.6rem', color: '#7c3aed', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
+                                                    ฿{calcVerTotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                                                </div>
+                                                <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '600' }}>{verCurrency}</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Discount & VAT */}
-                            <div className="sr-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                                <div>
-                                    <label style={labelStyle}>ส่วนลดท้ายบิล</label>
-                                    <input type="number" value={verDiscount} onChange={e => setVerDiscount(parseFloat(e.target.value) || 0)} style={inputStyle} />
-                                </div>
-                                <div>
-                                    <label style={labelStyle}>ภาษีมูลค่าเพิ่ม (VAT)</label>
-                                    <input type="number" value={verVat} onChange={e => setVerVat(parseFloat(e.target.value) || 0)} style={inputStyle} />
-                                </div>
-                            </div>
-
-                            {/* Totals */}
-                            <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', padding: '20px', border: '1px solid #e2e8f0' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#64748b', fontSize: '0.9rem' }}>
-                                    <span>ยอดรวมก่อนหักรายการ:</span>
-                                    <span style={{ fontWeight: '700', color: '#1e293b' }}>{calcVerSubtotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })} THB</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '14px', borderTop: '2px solid #e2e8f0', alignItems: 'center' }}>
-                                    <span style={{ fontWeight: '900', fontSize: '1.05rem', color: '#1e293b' }}>ยอดสุทธิทั้งหมด:</span>
-                                    <span style={{ fontWeight: '900', fontSize: '1.4rem', color: '#7c3aed' }}>
-                                        {calcVerTotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })} THB
-                                    </span>
-                                </div>
-                            </div>
+                            {/* bottom padding for footer overlap */}
+                            <div style={{ height: '16px' }} />
                         </div>
                     </div>
 
-                    {/* Bottom action bar */}
-                    <div className="sr-ver-footer" style={{ padding: '16px 32px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', flexShrink: 0 }}>
+                    {/* ── Footer action bar ── */}
+                    <div className="sr-ver-footer" style={{ padding: '14px 28px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', flexShrink: 0, gap: '12px' }}>
                         <button
                             onClick={() => setShowVerification(false)}
-                            style={{ padding: '10px 24px', border: '1.5px solid #e2e8f0', borderRadius: '8px', background: 'white', fontWeight: '700', cursor: 'pointer', color: '#64748b' }}
+                            style={{ padding: '10px 22px', border: '1.5px solid #e2e8f0', borderRadius: '10px', background: 'white', fontWeight: '700', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.88rem', transition: 'all 0.15s' }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#94a3b8'; (e.currentTarget as HTMLButtonElement).style.color = '#334155'; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#e2e8f0'; (e.currentTarget as HTMLButtonElement).style.color = '#64748b'; }}
                         >
-                            ยกเลิก
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                            กลับแก้ไขไฟล์
                         </button>
-                        <button
-                            onClick={handleVerificationSave}
-                            disabled={isSaving}
-                            style={{ padding: '12px 32px', borderRadius: '10px', backgroundColor: isSaving ? '#a78bfa' : '#7c3aed', color: 'white', fontWeight: '800', border: 'none', cursor: isSaving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95rem' }}
-                        >
-                            {isSaving ? <><LoadingSpinner /> กำลังบันทึก...</> : <>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                                อนุมัติ & บันทึกตาราง
-                            </>}
-                        </button>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            {/* totals mini-badge */}
+                            <div style={{ padding: '6px 14px', background: '#f8f4ff', borderRadius: '8px', border: '1px solid #ede9fe', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '0.75rem', color: '#7c3aed', fontWeight: '700' }}>ยอดสุทธิ</span>
+                                <span style={{ fontSize: '1rem', fontWeight: '900', color: '#5b21b6', fontVariantNumeric: 'tabular-nums' }}>฿{calcVerTotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <button
+                                onClick={handleVerificationSave}
+                                disabled={isSaving || !verStore || !verDate}
+                                style={{
+                                    padding: '11px 28px', borderRadius: '10px',
+                                    background: isSaving || !verStore || !verDate
+                                        ? '#a78bfa'
+                                        : 'linear-gradient(135deg,#7c3aed 0%,#5b21b6 100%)',
+                                    color: 'white', fontWeight: '800', border: 'none',
+                                    cursor: isSaving || !verStore || !verDate ? 'not-allowed' : 'pointer',
+                                    display: 'flex', alignItems: 'center', gap: '9px',
+                                    fontSize: '0.92rem', boxShadow: isSaving ? 'none' : '0 4px 16px rgba(124,58,237,0.4)',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                {isSaving ? (
+                                    <><LoadingSpinner /> กำลังบันทึก...</>
+                                ) : (
+                                    <>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                        ยืนยันและบันทึก
+                                    </>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             ) : (

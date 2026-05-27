@@ -108,6 +108,10 @@ export const receiptApi = {
       body: JSON.stringify(data),
     }),
 
+  // ลบใบเสร็จ
+  delete: (id: string) =>
+    apiRequest(`/receipts?id=${id}`, { method: 'DELETE' }),
+
   // ประมวลผล OCR และอัปโหลดขึ้น Drive
   extract: (file: File, userId: string) => {
     const formData = new FormData();
