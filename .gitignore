@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# temp and cache files
+__pycache__/
+.temp_tsc_output.txt
+eslint-output.txt
