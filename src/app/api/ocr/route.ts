@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { hasDocumentAiConfig, processDocumentAiImage, parseReceiptDocument } from '@/lib/documentai';
 
 const localOcrUrl = process.env.OCR_URL || 'http://127.0.0.1:5000/predict';
@@ -35,6 +35,8 @@ export async function POST(req: Request) {
     try {
       const ocrResult = await fetchLocalOcr(image);
       return NextResponse.json({ success: true, source: 'local', data: ocrResult.data });
+    } catch (localError) {
+      console.warn('Local OCR service unavailable:', localError instanceof Error ? localError.message : localError);
     } catch (localError: any) {
       console.warn('Local OCR service unavailable:', localError?.message || localError);
     }
