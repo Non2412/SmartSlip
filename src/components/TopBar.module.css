@@ -131,6 +131,15 @@
   transform: translateY(-1px);
 }
 
+/* ===== Default states (desktop >1024px) ===== */
+/* Title switching */
+.titleFull   { display: inline; }
+.titleMobile { display: none; }
+
+/* Search toggle + expand row — hidden on desktop */
+.mobileSearchBtn { display: none; }
+.mobileSearchRow { display: none; }
+
 @media (max-width: 1366px) {
   .middleSection {
     order: 3;
@@ -150,16 +159,134 @@
   .searchContainer {
     display: none;
   }
+
+  /* แสดงปุ่ม toggle search บน tablet + mobile ทุกขนาด */
+  .mobileSearchBtn {
+    display: flex;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: white;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+
+  .mobileSearchBtn:hover {
+    background: #f8fafc;
+    color: var(--text-main);
+  }
+
+  /* Search bar expand ใต้ header */
+  .mobileSearchRow {
+    display: block;
+    padding: 8px 16px 10px;
+    background: white;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .mobileSearchInner {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .mobileSearchIconWrap {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+  }
+
+  .mobileSearchInput {
+    width: 100%;
+    padding: 10px 16px 10px 38px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    outline: none;
+    background: #f8fafc;
+    box-sizing: border-box;
+    transition: all 0.2s;
+  }
+
+  .mobileSearchInput:focus {
+    border-color: var(--primary-color);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  }
 }
 
 @media (max-width: 768px) {
+  /* ป้องกัน actions หล่นแถวสอง */
+  .header {
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  /* ให้ฝั่งซ้าย (title) หดได้ แต่ฝั่งขวา (actions) ไม่หด */
+  .leftSection {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* ตัด title ยาวด้วย ellipsis */
+  .title {
+    font-size: 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* actions อยู่ขวา ไม่หด ระยะห่างน้อยลง */
+  .actions {
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* ซ่อน text ปุ่ม สร้างใบเสร็จ → เหลือแค่ไอคอน */
   .primaryButton span {
     display: none;
   }
-  
+
   .primaryButton {
-    width: 44px;
+    width: 40px;
+    height: 40px;
     padding: 0;
     justify-content: center;
+    border-radius: 10px;
+  }
+
+  /* bell icon เล็กลงนิด */
+  .iconButton {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  /* สลับ title: ซ่อน full — แสดง mobile */
+  .titleFull   { display: none; }
+  .titleMobile { display: inline; }
+
+  /* Search toggle — ลดขนาดลงนิดสำหรับมือถือ */
+  .mobileSearchBtn {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  /* Search row — padding แคบลงบนมือถือ */
+  .mobileSearchRow {
+    padding: 8px 12px 10px;
   }
 }

@@ -7,11 +7,13 @@ import ProfileForm from "@/components/ProfileForm";
 import ProfileCard from "@/components/ProfileCard";
 import styles from "./ProfilePage.module.css";
 import CreateReceiptSheet from "@/components/CreateReceiptSheet";
+import { useSession } from "next-auth/react";
 
 export default function ProfilePage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const { data: session } = useSession();
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
@@ -55,6 +57,7 @@ export default function ProfilePage() {
       <CreateReceiptSheet
         isOpen={isCreateSheetOpen}
         onClose={closeCreateSheet}
+        userId={session?.user?.id || 'user123'}
       />
     </div>
   );
