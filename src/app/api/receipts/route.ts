@@ -63,6 +63,7 @@ export async function POST(request: Request) {
       userId: userId || 'user123',
       extractedData: extractedData || null,
       imageFileId: imageFileId || null,
+      transactionId: `web-${new ObjectId().toHexString()}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

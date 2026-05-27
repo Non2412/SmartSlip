@@ -39,6 +39,7 @@ export default function LineReceiptsPage() {
       <main className="main-content">
         <TopBar
           title="แกลเลอรีรูปใบเสร็จจาก LINE"
+          mobileTitle="แกลเลอรี"
           onToggleSidebar={toggleSidebar}
         />
 

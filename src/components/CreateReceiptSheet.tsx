@@ -21,6 +21,45 @@ input::-webkit-inner-spin-button {
 input[type=number] {
   -moz-appearance: textfield;
 }
+
+/* ===== Responsive ===== */
+@media (max-width: 767px) {
+  /* Panel header / tabs / content / footer */
+  .sr-header  { padding: 14px 16px 0 16px !important; }
+  .sr-tabs    { padding: 0 12px !important; }
+  .sr-content { padding: 14px 12px !important; }
+  .sr-footer  { padding: 12px 16px !important; gap: 8px !important; flex-wrap: wrap !important; }
+
+  /* 2-col → 1-col */
+  .sr-grid-2 { grid-template-columns: 1fr !important; gap: 14px !important; }
+  /* 3-col → 2-col */
+  .sr-grid-3 { grid-template-columns: 1fr 1fr !important; gap: 12px !important; }
+  /* upload radio cards → 1-col */
+  .sr-grid-upload { grid-template-columns: 1fr !important; gap: 10px !important; }
+  /* items sidebar + detail → stack */
+  .sr-grid-items { grid-template-columns: 1fr !important; min-height: unset !important; }
+
+  /* Verification view */
+  .sr-ver-header { padding: 12px 16px !important; }
+  .sr-ver-layout { flex-direction: column !important; overflow-y: auto !important; }
+  .sr-ver-img    { flex: none !important; height: 200px !important; min-height: unset !important;
+                   border-right: none !important; border-bottom: 1px solid #e2e8f0 !important; }
+  .sr-ver-form   { padding: 16px !important; }
+  .sr-ver-footer { padding: 12px 16px !important; flex-wrap: wrap !important; gap: 8px !important; }
+
+  /* Line-items table on verification */
+  .sr-tbl-header { display: none !important; }
+  .sr-tbl-row    { grid-template-columns: 1fr 44px 80px 30px !important;
+                   gap: 5px !important; padding: 6px 10px !important; }
+
+  /* ซ่อน left image panel บนมือถือ — ภาพจะแสดงใน dropzone แทน */
+  .sr-left-panel { display: none !important; }
+
+  /* Title + tabs ปรับให้พอดีบนมือถือ */
+  .sr-page-title { font-size: 1.05rem !important; white-space: nowrap !important; }
+  .sr-tab-btn    { padding: 12px 8px !important; margin-right: 4px !important;
+                   font-size: 0.78rem !important; }
+}
 `;
 
 interface CreateReceiptSheetProps {
@@ -56,6 +95,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [image, setImage] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const [formTab, setFormTab] = useState<'info' | 'items'>('info');
     const [creationMethod, setCreationMethod] = useState<CreationMethod>('manual');
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -168,6 +208,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 setMainCategory('อื่นๆ');
                 setNotes('');
                 setErrorMsg(null);
+                setSuccessMsg(null);
                 setFormTab('info');
                 setReceiptNo('');
                 setVendorTaxId('');
@@ -270,10 +311,11 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     }]);
                 }
 
+                setSuccessMsg('วิเคราะห์รูปภาพสำเร็จ ตรวจสอบข้อมูลด้านล่างได้เลย');
                 setShowVerification(true);
             }
         } catch (err: any) {
-            setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการประมวลผลด้วย AI');
+            setErrorMsg('ไม่สามารถวิเคราะห์รูปภาพได้ กรุณาลองใหม่อีกครั้ง');
         } finally {
             setIsProcessing(false);
         }
@@ -315,10 +357,10 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 if (onSuccess) onSuccess();
                 onClose();
             } else {
-                setErrorMsg(result?.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+                setErrorMsg('บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
             }
         } catch (err: any) {
-            setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+            setErrorMsg('บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
         } finally {
             setIsSaving(false);
         }
@@ -360,10 +402,10 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 if (onSuccess) onSuccess();
                 onClose();
             } else {
-                setErrorMsg(result?.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+                setErrorMsg('บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
             }
         } catch (err: any) {
-            setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+            setErrorMsg('บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
         } finally {
             setIsSaving(false);
         }
@@ -414,11 +456,12 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         <div style={{
             position: 'fixed',
             top: 0,
-            right: isOpen ? 0 : (selectedFile ? '-100vw' : '-850px'),
-            width: selectedFile ? '100vw' : '850px',
+            right: isOpen ? 0 : '-100vw',
+            width: selectedFile ? '100vw' : 'min(850px, 100vw)',
             height: '100vh',
             backgroundColor: '#ffffff',
             zIndex: 1000,
+            overflow: 'hidden',
             transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'flex',
             flexDirection: 'column',
@@ -431,22 +474,30 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
             {showVerification ? (
                 <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
                     {/* Dark header */}
-                    <div style={{ padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', flexShrink: 0 }}>
+                    <div className="sr-ver-header" style={{ padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', flexShrink: 0 }}>
                         <h2 style={{ color: 'white', fontWeight: '900', fontSize: '1.15rem', margin: 0 }}>ตรวจสอบและยืนยันข้อมูลใบเสร็จ</h2>
                         <button onClick={() => setShowVerification(false)} style={{ color: '#94a3b8', background: 'none', border: 'none', fontSize: '0.9rem', cursor: 'pointer', fontWeight: '700' }}>ยกเลิก</button>
                     </div>
 
+                    {/* Success */}
+                    {successMsg && !errorMsg && (
+                        <div style={{ padding: '10px 32px', backgroundColor: '#f0fdf4', borderBottom: '1px solid #bbf7d0', color: '#166534', fontSize: '0.85rem', fontWeight: '600', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                            {successMsg}
+                        </div>
+                    )}
                     {/* Error */}
                     {errorMsg && (
-                        <div style={{ padding: '10px 32px', backgroundColor: '#fef2f2', borderBottom: '1px solid #fee2e2', color: '#991b1b', fontSize: '0.85rem', fontWeight: '600', flexShrink: 0 }}>
+                        <div style={{ padding: '10px 32px', backgroundColor: '#fef2f2', borderBottom: '1px solid #fee2e2', color: '#991b1b', fontSize: '0.85rem', fontWeight: '600', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                             {errorMsg}
                         </div>
                     )}
 
                     {/* Two-column body */}
-                    <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                    <div className="sr-ver-layout" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                         {/* Left: Image */}
-                        <div style={{ flex: '0 0 42%', borderRight: '1px solid #e2e8f0', backgroundColor: '#f8fafc', padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
+                        <div className="sr-ver-img" style={{ flex: '0 0 42%', borderRight: '1px solid #e2e8f0', backgroundColor: '#f8fafc', padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span style={{ fontWeight: '800', fontSize: '0.85rem', color: '#64748b' }}>ภาพถ่ายสลิปใบเสร็จต้นฉบับ</span>
                                 {image && (
@@ -465,9 +516,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                         </div>
 
                         {/* Right: Editable form */}
-                        <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px', backgroundColor: '#ffffff' }}>
+                        <div className="sr-ver-form" style={{ flex: 1, overflowY: 'auto', padding: '28px 32px', backgroundColor: '#ffffff' }}>
                             {/* 2-col grid for main fields */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                            <div className="sr-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
                                 <div>
                                     <label style={labelStyle}>ร้านค้า / ผู้ให้บริการ</label>
                                     <div style={{ position: 'relative' }}>
@@ -525,7 +576,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                 </div>
 
                                 {/* Header row */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                <div className="sr-tbl-header" style={{ display: 'grid', gridTemplateColumns: '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                                     {['รายการ', 'จำนวน', 'ราคา/หน่วย', 'รวม', ''].map((h, i) => (
                                         <div key={i} style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textAlign: i >= 2 ? 'right' : 'left' }}>{h}</div>
                                     ))}
@@ -533,7 +584,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
                                 {/* Item rows */}
                                 {verItems.map(item => (
-                                    <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
+                                    <div key={item.id} className="sr-tbl-row" style={{ display: 'grid', gridTemplateColumns: '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
                                         <input
                                             value={item.description}
                                             onChange={e => updateVerItem(item.id, { description: e.target.value })}
@@ -579,7 +630,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                             </div>
 
                             {/* Discount & VAT */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                            <div className="sr-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
                                 <div>
                                     <label style={labelStyle}>ส่วนลดท้ายบิล</label>
                                     <input type="number" value={verDiscount} onChange={e => setVerDiscount(parseFloat(e.target.value) || 0)} style={inputStyle} />
@@ -607,7 +658,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     </div>
 
                     {/* Bottom action bar */}
-                    <div style={{ padding: '16px 32px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', flexShrink: 0 }}>
+                    <div className="sr-ver-footer" style={{ padding: '16px 32px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', flexShrink: 0 }}>
                         <button
                             onClick={() => setShowVerification(false)}
                             style={{ padding: '10px 24px', border: '1.5px solid #e2e8f0', borderRadius: '8px', background: 'white', fontWeight: '700', cursor: 'pointer', color: '#64748b' }}
@@ -629,9 +680,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
             ) : (
             /* ===== NORMAL SHEET VIEW ===== */
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-                {/* LEFT SIDE: รูปภาพ */}
+                {/* LEFT SIDE: รูปภาพ (ซ่อนบนมือถือ — ภาพแสดงใน dropzone แทน) */}
                 {selectedFile && (
-                    <div style={{
+                    <div className="sr-left-panel" style={{
                         flex: '1.2',
                         borderRight: '1px solid #f1f5f9',
                         background: '#f1f5f9',
@@ -699,24 +750,30 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 )}
 
                 {/* RIGHT SIDE: ข้อมูล */}
-                <div style={{ flex: '1', display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
-                    <div style={{ padding: '20px 32px 0 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h3 style={{ fontSize: '1.3rem', fontWeight: '900', color: '#1e293b' }}>อัปโหลดใบเสร็จ</h3>
+                <div style={{ flex: '1', minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
+                    <div className="sr-header" style={{ padding: '20px 32px 0 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3 className="sr-page-title" style={{ fontSize: '1.3rem', fontWeight: '900', color: '#1e293b' }}>อัปโหลดใบเสร็จ</h3>
                         <button onClick={onClose} style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#f8fafc', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                         </button>
                     </div>
 
-                    <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9', padding: '0 32px' }}>
-                        <button onClick={() => setFormTab('info')} style={{ padding: '16px 16px', marginRight: '16px', backgroundColor: 'transparent', border: 'none', borderBottom: formTab === 'info' ? '3px solid #0052cc' : '3px solid transparent', color: formTab === 'info' ? '#0052cc' : '#94a3b8', fontSize: '0.9rem', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>
+                    <div className="sr-tabs" style={{ display: 'flex', borderBottom: '1px solid #f1f5f9', padding: '0 32px' }}>
+                        <button className="sr-tab-btn" onClick={() => setFormTab('info')} style={{ padding: '16px 16px', marginRight: '16px', backgroundColor: 'transparent', border: 'none', borderBottom: formTab === 'info' ? '3px solid #0052cc' : '3px solid transparent', color: formTab === 'info' ? '#0052cc' : '#94a3b8', fontSize: '0.9rem', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>
                             ข้อมูลรายจ่าย
                         </button>
-                        <button onClick={() => setFormTab('items')} style={{ padding: '16px 16px', marginRight: '16px', backgroundColor: 'transparent', border: 'none', borderBottom: formTab === 'items' ? '3px solid #0052cc' : '3px solid transparent', color: formTab === 'items' ? '#0052cc' : '#94a3b8', fontSize: '0.9rem', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>
+                        <button className="sr-tab-btn" onClick={() => setFormTab('items')} style={{ padding: '16px 16px', marginRight: '16px', backgroundColor: 'transparent', border: 'none', borderBottom: formTab === 'items' ? '3px solid #0052cc' : '3px solid transparent', color: formTab === 'items' ? '#0052cc' : '#94a3b8', fontSize: '0.9rem', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>
                             รายการและสรุปค่าใช้จ่าย
                         </button>
                     </div>
 
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px', backgroundColor: '#fcfcfd' }}>
+                    <div className="sr-content" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '24px 32px', backgroundColor: '#fcfcfd' }}>
+                        {successMsg && !errorMsg && (
+                            <div style={{ padding: '12px 16px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#166534', fontSize: '0.85rem', fontWeight: '600', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                {successMsg}
+                            </div>
+                        )}
                         {errorMsg && (
                             <div style={{ padding: '12px 16px', backgroundColor: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', color: '#991b1b', fontSize: '0.85rem', fontWeight: '600', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -740,7 +797,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
                                 <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
                                     <h3 style={{ fontSize: '1.1rem', fontWeight: '800', marginBottom: '16px' }}>วิธีการอัปโหลดรายจ่าย</h3>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                                    <div className="sr-grid-upload" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                                         <div onClick={() => setCreationMethod('upload')} style={{ padding: '16px', borderRadius: '12px', border: `1.5px solid ${creationMethod === 'upload' ? '#0052cc' : '#e2e8f0'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', background: creationMethod === 'upload' ? '#f0f7ff' : '#fff' }}>
                                             <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: `2px solid ${creationMethod === 'upload' ? '#0052cc' : '#cbd5e1'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                 {creationMethod === 'upload' && <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#0052cc' }} />}
@@ -763,12 +820,50 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                 </div>
 
                                 {creationMethod === 'upload' && (
-                                    <div onClick={() => fileInputRef.current?.click()} style={{ width: '100%', height: '180px', border: '1.5px dashed #cbd5e1', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', cursor: 'pointer', backgroundColor: '#fcfcfd' }}>
-                                        <div style={{ color: '#0052cc' }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-                                        <div style={{ textAlign: 'center' }}>
-                                            <div style={{ fontWeight: '800', fontSize: '1rem' }}>ลากวางไฟล์ หรือ <span style={{ color: '#0052cc', textDecoration: 'underline' }}>กดเพื่อเลือกไฟล์</span></div>
-                                            <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>รองรับไฟล์ JPEG, PNG, WebP, HEIC, PDF</p>
-                                        </div>
+                                    <div
+                                        onClick={() => fileInputRef.current?.click()}
+                                        style={{
+                                            width: '100%', maxWidth: '100%', boxSizing: 'border-box',
+                                            height: image ? 'auto' : '180px', minHeight: '120px',
+                                            border: `1.5px dashed ${image ? '#0052cc' : '#cbd5e1'}`,
+                                            borderRadius: '12px', display: 'flex', flexDirection: 'column',
+                                            alignItems: 'center', justifyContent: 'center',
+                                            gap: '10px', cursor: 'pointer',
+                                            backgroundColor: image ? '#f0f7ff' : '#fcfcfd',
+                                            overflow: 'hidden', padding: image ? '14px' : '0'
+                                        }}
+                                    >
+                                        {isProcessing ? (
+                                            /* กำลังวิเคราะห์ AI */
+                                            <>
+                                                <div style={{ width: '36px', height: '36px', border: '3px solid #e2e8f0', borderTop: '3px solid #0052cc', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                                                <p style={{ fontSize: '0.88rem', fontWeight: '700', color: '#1e293b' }}>AI กำลังวิเคราะห์ข้อมูล...</p>
+                                            </>
+                                        ) : image ? (
+                                            /* แสดง preview ภาพที่อัปโหลดแล้ว */
+                                            <>
+                                                <img
+                                                    src={image}
+                                                    alt="Receipt preview"
+                                                    style={{ maxHeight: '160px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 2px 12px rgba(0,0,0,0.10)', pointerEvents: 'none' }}
+                                                />
+                                                <span style={{ fontSize: '0.78rem', color: '#0052cc', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                                    แตะเพื่อเปลี่ยนรูป
+                                                </span>
+                                            </>
+                                        ) : (
+                                            /* ยังไม่มีไฟล์ — แสดงปุ่มอัปโหลด */
+                                            <>
+                                                <div style={{ color: '#0052cc' }}>
+                                                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                                </div>
+                                                <div style={{ textAlign: 'center', padding: '0 12px', wordBreak: 'break-word' }}>
+                                                    <div style={{ fontWeight: '800', fontSize: '1rem' }}>ลากวางไฟล์ หรือ <span style={{ color: '#0052cc', textDecoration: 'underline' }}>กดเพื่อเลือกไฟล์</span></div>
+                                                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>รองรับ JPEG, PNG, WebP, HEIC, PDF</p>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 )}
                                 <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept=".jpg,.jpeg,.png,.webp,.heic,.pdf" />
@@ -778,7 +873,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                         <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
                                             <h3 style={{ fontSize: '1.2rem', fontWeight: '900', marginBottom: '24px' }}>ข้อมูลรายจ่าย</h3>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                                                <div className="sr-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                                                     <div>
                                                         <label style={labelStyle}>วันที่ *</label>
                                                         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
@@ -795,7 +890,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                                                <div className="sr-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                                                     <div>
                                                         <label style={labelStyle}>ผู้ขาย/ผู้ให้บริการ *</label>
                                                         <input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="ระบุชื่อผู้ขาย" style={inputStyle} />
@@ -808,7 +903,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                                                <div className="sr-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                                                     <div>
                                                         <label style={labelStyle}>ช่องทางชำระเงิน *</label>
                                                         <div style={{ display: 'flex', gap: '12px' }}>
@@ -829,7 +924,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                         {isTaxInvoice && (
                                             <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
                                                 <h3 style={{ fontSize: '1.2rem', fontWeight: '900', marginBottom: '24px' }}>ข้อมูลเพิ่มเติมสำหรับใบกำกับภาษี</h3>
-                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                                                <div className="sr-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                                                     <div>
                                                         <label style={labelStyle}>เลขประจำตัวผู้เสียภาษีของผู้ขาย</label>
                                                         <input type="text" value={vendorTaxId} onChange={(e) => setVendorTaxId(e.target.value)} placeholder="เลขประจำตัวผู้เสียภาษี" style={inputStyle} />
@@ -864,7 +959,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                     <span style={{ fontSize: '0.85rem' }}>รายการค่าใช้จ่ายจะถูกบันทึกแยกตามหมวดหมู่เพื่อความสะดวกในการจัดทำรายงานภาษี</span>
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '20px', minHeight: '500px' }}>
+                                <div className="sr-grid-items" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '20px', minHeight: '500px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                         {expenseItems.map((item, idx) => (
                                             <div key={item.id} onClick={() => setSelectedItemId(item.id)} style={{ padding: '16px', borderRadius: '10px', border: `2px solid ${selectedItemId === item.id ? '#0052cc' : '#f1f5f9'}`, background: selectedItemId === item.id ? '#f0f7ff' : 'white', cursor: 'pointer', transition: 'all 0.2s' }}>
@@ -892,7 +987,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                 <label style={labelStyle}>รายละเอียด *</label>
                                                 <input type="text" value={selectedItem.description} onChange={(e) => updateItem(selectedItemId, { description: e.target.value })} placeholder="ชื่อสินค้า/บริการ" style={inputStyle} />
                                             </div>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                            <div className="sr-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                                 <div>
                                                     <label style={labelStyle}>ประเภท *</label>
                                                     <div style={{ display: 'flex', gap: '16px' }}>
@@ -911,7 +1006,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                     <input type="number" value={selectedItem.quantity} onChange={(e) => updateItem(selectedItemId, { quantity: parseInt(e.target.value) || 0 })} style={inputStyle} />
                                                 </div>
                                             </div>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                            <div className="sr-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                                 <div>
                                                     <label style={labelStyle}>ยอดชำระ</label>
                                                     <div style={{ position: 'relative' }}>
@@ -937,7 +1032,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
                                 <div style={{ backgroundColor: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #f1f5f9', marginTop: '20px' }}>
                                     <h3 style={{ fontSize: '1.2rem', fontWeight: '900', marginBottom: '24px' }}>สรุปรวมค่าใช้จ่าย</h3>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+                                    <div className="sr-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
                                         {[['ยอดรวม', total], ['ยอดก่อนภาษี', subtotal], ['VAT', vat]].map(([lbl, val]) => (
                                             <div key={lbl as string}>
                                                 <label style={{ ...labelStyle, color: '#64748b' }}>{lbl}</label>
@@ -953,7 +1048,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                         )}
                     </div>
 
-                    <div style={{ padding: '16px 32px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white' }}>
+                    <div className="sr-footer" style={{ padding: '16px 32px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white' }}>
                         <button onClick={onClose} style={{ padding: '10px 24px', borderRadius: '8px', border: '1.5px solid #e2e8f0', backgroundColor: 'white', color: '#64748b', fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
                         <button onClick={handleSave} disabled={isSaving} style={{ padding: '12px 32px', borderRadius: '10px', backgroundColor: '#1e293b', color: '#ffffff', fontWeight: '800', border: 'none', display: 'flex', alignItems: 'center', gap: '10px', cursor: isSaving ? 'not-allowed' : 'pointer' }}>
                             {isSaving ? <LoadingSpinner /> : <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg> สร้างรายจ่าย</>}
