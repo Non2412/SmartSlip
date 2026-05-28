@@ -32,6 +32,15 @@ const inputStyle: React.CSSProperties = {
 const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDetailSheetProps) => {
     const { updateReceipt } = useReceipts();
 
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 767px)');
+        setIsMobile(mq.matches);
+        const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
+
     const [store, setStore] = useState('');
     const [category, setCategory] = useState('');
     const [date, setDate] = useState('');
@@ -167,10 +176,10 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
             )}
 
             {/* Two-column body */}
-            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-                {/* Left: Image */}
-                <div style={{ flex: '0 0 38%', borderRight: '1px solid #e2e8f0', backgroundColor: '#f8fafc', padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflow: isMobile ? 'auto' : 'hidden', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
+                {/* Top (mobile) / Left (desktop): Image */}
+                <div style={{ flexGrow: 0, flexShrink: 0, flexBasis: isMobile ? 'auto' : '38%', width: isMobile ? '100%' : undefined, height: isMobile ? '240px' : undefined, borderRight: isMobile ? 'none' : '1px solid #e2e8f0', borderBottom: isMobile ? '1px solid #e2e8f0' : 'none', backgroundColor: '#f8fafc', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
+                    <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: '0%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                         {imageData ? (
                             <img src={imageData} alt="Receipt" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }} />
                         ) : (
@@ -183,7 +192,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                 </div>
 
                 {/* Right: Editable form */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px', backgroundColor: '#ffffff' }}>
+                <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflowY: 'auto', padding: '28px 32px', backgroundColor: '#ffffff' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
                         <div>
                             <label style={labelStyle}>ร้านค้า / ผู้ให้บริการ</label>
@@ -227,16 +236,18 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                         <div style={{ padding: '14px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h4 style={{ fontWeight: '900', fontSize: '0.95rem', margin: 0 }}>รายการสินค้าและบริการ ({items.length})</h4>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                            {['รายการ', 'จำนวน', 'ราคา/หน่วย', 'รวม', ''].map((h, i) => (
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 54px 90px 32px' : '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                            {(isMobile ? ['รายการ', 'จำนวน', 'ราคา', ''] : ['รายการ', 'จำนวน', 'ราคา/หน่วย', 'รวม', '']).map((h, i) => (
                                 <div key={i} style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textAlign: i >= 2 ? 'right' : 'left' }}>{h}</div>
                             ))}
                         </div>
                         {items.map(item => (
-                            <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
+                            <div key={item.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 54px 90px 32px' : '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
                                 <input value={item.description} onChange={e => updateItem(item.id, { description: e.target.value })} placeholder="ชื่อสินค้า/บริการ" style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem' }} />
                                 <input type="number" value={item.quantity} onChange={e => updateItem(item.id, { quantity: parseInt(e.target.value) || 1 })} style={{ ...inputStyle, padding: '7px 8px', fontSize: '0.88rem', textAlign: 'center' }} />
-                                <input type="number" value={item.unitPrice} onChange={e => updateItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })} style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem', textAlign: 'right' }} />
+                                {!isMobile && (
+                                    <input type="number" value={item.unitPrice} onChange={e => updateItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })} style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem', textAlign: 'right' }} />
+                                )}
                                 <div style={{ padding: '7px 10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.88rem', fontWeight: '700', textAlign: 'right', color: '#1e293b' }}>
                                     {(item.quantity * item.unitPrice).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                                 </div>

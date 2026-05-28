@@ -41,10 +41,11 @@ input[type=number] {
 
   /* Verification view */
   .sr-ver-header { padding: 0 16px !important; min-height: 56px !important; }
-  .sr-ver-layout { flex-direction: column !important; overflow-y: auto !important; }
-  .sr-ver-img    { flex: none !important; height: 220px !important; min-height: unset !important;
-                   border-right: none !important; border-bottom: 1px solid #e2e8f0 !important; }
-  .sr-ver-form   { padding: 14px 14px !important; }
+  .sr-ver-layout { flex-direction: column !important; overflow: auto !important; }
+  .sr-ver-img    { flex: none !important; width: 100% !important; height: 240px !important;
+                   min-height: unset !important; border-right: none !important;
+                   border-bottom: 1px solid #e2e8f0 !important; }
+  .sr-ver-form   { padding: 14px 14px !important; overflow-y: auto !important; flex: 1 !important; }
   .sr-ver-footer { padding: 10px 14px !important; flex-wrap: wrap !important; gap: 8px !important; }
 
   /* Line-items table on verification — collapse to 4-col */
@@ -96,6 +97,15 @@ interface VerificationLineItem {
 }
 
 const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceiptSheetProps) => {
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 767px)');
+        setIsMobile(mq.matches);
+        const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
+
     const [image, setImage] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -625,10 +635,10 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     )}
 
                     {/* ── Two-column body ── */}
-                    <div className="sr-ver-layout" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                    <div className="sr-ver-layout" style={{ display: 'flex', flex: 1, overflow: isMobile ? 'auto' : 'hidden', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
 
                         {/* ═══ LEFT: Receipt image panel ═══ */}
-                        <div className="sr-ver-img" style={{ flex: '0 0 38%', borderRight: '1px solid #e2e8f0', background: '#f1f5f9', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <div className="sr-ver-img" style={{ flex: isMobile ? 'none' : '0 0 38%', width: isMobile ? '100%' : undefined, height: isMobile ? '240px' : undefined, borderRight: isMobile ? 'none' : '1px solid #e2e8f0', borderBottom: isMobile ? '1px solid #e2e8f0' : 'none', background: '#f1f5f9', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
                             {/* image display */}
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '20px', position: 'relative' }}>
                                 {image ? (
