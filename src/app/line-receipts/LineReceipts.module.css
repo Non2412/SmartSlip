@@ -127,3 +127,151 @@
   font-size: 0.8rem;
   color: #94a3b8;
 }
+
+/* No-image placeholder */
+.noImage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  color: #cbd5e1;
+  font-size: 0.8rem;
+}
+
+/* Gallery card cursor */
+.galleryCard {
+  cursor: pointer;
+}
+
+/* Modal overlay */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal {
+  background: white;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px 0;
+}
+
+.modalHeader h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.modalClose {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  padding: 4px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  transition: background 0.2s;
+}
+
+.modalClose:hover {
+  background: #f1f5f9;
+}
+
+.modalImage {
+  margin: 16px 20px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #f1f5f9;
+  max-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+}
+
+.modalImage img {
+  width: 100%;
+  object-fit: contain;
+  max-height: 280px;
+}
+
+.modalBody {
+  padding: 16px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.modalRow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.modalLabel {
+  font-size: 0.85rem;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.modalValue {
+  font-size: 0.9rem;
+  color: #1e293b;
+  font-weight: 500;
+  text-align: right;
+}
+
+.modalAmount {
+  color: #10b981;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.modalItems {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.modalItems .modalLabel {
+  margin-bottom: 4px;
+}
+
+.modalItem {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #475569;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border-radius: 8px;
+}

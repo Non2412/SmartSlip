@@ -5,7 +5,7 @@ import { Receipt, CreateReceiptData, receiptApi } from '@/lib/apiClient';
 
 export interface UseReceiptsReturn {
   receipts: Receipt[];
-  fetchReceipts: (userId: string) => Promise<void>;
+  fetchReceipts: (userId: string, lineUserId?: string) => Promise<void>;
   createReceipt: (data: CreateReceiptData) => Promise<{ success: boolean; data?: Receipt; error?: string }>;
   updateReceipt: (id: string, data: { storeName?: string; totalAmount?: number; extractedData?: unknown }) => Promise<{ success: boolean; data?: Receipt; error?: string }>;
   extractFromImage: (file: File, userId: string) => Promise<any>;
@@ -18,11 +18,11 @@ export const useReceipts = (): UseReceiptsReturn => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchReceipts = useCallback(async (userId: string) => {
+  const fetchReceipts = useCallback(async (userId: string, lineUserId?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await receiptApi.getAll(userId) as any;
+      const result = await receiptApi.getAll(userId, lineUserId) as any;
       if (result.success && result.data) {
         setReceipts(result.data);
       } else {
