@@ -358,10 +358,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 setSuccessMsg('AI วิเคราะห์สำเร็จ ตรวจสอบและแก้ไขข้อมูลด้านล่างได้เลย');
             }
         } catch (err: any) {
-            const isQuota = err?.message?.includes('quota') || err?.message?.includes('AI quota');
-            setErrorMsg(isQuota
-                ? 'AI quota หมดสำหรับวันนี้ กรุณากรอกข้อมูลด้วยตนเอง หรือลองใหม่พรุ่งนี้'
-                : 'ไม่สามารถวิเคราะห์รูปภาพได้ กรุณาลองใหม่อีกครั้ง');
+            setErrorMsg('ไม่สามารถวิเคราะห์รูปภาพได้ กรุณาลองใหม่อีกครั้ง');
         } finally {
             setIsProcessing(false);
         }
