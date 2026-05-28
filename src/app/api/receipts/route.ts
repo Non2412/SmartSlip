@@ -7,12 +7,16 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
+    const lineUserId = searchParams.get('lineUserId');
 
     const client = await clientPromise;
     const db = client.db('smartslip_api');
 
-    let query = {};
-    if (userId) {
+    let query: Record<string, any> = {};
+    if (userId && lineUserId) {
+      // Query by either MongoDB user ID or LINE user ID (for backend webhook receipts)
+      query = { $or: [{ userId }, { userId: lineUserId }] };
+    } else if (userId) {
       query = { userId };
     }
 
@@ -22,12 +26,34 @@ export async function GET(request: Request) {
       .sort({ createdAt: -1 })
       .toArray();
 
-    // Map _id to string for frontend
-    const formattedReceipts = receipts.map(r => ({
-      ...r,
-      id: r._id.toString(),
-      _id: undefined
-    }));
+    // Map _id to string and normalize field names between frontend/backend receipt formats
+    const formattedReceipts = receipts.map(r => {
+      const doc: any = { ...r, id: r._id.toString(), _id: undefined };
+
+      // Backend webhook saves 'amount' not 'totalAmount'
+      if (doc.amount !== undefined && doc.totalAmount === undefined) {
+        doc.totalAmount = doc.amount;
+      }
+      // Backend webhook saves 'imageURL' (uppercase) not 'imageUrl'
+      if (doc.imageURL && !doc.imageUrl) {
+        doc.imageUrl = doc.imageURL;
+      }
+      // Mark backend LINE webhook receipts as source='line'
+      if (!doc.source && (doc.transactionId?.startsWith('LINE-') || (lineUserId && doc.userId === lineUserId))) {
+        doc.source = 'line';
+      }
+      // Normalize extractedData from backend flat fields
+      if (!doc.extractedData && (doc.extractedSender || doc.extractedReceiver || doc.customerName)) {
+        doc.extractedData = {
+          date: doc.issueDate ? new Date(doc.issueDate).toISOString() : undefined,
+          receiver: doc.extractedReceiver || doc.storeName,
+          method: doc.extractedSender || doc.customerName,
+          items: doc.items || [],
+        };
+      }
+
+      return doc;
+    });
 
     return NextResponse.json({
       success: true,
