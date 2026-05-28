@@ -84,7 +84,10 @@ export async function POST(req: NextRequest) {
 
           // 4. Process with Gemini
           if (!process.env.GEMINI_API_KEY) throw new Error('ไม่พบการตั้งค่า GEMINI_API_KEY ในระบบ');
-          const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+          const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.5-flash'];
+          let text = '';
+          let lastError;
+
           const prompt = `
             คุณคือผู้ช่วยจัดการใบเสร็จระดับมืออาชีพ กรุณาอ่านรูปภาพใบเสร็จนี้และส่งข้อมูลยอดเงินสุทธิ ชื่อร้านค้า และรายการสินค้า กลับมาในรูปแบบ JSON ดังนี้:
             {
@@ -112,9 +115,24 @@ export async function POST(req: NextRequest) {
             }
           }];
 
-          const result = await model.generateContent([prompt, ...imageParts]);
-          const response = await result.response;
-          const text = response.text();
+          for (const modelName of modelsToTry) {
+            try {
+              console.log(`LINE Webhook: Trying model ${modelName}`);
+              const model = genAI.getGenerativeModel({ model: modelName });
+              const result = await model.generateContent([prompt, ...imageParts]);
+              const response = await result.response;
+              text = response.text();
+              console.log(`LINE Webhook: Success with model ${modelName}`);
+              break;
+            } catch (err) {
+              console.warn(`LINE Webhook: Model ${modelName} failed:`, err);
+              lastError = err;
+            }
+          }
+
+          if (!text) {
+            throw lastError || new Error('All Gemini models failed in LINE Webhook');
+          }
 
           const jsonMatch = text.match(/\{[\s\S]*\}/);
           if (!jsonMatch) throw new Error('AI could not parse structured data');
