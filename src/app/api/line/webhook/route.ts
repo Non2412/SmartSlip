@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import clientPromise from '@/lib/mongodb';
-
 import { appendReceiptToUserSheet } from '@/lib/googlesheets';
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 async function verifySignature(body: string, signature: string) {
   const channelSecret = process.env.LINE_CHANNEL_SECRET || '';
@@ -63,11 +59,8 @@ export async function POST(req: NextRequest) {
         const replyToken = event.replyToken;
         const userId = event.source.userId;
 
-        // 1. Inform user we are processing
-        // (Optional: can't reply twice easily with same token, but can use push message later)
-
         try {
-          // 2. Map LINE User to Internal User
+          // 1. Map LINE User to Internal User
           const client = await clientPromise;
           const db = client.db();
           
@@ -78,67 +71,41 @@ export async function POST(req: NextRequest) {
 
           const internalUserId = userAccount ? userAccount.userId.toString() : userId;
 
-          // 3. Download Image
+          // 2. Download Image
           const imageBuffer = await getLineContent(messageId);
-          const base64Image = imageBuffer.toString('base64');
 
-          // 4. Process with Gemini
-          if (!process.env.GEMINI_API_KEY) throw new Error('ไม่พบการตั้งค่า GEMINI_API_KEY ในระบบ');
-          const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3.5-flash'];
-          let text = '';
-          let lastError;
+          // 3. Process with Gemini via Backend API
+          const backendUrl = `${process.env.BACKEND_API_URL || 'https://smart-slip-api.vercel.app'}/api/receipts/extract`;
+          const apiKey = process.env.NEXT_PUBLIC_API_KEY || 'super-secret-api-key-12345';
 
-          const prompt = `
-            คุณคือผู้ช่วยจัดการใบเสร็จระดับมืออาชีพ กรุณาอ่านรูปภาพใบเสร็จนี้และส่งข้อมูลยอดเงินสุทธิ ชื่อร้านค้า และรายการสินค้า กลับมาในรูปแบบ JSON ดังนี้:
-            {
-              "store": "ชื่อร้านค้าที่พบในใบเสร็จ",
-              "amount": "ยอดเงินสุทธิในรูปแบบตัวเลข (เช่น 120.50)",
-              "date": "วันที่ในใบเสร็จ (ISO 8601)",
-              "method": "วิธีชำระเงิน (เงินสด, โอนเงิน, บัตรเครดิต)",
-              "receiver": "ชื่อผู้รับเงิน (ถ้ามี)",
-              "items": [
-                {
-                  "description": "ชื่อสินค้า",
-                  "quantity": 1,
-                  "unitPrice": 35.00,
-                  "totalPrice": 35.00
-                }
-              ]
-            }
-            **สำคัญ**: คืนค่าเฉพาะ JSON เท่านั้น ไม่ต้องมีคำอธิบายเพิ่มเติม และภาษาไทยถูกต้อง
-          `;
+          console.log('LINE Webhook: Requesting OCR from backend API:', backendUrl);
+          
+          const ocrFormData = new FormData();
+          const imageBlob = new Blob([imageBuffer], { type: 'image/jpeg' });
+          ocrFormData.append('image', imageBlob, 'line-receipt.jpg');
+          ocrFormData.append('userId', internalUserId);
 
-          const imageParts = [{
-            inlineData: {
-              data: base64Image,
-              mimeType: 'image/jpeg'
-            }
-          }];
+          const ocrResponse = await fetch(backendUrl, {
+            method: 'POST',
+            headers: {
+              'x-api-key': apiKey,
+            },
+            body: ocrFormData,
+          });
 
-          for (const modelName of modelsToTry) {
-            try {
-              console.log(`LINE Webhook: Trying model ${modelName}`);
-              const model = genAI.getGenerativeModel({ model: modelName });
-              const result = await model.generateContent([prompt, ...imageParts]);
-              const response = await result.response;
-              text = response.text();
-              console.log(`LINE Webhook: Success with model ${modelName}`);
-              break;
-            } catch (err) {
-              console.warn(`LINE Webhook: Model ${modelName} failed:`, err);
-              lastError = err;
-            }
+          if (!ocrResponse.ok) {
+            const errText = await ocrResponse.text();
+            throw new Error(`Backend OCR failed: ${ocrResponse.statusText} - ${errText}`);
           }
 
-          if (!text) {
-            throw lastError || new Error('All Gemini models failed in LINE Webhook');
+          const ocrResult = await ocrResponse.json();
+          if (!ocrResult.success || !ocrResult.data) {
+            throw new Error(ocrResult.error || 'Failed to extract data using backend OCR');
           }
 
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
-          if (!jsonMatch) throw new Error('AI could not parse structured data');
-          const data = JSON.parse(jsonMatch[0]);
+          const data = ocrResult.data;
 
-          // 5. Upload to Google Cloud Storage
+          // 4. Upload to Google Cloud Storage
           let driveFileId = null;
           let gcsUrl = null;
           const { ObjectId } = await import('mongodb');
@@ -164,7 +131,7 @@ export async function POST(req: NextRequest) {
             driveErrorMsg = `\n(⚠️ อัปโหลดรูปไม่สำเร็จ: ${driveErr.message})`;
           }
 
-          // 6. Save to MongoDB
+          // 5. Save to MongoDB
           const newReceipt = {
             storeName: data.store || 'Unknown Store',
             totalAmount: parseFloat(data.amount) || 0,
@@ -177,7 +144,7 @@ export async function POST(req: NextRequest) {
           };
           const insertResult = await db.collection('receipts').insertOne(newReceipt);
 
-          // 7. Append to Google Sheet (if user has a sheet)
+          // 6. Append to Google Sheet (if user has a sheet)
           if (userDoc?.googleSheetId) {
             try {
               const imageUrl = gcsUrl || '';
@@ -197,9 +164,14 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // 8. Reply Success
+          // 7. Reply Success
           const itemsText = data.items && data.items.length > 0 
-            ? `\n🛒 สินค้า:\n` + data.items.map((item: any, idx: number) => `${idx + 1}. ${item.description}\n   จำนวน: ${item.quantity} x ฿${Number(item.unitPrice).toFixed(2)} = ฿${Number(item.totalPrice).toFixed(2)}`).join('\n')
+            ? `\n🛒 สินค้า:\n` + data.items.map((item: any, idx: number) => {
+                const uPrice = parseFloat(item.unitPrice ?? item.unit_price ?? 0);
+                const qty = parseFloat(item.quantity ?? 1);
+                const tPrice = parseFloat(item.totalPrice ?? item.total ?? item.total_price ?? (uPrice * qty));
+                return `${idx + 1}. ${item.description}\n   จำนวน: ${qty} x ฿${uPrice.toFixed(2)} = ฿${tPrice.toFixed(2)}`;
+              }).join('\n')
             : '';
 
           const successMsg = `✅ ประมวลผลสำเร็จ!\n\n💰 จำนวนเงิน: ฿${newReceipt.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n👤 ผู้ส่ง: ${data.method || 'Unknown'}\n🏢 ผู้รับ: ${newReceipt.storeName}\n📅 วันที่: ${data.date || new Date().toISOString().split('T')[0]}\n${itemsText}\n\n🎯 ความแม่นยำ: ✅ high${gcsUrl ? '\n☁️ บันทึกลง Cloud Storage แล้ว' : driveErrorMsg}`;
@@ -219,3 +191,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
 }
+
