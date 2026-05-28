@@ -92,8 +92,18 @@ export async function processGeminiImage(image: string) {
     // Strip possible markdown fences just in case
     const cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
     return JSON.parse(cleaned);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Extraction Error:", error);
+    const isQuota =
+      error?.status === 429 ||
+      error?.code === 429 ||
+      String(error?.message ?? "").includes("RESOURCE_EXHAUSTED") ||
+      String(error?.message ?? "").includes("429");
+    if (isQuota) {
+      const quota = new Error("quota_exceeded");
+      (quota as any).status = 429;
+      throw quota;
+    }
     throw error;
   }
 }

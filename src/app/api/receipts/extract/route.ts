@@ -58,6 +58,12 @@ export async function POST(request: Request) {
     });
   } catch (error: any) {
     console.error('Gemini OCR Error:', error);
+    if (error?.status === 429 || error?.message === 'quota_exceeded') {
+      return NextResponse.json(
+        { success: false, error: 'AI quota หมดสำหรับวันนี้ กรุณากรอกข้อมูลด้วยตนเอง หรือลองใหม่พรุ่งนี้' },
+        { status: 429 }
+      );
+    }
     return NextResponse.json(
       { success: false, error: error.message || 'OCR extraction failed' },
       { status: 500 }
