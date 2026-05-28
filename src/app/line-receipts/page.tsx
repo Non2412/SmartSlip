@@ -30,6 +30,7 @@ export default function LineReceiptsPage() {
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<any | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
+  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web'>('all');
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
 
   // Load viewed IDs from localStorage on mount
@@ -44,7 +45,12 @@ export default function LineReceiptsPage() {
   }, [session, fetchReceipts]);
 
   // Update unread count in localStorage whenever receipts or viewedIds change
-  const lineReceipts = receipts.filter(r => r.extractedData?.imageData || r.imageUrl);
+  const allImageReceipts = receipts.filter(r => r.extractedData?.imageData || r.imageUrl);
+  const lineReceipts = allImageReceipts.filter(r => {
+    if (filterTab === 'line') return r.source === 'line';
+    if (filterTab === 'web')  return r.source !== 'line';
+    return true;
+  });
 
   useEffect(() => {
     if (lineReceipts.length === 0) return;
@@ -93,9 +99,84 @@ export default function LineReceiptsPage() {
         />
 
         <div className="page-container">
-          <div className={styles.header}>
-            <h2>รูปใบเสร็จที่ส่งผ่าน LINE</h2>
-            <p>รวมรูปภาพทั้งหมดที่คุณส่งเข้ามาผ่านบอท LINE</p>
+          <div className={styles.header} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h2>รูปใบเสร็จที่ส่งผ่าน LINE</h2>
+              <p>รวมรูปภาพทั้งหมดที่คุณส่งเข้ามาผ่านบอท LINE</p>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {([
+                {
+                  key: 'all',
+                  label: 'ทั้งหมด',
+                  count: allImageReceipts.length,
+                  icon: (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                    </svg>
+                  ),
+                  activeColor: '#0f172a',
+                  activeBg: '#0f172a',
+                  activeBadge: '#334155',
+                },
+                {
+                  key: 'line',
+                  label: 'จาก LINE',
+                  count: allImageReceipts.filter(r => r.source === 'line').length,
+                  icon: (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.48 2 2 5.92 2 10.72c0 3.1 1.73 5.84 4.35 7.52-.16.58-.52 2.1-.6 2.43-.1.4.15.4.31.29.13-.09 1.98-1.35 2.78-1.9.37.05.74.08 1.16.08 5.52 0 10-3.92 10-8.72S17.52 2 12 2z"/>
+                    </svg>
+                  ),
+                  activeColor: '#00b900',
+                  activeBg: '#00b900',
+                  activeBadge: '#009900',
+                },
+                {
+                  key: 'web',
+                  label: 'จากเว็บ',
+                  count: allImageReceipts.filter(r => r.source !== 'line').length,
+                  icon: (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                    </svg>
+                  ),
+                  activeColor: '#2563eb',
+                  activeBg: '#2563eb',
+                  activeBadge: '#1d4ed8',
+                },
+              ] as const).map(tab => {
+                const isActive = filterTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setFilterTab(tab.key)}
+                    style={{
+                      padding: '8px 16px', borderRadius: '10px', cursor: 'pointer',
+                      fontSize: '0.875rem', fontWeight: '700', transition: 'all 0.2s',
+                      display: 'flex', alignItems: 'center', gap: '7px',
+                      border: isActive ? 'none' : '1.5px solid #e2e8f0',
+                      background: isActive ? tab.activeBg : 'white',
+                      color: isActive ? 'white' : '#64748b',
+                      boxShadow: isActive ? `0 4px 12px ${tab.activeBg}40` : '0 1px 3px rgba(0,0,0,0.06)',
+                    }}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                    <span style={{
+                      fontSize: '0.72rem', fontWeight: '800', padding: '2px 7px', borderRadius: '20px',
+                      background: isActive ? tab.activeBadge : '#f1f5f9',
+                      color: isActive ? 'white' : '#94a3b8',
+                      minWidth: '20px', textAlign: 'center',
+                    }}>
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {loading ? (
@@ -110,8 +191,8 @@ export default function LineReceiptsPage() {
                 <circle cx="8.5" cy="8.5" r="1.5" />
                 <polyline points="21 15 16 10 5 21" />
               </svg>
-              <h3>ยังไม่มีรูปภาพจาก LINE</h3>
-              <p>ลองส่งรูปใบเสร็จเข้าไปในแชท LINE Bot ของคุณดูสิ!</p>
+              <h3>ไม่พบรูปภาพ</h3>
+              <p>{filterTab === 'line' ? 'ยังไม่มีรูปจาก LINE Bot' : filterTab === 'web' ? 'ยังไม่มีรูปที่อัปโหลดจากเว็บ' : 'ลองส่งรูปใบเสร็จเข้าไปในแชท LINE Bot ของคุณดูสิ!'}</p>
             </div>
           ) : (
             <div className={styles.galleryGrid}>

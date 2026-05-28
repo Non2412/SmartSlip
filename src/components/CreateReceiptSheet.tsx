@@ -1009,6 +1009,33 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                         position: 'relative',
                         height: '100%'
                     }}>
+                        {/* Re-analyze button */}
+                        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 16px 0', flexShrink: 0 }}>
+                            <button
+                                onClick={() => runOCR()}
+                                disabled={isProcessing}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '8px',
+                                    padding: '9px 20px', borderRadius: '999px',
+                                    border: 'none', cursor: isProcessing ? 'not-allowed' : 'pointer',
+                                    background: isProcessing ? '#e2e8f0' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                                    color: isProcessing ? '#94a3b8' : 'white',
+                                    fontSize: '0.85rem', fontWeight: '700',
+                                    boxShadow: isProcessing ? 'none' : '0 4px 14px rgba(99,102,241,0.4)',
+                                    transition: 'all 0.2s',
+                                }}
+                            >
+                                {isProcessing ? (
+                                    <div style={{ width: '14px', height: '14px', border: '2px solid #94a3b8', borderTop: '2px solid #cbd5e1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                ) : (
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                                    </svg>
+                                )}
+                                {isProcessing ? 'กำลังวิเคราะห์...' : 'วิเคราะห์ใหม่ด้วย AI'}
+                            </button>
+                        </div>
+
                         <div
                             style={{
                                 flex: 1,

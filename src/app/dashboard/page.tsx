@@ -137,7 +137,7 @@ export default function DashboardPage() {
                   <ExpenseChart receipts={receipts} />
                 </div>
                 <RecentUploads
-                  receipts={receipts}
+                  receipts={receipts.filter(r => r.source === 'line')}
                   onReceiptClick={setSelectedReceipt}
                   onEdit={setSelectedReceipt}
                   onDelete={setDeleteConfirm}
