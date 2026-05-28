@@ -94,7 +94,8 @@ export async function apiRequest<T>(
  */
 export const receiptApi = {
   // ดึงรายการใบเสร็จ
-  getAll: (userId: string) => apiRequest<Receipt[]>(`/receipts?userId=${userId}`),
+  getAll: (userId: string, lineUserId?: string) =>
+    apiRequest<Receipt[]>(`/receipts?userId=${userId}${lineUserId ? `&lineUserId=${encodeURIComponent(lineUserId)}` : ''}`),
 
   // เพิ่มใบเสร็จใหม่
   create: (data: CreateReceiptData) => apiRequest<Receipt>('/receipts', {
