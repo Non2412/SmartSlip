@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     const [buffer] = await file.download();
     const [metadata] = await file.getMetadata();
 
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': (metadata.contentType as string) || 'image/jpeg',
         'Cache-Control': 'public, max-age=86400',
