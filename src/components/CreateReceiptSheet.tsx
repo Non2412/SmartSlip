@@ -526,6 +526,25 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     };
 
     return (
+        <>
+        {/* Backdrop overlay — dims background when sheet is open */}
+        <div
+            onClick={onClose}
+            style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh',
+                backgroundColor: 'rgba(15, 23, 42, 0.55)',
+                backdropFilter: isOpen ? 'blur(6px)' : 'blur(0px)',
+                WebkitBackdropFilter: isOpen ? 'blur(6px)' : 'blur(0px)',
+                zIndex: 999,
+                opacity: isOpen ? 1 : 0,
+                pointerEvents: isOpen ? 'auto' : 'none',
+                transition: 'opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), backdrop-filter 0.5s cubic-bezier(0.4, 0, 0.2, 1), -webkit-backdrop-filter 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+        />
         <div style={{
             position: 'fixed',
             top: 0,
@@ -1453,6 +1472,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
             </div>
             )}
         </div>
+        </>
     );
 };
 
