@@ -122,7 +122,7 @@ export default function LineReceiptsPage() {
                 },
                 {
                   key: 'line',
-                  label: 'จาก LINE',
+                  label: 'LINE',
                   count: allImageReceipts.filter(r => r.source === 'line').length,
                   icon: (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -135,7 +135,7 @@ export default function LineReceiptsPage() {
                 },
                 {
                   key: 'web',
-                  label: 'จากเว็บ',
+                  label: 'เว็บ',
                   count: allImageReceipts.filter(r => r.source !== 'line').length,
                   icon: (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

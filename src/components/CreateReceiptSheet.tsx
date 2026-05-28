@@ -629,25 +629,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
                         {/* ═══ LEFT: Receipt image panel ═══ */}
                         <div className="sr-ver-img" style={{ flex: '0 0 38%', borderRight: '1px solid #e2e8f0', background: '#f1f5f9', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                            {/* panel toolbar */}
-                            <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', background: 'white', flexShrink: 0 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 0 3px rgba(34,197,94,0.2)' }} />
-                                    <span style={{ fontWeight: '800', fontSize: '0.8rem', color: '#334155' }}>ต้นฉบับใบเสร็จ</span>
-                                </div>
-                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                    {image && (
-                                        <button
-                                            onClick={() => window.open(image!, '_blank')}
-                                            style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', background: 'white', color: '#0052cc', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                        >
-                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                                            ขยายเต็มจอ
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
                             {/* image display */}
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '20px', position: 'relative' }}>
                                 {image ? (

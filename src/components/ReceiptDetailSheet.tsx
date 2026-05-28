@@ -170,14 +170,6 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                 {/* Left: Image */}
                 <div style={{ flex: '0 0 38%', borderRight: '1px solid #e2e8f0', backgroundColor: '#f8fafc', padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: '800', fontSize: '0.85rem', color: '#64748b' }}>ภาพถ่ายสลิปใบเสร็จต้นฉบับ</span>
-                        {imageData && (
-                            <button onClick={() => window.open(imageData, '_blank')} style={{ color: '#0052cc', fontSize: '0.8rem', fontWeight: '700', background: 'none', border: 'none', cursor: 'pointer' }}>
-                                ดูขนาดจริง ↗
-                            </button>
-                        )}
-                    </div>
                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                         {imageData ? (
                             <img src={imageData} alt="Receipt" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }} />

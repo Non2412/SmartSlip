@@ -48,14 +48,15 @@ export const FilterBar = () => (
             <span className={styles.searchIcon}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </span>
-            <input 
-                type="text" 
-                placeholder="ค้นหาร้านค้า, วันที่, ยอดเงิน..." 
+            <input
+                type="text"
+                placeholder="ค้นหาร้านค้า, วันที่, ยอดเงิน..."
                 className={styles.searchInput}
             />
         </div>
 
-        <div className={styles.filterGroup}>
+        {/* Desktop: chips (hidden on mobile) */}
+        <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
             <span className={styles.filterLabel}>หมวดหมู่:</span>
             <div className={styles.filterChips}>
                 <div className={`${styles.filterChip} ${styles.filterChipActive}`}>ทั้งหมด</div>
@@ -63,14 +64,27 @@ export const FilterBar = () => (
                 <div className={styles.filterChip}>ของใช้</div>
             </div>
         </div>
-
-        <div className={styles.filterGroup}>
+        <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
             <span className={styles.filterLabel}>ช่วงเวลา:</span>
             <div className={styles.filterChips}>
                 <div className={`${styles.filterChip} ${styles.filterChipActive}`}>30 วัน</div>
                 <div className={styles.filterChip}>รายเดือน</div>
                 <div className={styles.filterChip}>รายปี</div>
             </div>
+        </div>
+
+        {/* Mobile: dropdowns (hidden on desktop) */}
+        <div className={styles.mobileDropdowns}>
+            <select className={styles.mobileSelect} defaultValue="all">
+                <option value="all">หมวดหมู่: ทั้งหมด</option>
+                <option value="food">อาหาร</option>
+                <option value="item">ของใช้</option>
+            </select>
+            <select className={styles.mobileSelect} defaultValue="30d">
+                <option value="30d">ช่วงเวลา: 30 วัน</option>
+                <option value="month">รายเดือน</option>
+                <option value="year">รายปี</option>
+            </select>
         </div>
     </div>
 );
