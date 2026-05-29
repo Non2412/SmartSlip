@@ -48,14 +48,15 @@ export const FilterBar = () => (
             <span className={styles.searchIcon}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </span>
-            <input 
-                type="text" 
-                placeholder="ค้นหาร้านค้า, วันที่, ยอดเงิน..." 
+            <input
+                type="text"
+                placeholder="ค้นหาร้านค้า, วันที่, ยอดเงิน..."
                 className={styles.searchInput}
             />
         </div>
 
-        <div className={styles.filterGroup}>
+        {/* Desktop: chips (hidden on mobile) */}
+        <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
             <span className={styles.filterLabel}>หมวดหมู่:</span>
             <div className={styles.filterChips}>
                 <div className={`${styles.filterChip} ${styles.filterChipActive}`}>ทั้งหมด</div>
@@ -63,14 +64,27 @@ export const FilterBar = () => (
                 <div className={styles.filterChip}>ของใช้</div>
             </div>
         </div>
-
-        <div className={styles.filterGroup}>
+        <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
             <span className={styles.filterLabel}>ช่วงเวลา:</span>
             <div className={styles.filterChips}>
                 <div className={`${styles.filterChip} ${styles.filterChipActive}`}>30 วัน</div>
                 <div className={styles.filterChip}>รายเดือน</div>
                 <div className={styles.filterChip}>รายปี</div>
             </div>
+        </div>
+
+        {/* Mobile: dropdowns (hidden on desktop) */}
+        <div className={styles.mobileDropdowns}>
+            <select className={styles.mobileSelect} defaultValue="all">
+                <option value="all">หมวดหมู่: ทั้งหมด</option>
+                <option value="food">อาหาร</option>
+                <option value="item">ของใช้</option>
+            </select>
+            <select className={styles.mobileSelect} defaultValue="30d">
+                <option value="30d">ช่วงเวลา: 30 วัน</option>
+                <option value="month">รายเดือน</option>
+                <option value="year">รายปี</option>
+            </select>
         </div>
     </div>
 );
@@ -83,7 +97,6 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                     <th>ร้านค้า</th>
                     <th>หมวดหมู่</th>
                     <th>ยอดสุทธิ</th>
-                    <th>ชำระโดย</th>
                     <th>สถานะ</th>
                     <th>วันที่</th>
                 </tr>
@@ -101,14 +114,32 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                     receipts.map((receipt) => (
                         <tr key={receipt.id}>
                             <td className={styles.storeCell}>
-                                <div className={styles.storeIcon}>
-                                    {receipt.storeName?.charAt(0) || 'R'}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{
+                                        width: '36px', height: '36px', borderRadius: '8px',
+                                        overflow: 'hidden', flexShrink: 0,
+                                        border: '1px solid #e5e7eb',
+                                        background: '#f1f5f9',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: '0.85rem', fontWeight: '700', color: '#64748b',
+                                    }}>
+                                        {receipt.extractedData?.imageData ? (
+                                            <img
+                                                src={receipt.extractedData.imageData}
+                                                alt={receipt.storeName}
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                            />
+                                        ) : (
+                                            receipt.storeName?.charAt(0) || 'R'
+                                        )}
+                                    </div>
+                                    <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                                        {receipt.storeName || 'ไม่ระบุ'}
+                                    </span>
                                 </div>
-                                {receipt.storeName || 'ไม่ระบุ'}
                             </td>
-                            <td>{/* No category field in API currently */ 'ไม่ระบุหมวดหมู่'}</td>
+                            <td>{receipt.extractedData?.category || 'ไม่ระบุ'}</td>
                             <td className={styles.amountCell}>฿ {receipt.totalAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</td>
-                            <td>{receipt.extractedData?.paymentMethod || receipt.extractedData?.method || 'เงินสด'}</td>
                             <td>
                                 <span className={!receipt.extractedData ? styles.statusWarning : styles.statusSuccess}>
                                     {!receipt.extractedData ? 'รอตรวจสอบ' : 'สำเร็จ'}
