@@ -5,6 +5,9 @@ import { useReceipts } from '@/hooks/useReceipts';
 
 const shimmer = `
 @keyframes spin { to { transform: rotate(360deg); } }
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
 `;
 
 interface ReceiptDetailSheetProps {
@@ -236,18 +239,15 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                         <div style={{ padding: '14px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h4 style={{ fontWeight: '900', fontSize: '0.95rem', margin: 0 }}>รายการสินค้าและบริการ ({items.length})</h4>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 54px 90px 32px' : '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                            {(isMobile ? ['รายการ', 'จำนวน', 'ราคา', ''] : ['รายการ', 'จำนวน', 'ราคา/หน่วย', 'รวม', '']).map((h, i) => (
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 54px 90px 32px' : '1fr 80px 130px 36px', gap: '8px', padding: '8px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                            {['รายการ', 'จำนวน', 'ราคา', ''].map((h, i) => (
                                 <div key={i} style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textAlign: i >= 2 ? 'right' : 'left' }}>{h}</div>
                             ))}
                         </div>
                         {items.map(item => (
-                            <div key={item.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 54px 90px 32px' : '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
+                            <div key={item.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 54px 90px 32px' : '1fr 80px 130px 36px', gap: '8px', padding: '8px 16px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
                                 <input value={item.description} onChange={e => updateItem(item.id, { description: e.target.value })} placeholder="ชื่อสินค้า/บริการ" style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem' }} />
                                 <input type="number" value={item.quantity} onChange={e => updateItem(item.id, { quantity: parseInt(e.target.value) || 1 })} style={{ ...inputStyle, padding: '7px 8px', fontSize: '0.88rem', textAlign: 'center' }} />
-                                {!isMobile && (
-                                    <input type="number" value={item.unitPrice} onChange={e => updateItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })} style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem', textAlign: 'right' }} />
-                                )}
                                 <div style={{ padding: '7px 10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.88rem', fontWeight: '700', textAlign: 'right', color: '#1e293b' }}>
                                     {(item.quantity * item.unitPrice).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                                 </div>
@@ -282,7 +282,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                             <span style={{ fontWeight: '700', color: '#1e293b' }}>{calcSubtotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })} THB</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '14px', borderTop: '2px solid #e2e8f0', alignItems: 'center' }}>
-                            <span style={{ fontWeight: '900', fontSize: '1.05rem', color: '#1e293b' }}>ยอดสุทธิทั้งหมด:</span>
+                            <span style={{ fontWeight: '900', fontSize: isMobile ? '0.95rem' : '1.05rem', color: '#1e293b' }}>{isMobile ? 'ยอดรวม:' : 'ยอดสุทธิทั้งหมด:'}</span>
                             <span style={{ fontWeight: '900', fontSize: '1.4rem', color: '#7c3aed' }}>
                                 {calcTotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })} THB
                             </span>
