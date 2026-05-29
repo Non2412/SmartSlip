@@ -6,6 +6,7 @@ import TopBar from '@/components/TopBar';
 import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
+import { Receipt } from '@/lib/apiClient';
 import styles from './LineReceipts.module.css';
 
 const VIEWED_KEY = 'smartslip_viewed_receipts';
@@ -27,6 +28,7 @@ function saveViewedIds(ids: Set<string>) {
 export default function LineReceiptsPage() {
   const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+<<<<<<< ocr
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<any | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
@@ -37,10 +39,15 @@ export default function LineReceiptsPage() {
   useEffect(() => {
     setViewedIds(getViewedIds());
   }, []);
+=======
+  const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
+  const { receipts, fetchReceipts, loading } = useReceipts();
+>>>>>>> dashboard
 
   useEffect(() => {
     if (session?.user?.id) {
-      fetchReceipts(session.user.id);
+      const lineUserId = (session as any)?.lineUserId as string | undefined;
+      fetchReceipts(session.user.id, lineUserId);
     }
   }, [session, fetchReceipts]);
 
@@ -62,6 +69,7 @@ export default function LineReceiptsPage() {
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
 
+<<<<<<< ocr
   const markAsViewed = useCallback((id: string) => {
     setViewedIds(prev => {
       const next = new Set(prev);
@@ -81,6 +89,19 @@ export default function LineReceiptsPage() {
     await deleteReceipt(deleteConfirm.id);
     setDeleteConfirm(null);
   };
+=======
+  // Proxy GCS images through local API to bypass public access restrictions
+  const getImageUrl = (url?: string) => {
+    if (!url) return null;
+    if (url.includes('storage.googleapis.com')) {
+      return `/api/gcs-image?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+  };
+
+  // Filter only receipts that came from LINE (show even if image upload failed)
+  const lineReceipts = receipts.filter(r => r.source === 'line');
+>>>>>>> dashboard
 
   return (
     <div className="dashboard-layout">
@@ -196,6 +217,7 @@ export default function LineReceiptsPage() {
             </div>
           ) : (
             <div className={styles.galleryGrid}>
+<<<<<<< ocr
               {lineReceipts.map(receipt => {
                 const isNew = !viewedIds.has(receipt.id);
                 return (
@@ -291,6 +313,40 @@ export default function LineReceiptsPage() {
                           hour: '2-digit', minute: '2-digit'
                         })}
                       </div>
+=======
+              {lineReceipts.map(receipt => (
+                <div
+                  key={receipt.id}
+                  className={styles.galleryCard}
+                  onClick={() => setSelectedReceipt(receipt)}
+                >
+                  <div className={styles.imageContainer}>
+                    {receipt.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={getImageUrl(receipt.imageUrl)!} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
+                    ) : (
+                      <div className={styles.noImage}>
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                          <circle cx="8.5" cy="8.5" r="1.5" />
+                          <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        <span>ไม่มีรูปภาพ</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className={styles.cardDetails}>
+                    <div className={styles.storeName}>{receipt.storeName}</div>
+                    <div className={styles.amount}>฿ {receipt.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</div>
+                    <div className={styles.date}>
+                      {new Date(receipt.createdAt).toLocaleDateString('th-TH', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+>>>>>>> dashboard
                     </div>
                   </div>
                 );
@@ -300,6 +356,7 @@ export default function LineReceiptsPage() {
         </div>
       </main>
 
+<<<<<<< ocr
       {/* ── Delete Confirmation Dialog ── */}
       {deleteConfirm && (
         <div style={{
@@ -318,10 +375,79 @@ export default function LineReceiptsPage() {
             <div style={{ display: 'flex', gap: '12px' }}>
               <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid #e2e8f0', background: 'white', fontWeight: '700', fontSize: '0.9rem', color: '#64748b', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleDeleteConfirmed} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: 'white', fontWeight: '800', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(239,68,68,0.35)' }}>ลบ</button>
+=======
+      {/* Detail Modal */}
+      {selectedReceipt && (
+        <div className={styles.modalOverlay} onClick={() => setSelectedReceipt(null)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>รายละเอียดใบเสร็จ</h3>
+              <button className={styles.modalClose} onClick={() => setSelectedReceipt(null)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            {selectedReceipt.imageUrl && (
+              <div className={styles.modalImage}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={getImageUrl(selectedReceipt.imageUrl)!} alt="ใบเสร็จ" />
+              </div>
+            )}
+            <div className={styles.modalBody}>
+              <div className={styles.modalRow}>
+                <span className={styles.modalLabel}>ร้านค้า</span>
+                <span className={styles.modalValue}>{selectedReceipt.storeName}</span>
+              </div>
+              <div className={styles.modalRow}>
+                <span className={styles.modalLabel}>ยอดรวม</span>
+                <span className={`${styles.modalValue} ${styles.modalAmount}`}>
+                  ฿ {selectedReceipt.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              {selectedReceipt.extractedData?.date && (
+                <div className={styles.modalRow}>
+                  <span className={styles.modalLabel}>วันที่ในใบเสร็จ</span>
+                  <span className={styles.modalValue}>{selectedReceipt.extractedData.date}</span>
+                </div>
+              )}
+              {selectedReceipt.extractedData?.method && (
+                <div className={styles.modalRow}>
+                  <span className={styles.modalLabel}>วิธีชำระ</span>
+                  <span className={styles.modalValue}>{selectedReceipt.extractedData.method}</span>
+                </div>
+              )}
+              {selectedReceipt.extractedData?.receiver && (
+                <div className={styles.modalRow}>
+                  <span className={styles.modalLabel}>ผู้รับ</span>
+                  <span className={styles.modalValue}>{selectedReceipt.extractedData.receiver}</span>
+                </div>
+              )}
+              <div className={styles.modalRow}>
+                <span className={styles.modalLabel}>บันทึกเมื่อ</span>
+                <span className={styles.modalValue}>
+                  {new Date(selectedReceipt.createdAt).toLocaleDateString('th-TH', {
+                    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                  })}
+                </span>
+              </div>
+              {(selectedReceipt.extractedData?.items as any[])?.length > 0 && (
+                <div className={styles.modalItems}>
+                  <div className={styles.modalLabel}>รายการสินค้า</div>
+                  {(selectedReceipt.extractedData!.items as any[]).map((item: any, i: number) => (
+                    <div key={i} className={styles.modalItem}>
+                      <span>{item.description}</span>
+                      <span>฿{Number(item.totalPrice || 0).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+>>>>>>> dashboard
             </div>
           </div>
         </div>
       )}
+<<<<<<< ocr
 
       {/* ── Receipt Detail Sheet ── */}
       <ReceiptDetailSheet
@@ -333,6 +459,8 @@ export default function LineReceiptsPage() {
           setSelectedReceipt(null);
         }}
       />
+=======
+>>>>>>> dashboard
     </div>
   );
 }

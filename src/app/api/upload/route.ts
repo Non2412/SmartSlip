@@ -1,17 +1,15 @@
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { uploadToGCS } from '@/lib/gcs';
 
 /**
  * POST /api/upload
- * Accepts a base64 encoded image string and saves it to public/uploads directory
- * Returns the URL path (e.g., /uploads/receipt-{timestamp}.jpg)
+ * Accepts a base64 encoded image string and saves it to Google Cloud Storage
+ * Returns the GCS public URL path
  */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { imageBase64, fileName } = body;
+    const { imageBase64, fileName, userId } = body;
 
     if (!imageBase64) {
       return NextResponse.json(
@@ -38,28 +36,25 @@ export async function POST(request: Request) {
 
     imageBuffer = Buffer.from(base64Data, 'base64');
 
-    // Ensure uploads directory exists
-    const uploadsDir = join(process.cwd(), 'public', 'uploads');
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
-    }
-
     // Generate unique filename
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(2, 8);
     const finalFileName = fileName || `receipt-${timestamp}-${randomStr}.${extension}`;
-    const filePath = join(uploadsDir, finalFileName);
 
-    // Write file to disk
-    await writeFile(filePath, imageBuffer);
-
-    // Return the URL path
-    const imageUrl = `/uploads/${finalFileName}`;
+    // Upload to Google Cloud Storage
+    const bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || 'smartslip-receipts';
+    const uploadResult = await uploadToGCS(
+      imageBuffer,
+      finalFileName,
+      mimeType,
+      bucketName,
+      userId
+    );
 
     return NextResponse.json({
       success: true,
       data: {
-        imageUrl,
+        imageUrl: uploadResult.publicUrl,
         fileName: finalFileName,
         mimeType
       }
@@ -72,3 +67,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

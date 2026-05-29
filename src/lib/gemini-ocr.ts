@@ -72,21 +72,39 @@ export async function processGeminiImage(image: string) {
 6. อ่านตัวเลขภาษาไทย (๐-๙) ได้โดยตรง อย่าแปลงเป็น 0
 `.trim();
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: prompt },
-            { inlineData: { mimeType, data: base64Data } },
+    const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.5-flash"];
+    let response;
+    let lastError;
+
+    for (const model of modelsToTry) {
+      try {
+        console.log(`Trying Gemini OCR with model: ${model}`);
+        response = await ai.models.generateContent({
+          model: model,
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: prompt },
+                { inlineData: { mimeType, data: base64Data } },
+              ],
+            },
           ],
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-      },
-    });
+          config: {
+            responseMimeType: "application/json",
+          },
+        });
+        console.log(`Successfully generated OCR content using model: ${model}`);
+        break;
+      } catch (err) {
+        console.warn(`Gemini model ${model} failed, trying next...`, err);
+        lastError = err;
+      }
+    }
+
+    if (!response) {
+      throw lastError || new Error("All Gemini models failed to generate content");
+    }
 
     const text = response.text ?? "";
     // Strip possible markdown fences just in case

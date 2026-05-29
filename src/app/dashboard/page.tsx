@@ -26,7 +26,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (session?.user?.id) {
-      fetchReceipts(session.user.id);
+      const lineUserId = (session as any)?.lineUserId as string | undefined;
+      fetchReceipts(session.user.id, lineUserId);
     }
   }, [session, fetchReceipts]);
 
