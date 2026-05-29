@@ -44,6 +44,20 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
         return () => mq.removeEventListener('change', handler);
     }, []);
 
+    const [editingDescId, setEditingDescId] = useState<string | null>(null);
+    const [editingDescValue, setEditingDescValue] = useState('');
+
+    const openDescModal = (item: LineItem) => {
+        setEditingDescId(item.id);
+        setEditingDescValue(item.description);
+    };
+    const closeDescModal = () => {
+        if (editingDescId) {
+            updateItem(editingDescId, { description: editingDescValue });
+        }
+        setEditingDescId(null);
+    };
+
     const [store, setStore] = useState('');
     const [category, setCategory] = useState('');
     const [date, setDate] = useState('');
@@ -153,6 +167,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
     const imageData = receipt?.extractedData?.imageData || receipt?.imageUrl || null;
 
     return (
+        <>
         <div style={{
             position: 'fixed', top: 0, right: isOpen ? 0 : '-100vw',
             width: '100vw', height: '100vh', backgroundColor: '#ffffff',
@@ -246,7 +261,16 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                         </div>
                         {items.map(item => (
                             <div key={item.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 54px 90px 32px' : '1fr 80px 130px 36px', gap: '8px', padding: '8px 16px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
-                                <input value={item.description} onChange={e => updateItem(item.id, { description: e.target.value })} placeholder="ชื่อสินค้า/บริการ" style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem' }} />
+                                {isMobile ? (
+                                    <div
+                                        onClick={() => openDescModal(item)}
+                                        style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: item.description ? '#1e293b' : '#94a3b8' }}
+                                    >
+                                        {item.description || 'ชื่อสินค้า/บริการ'}
+                                    </div>
+                                ) : (
+                                    <input value={item.description} onChange={e => updateItem(item.id, { description: e.target.value })} placeholder="ชื่อสินค้า/บริการ" style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem' }} />
+                                )}
                                 <input type="number" value={item.quantity} onChange={e => updateItem(item.id, { quantity: parseInt(e.target.value) || 1 })} style={{ ...inputStyle, padding: '7px 8px', fontSize: '0.88rem', textAlign: 'center' }} />
                                 <div style={{ padding: '7px 10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.88rem', fontWeight: '700', textAlign: 'right', color: '#1e293b' }}>
                                     {(item.quantity * item.unitPrice).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
@@ -305,6 +329,40 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                 </button>
             </div>
         </div>
+
+        {/* Mobile description edit modal */}
+        {isMobile && editingDescId && (
+            <div
+                onClick={closeDescModal}
+                style={{
+                    position: 'fixed', inset: 0, zIndex: 2000,
+                    backgroundColor: 'rgba(15,23,42,0.6)',
+                    backdropFilter: 'blur(6px)',
+                    WebkitBackdropFilter: 'blur(6px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '24px',
+                }}
+            >
+                <div onClick={e => e.stopPropagation()} style={{ width: '100%', background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                    <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748b', margin: '0 0 10px' }}>ชื่อสินค้า / บริการ</p>
+                    <input
+                        autoFocus
+                        value={editingDescValue}
+                        onChange={e => setEditingDescValue(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && closeDescModal()}
+                        placeholder="ชื่อสินค้า/บริการ"
+                        style={{ ...inputStyle, fontSize: '1rem', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }}
+                    />
+                    <button
+                        onClick={closeDescModal}
+                        style={{ marginTop: '14px', width: '100%', padding: '12px', borderRadius: '10px', background: '#7c3aed', color: 'white', fontWeight: '800', border: 'none', fontSize: '0.95rem', cursor: 'pointer' }}
+                    >
+                        ยืนยัน
+                    </button>
+                </div>
+            </div>
+        )}
+        </>
     );
 };
 
