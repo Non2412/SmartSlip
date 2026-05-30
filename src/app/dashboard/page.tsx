@@ -32,7 +32,6 @@ export default function DashboardPage() {
   }, [session, fetchReceipts]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsSidebarOpen(false);
   }, [pathname]);
 

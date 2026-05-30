@@ -111,8 +111,8 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                         </tr>
                     ))
                 ) : (
-                    receipts.map((receipt) => (
-                        <tr key={receipt.id}>
+                    receipts.map((receipt, index) => (
+                        <tr key={receipt.id || index}>
                             <td className={styles.storeCell}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <div style={{
@@ -249,12 +249,12 @@ export const RecentUploads = ({
                         ไม่มีรายการอัปโหลดล่าสุด
                     </div>
                 ) : (
-                    recentReceipts.map((receipt) => {
+                    recentReceipts.map((receipt, index) => {
                         const imageData = receipt.extractedData?.imageData;
                         const isMenuOpen = openMenuId === receipt.id;
                         return (
                             <div
-                                key={receipt.id}
+                                key={receipt.id || index}
                                 className={styles.uploadItem}
                                 onClick={() => onReceiptClick?.(receipt)}
                                 style={{ cursor: onReceiptClick ? 'pointer' : 'default', transition: 'background 0.15s', position: 'relative' }}

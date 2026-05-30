@@ -13,7 +13,7 @@ export function normalizeDate(dateText: string) {
   const match = cleaned.match(/(\d{1,4})[\/\-](\d{1,2})[\/\-](\d{1,4})/);
   if (!match) return dateText;
 
-  let [, first, second, third] = match;
+  const [, first, second, third] = match;
   let day = first;
   let month = second;
   let year = third;

@@ -104,11 +104,11 @@ const ReceiptHistory = ({ receipts, loading, error }: ReceiptHistoryProps) => {
                                 </td>
                             </tr>
                         ) : (
-                            receipts.map((receipt) => {
+                            receipts.map((receipt, index) => {
                                 const { date, time } = formatDate(receipt.createdAt);
                                 return (
                                     <TableRow 
-                                      key={receipt.id}
+                                      key={receipt.id || index}
                                       store={receipt.storeName} 
                                       category={receipt.extractedData?.receiver || 'ทั่วไป'} 
                                       amount={(receipt.totalAmount || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} 
