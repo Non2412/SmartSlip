@@ -4,15 +4,19 @@
  */
 
 export interface Receipt {
-  id: string;
+  _id?: string;
+  id?: string;
   storeName: string;
-  totalAmount: number;
+  amount?: number;
+  totalAmount?: number;
   userId: string;
   imageFileId?: string;
+  imageURL?: string;
   imageUrl?: string;
   source?: string;
   createdAt: string;
   updatedAt: string;
+  transactionId?: string;
   extractedData?: {
     date?: string;
     time?: string;

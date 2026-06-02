@@ -112,7 +112,7 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                     ))
                 ) : (
                     receipts.map((receipt, index) => (
-                        <tr key={receipt.id || index}>
+                        <tr key={receipt._id || receipt.id || index}>
                             <td className={styles.storeCell}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <div style={{
@@ -139,7 +139,7 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                                 </div>
                             </td>
                             <td>{receipt.extractedData?.category || 'ไม่ระบุ'}</td>
-                            <td className={styles.amountCell}>฿ {receipt.totalAmount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</td>
+                            <td className={styles.amountCell}>฿ {(receipt.amount !== undefined ? receipt.amount : receipt.totalAmount)?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</td>
                             <td>
                                 <span className={!receipt.extractedData ? styles.statusWarning : styles.statusSuccess}>
                                     {!receipt.extractedData ? 'รอตรวจสอบ' : 'สำเร็จ'}
@@ -173,7 +173,7 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
     const amountsByDay = [0, 0, 0, 0, 0, 0, 0];
     
     receipts.forEach(receipt => {
-        if (receipt.totalAmount) {
+        if ((receipt.amount !== undefined ? receipt.amount : receipt.totalAmount)) {
             const dateStr = receipt.extractedData?.date || receipt.createdAt;
             // Attempt to parse date, might need robust parsing if format is varied
             let date = new Date(dateStr);
@@ -184,7 +184,7 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
             let dayIndex = date.getDay() - 1;
             if (dayIndex === -1) dayIndex = 6;
             
-            amountsByDay[dayIndex] += receipt.totalAmount;
+            amountsByDay[dayIndex] += (receipt.amount !== undefined ? receipt.amount : receipt.totalAmount);
         }
     });
 
@@ -250,11 +250,11 @@ export const RecentUploads = ({
                     </div>
                 ) : (
                     recentReceipts.map((receipt, index) => {
-                        const imageData = receipt.extractedData?.imageData;
-                        const isMenuOpen = openMenuId === receipt.id;
+                        const imageData = receipt.extractedData?.imageData || ((receipt.imageURL || receipt.imageUrl) ? ((receipt.imageURL || receipt.imageUrl).includes('storage.googleapis.com') ? '/api/gcs-image?url=' + encodeURIComponent((receipt.imageURL || receipt.imageUrl)) : (receipt.imageURL || receipt.imageUrl)) : null);
+                        const isMenuOpen = openMenuId === (receipt._id || receipt.id || '');
                         return (
                             <div
-                                key={receipt.id || index}
+                                key={receipt._id || receipt.id || index}
                                 className={styles.uploadItem}
                                 onClick={() => onReceiptClick?.(receipt)}
                                 style={{ cursor: onReceiptClick ? 'pointer' : 'default', transition: 'background 0.15s', position: 'relative' }}
@@ -274,7 +274,7 @@ export const RecentUploads = ({
                                 <div className={styles.uploadInfo}>
                                     <div className={styles.uploadName}>{receipt.storeName || 'ไม่ระบุร้านค้า'}</div>
                                     <div className={styles.uploadDate}>
-                                        {new Date(receipt.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} • {receipt.totalAmount ? `฿${receipt.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}` : '—'}
+                                        {new Date(receipt.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} • {(receipt.amount !== undefined ? receipt.amount : receipt.totalAmount) ? `฿${(receipt.amount !== undefined ? receipt.amount : receipt.totalAmount).toLocaleString('th-TH', { minimumFractionDigits: 2 })}` : '—'}
                                     </div>
                                 </div>
 
@@ -283,7 +283,7 @@ export const RecentUploads = ({
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            setOpenMenuId(isMenuOpen ? null : receipt.id);
+                                            setOpenMenuId(isMenuOpen ? null : (receipt._id || receipt.id || ''));
                                         }}
                                         style={{
                                             width: '28px', height: '28px', borderRadius: '6px',

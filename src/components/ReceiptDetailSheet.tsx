@@ -98,7 +98,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                     id: '1',
                     description: receipt.storeName || '',
                     quantity: 1,
-                    unitPrice: receipt.totalAmount || 0,
+                    unitPrice: (receipt.amount !== undefined ? receipt.amount : receipt.totalAmount) || 0,
                 }]);
             }
         }
@@ -130,7 +130,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
         setErrorMsg(null);
         try {
             const grandTotal = calcTotal();
-            const result = await updateReceipt(receipt.id, {
+            const result = await updateReceipt(receipt._id || receipt.id || '', {
                 storeName: store,
                 totalAmount: grandTotal,
                 extractedData: {
@@ -164,7 +164,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
         }
     };
 
-    const imageData = receipt?.extractedData?.imageData || receipt?.imageUrl || null;
+    const getImageUrl = (url?: string) => { if (!url) return ''; if (url.includes('storage.googleapis.com')) { return '/api/gcs-image?url=' + encodeURIComponent(url); } return url; }; const imageData = receipt?.extractedData?.imageData || getImageUrl(receipt?.imageURL || receipt?.imageUrl) || null;
 
     return (
         <>

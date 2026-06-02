@@ -47,16 +47,17 @@ export default function LineReceiptsPage() {
   }, [session, fetchReceipts]);
 
   // Update unread count in localStorage whenever receipts or viewedIds change
-  const allImageReceipts = receipts.filter(r => r.extractedData?.imageData || r.imageUrl);
+  const allImageReceipts = receipts.filter(r => r.extractedData?.imageData || r.imageURL || r.imageUrl);
   const lineReceipts = allImageReceipts.filter(r => {
-    if (filterTab === 'line') return r.source === 'line';
-    if (filterTab === 'web')  return r.source !== 'line';
+    const isLine = r.source === 'line' || r.transactionId?.startsWith('LINE-');
+    if (filterTab === 'line') return isLine;
+    if (filterTab === 'web')  return !isLine;
     return true;
   });
 
   useEffect(() => {
     if (lineReceipts.length === 0) return;
-    const unread = lineReceipts.filter(r => !viewedIds.has(r.id)).length;
+    const unread = lineReceipts.filter(r => !viewedIds.has(r._id || r.id || '')).length;
     localStorage.setItem('smartslip_unread_count', String(unread));
     window.dispatchEvent(new Event(UNREAD_EVENT));
   }, [lineReceipts, viewedIds]);
@@ -74,13 +75,13 @@ export default function LineReceiptsPage() {
   }, []);
 
   const handleReceiptClick = (receipt: Receipt) => {
-    markAsViewed(receipt.id);
+    markAsViewed(receipt._id || receipt.id || '');
     setSelectedReceipt(receipt);
   };
 
   const handleDeleteConfirmed = async () => {
     if (!deleteConfirm) return;
-    await deleteReceipt(deleteConfirm.id);
+    await deleteReceipt(deleteConfirm._id || deleteConfirm.id || '');
     setDeleteConfirm(null);
   };
 
@@ -208,10 +209,10 @@ export default function LineReceiptsPage() {
           ) : (
             <div className={styles.galleryGrid}>
               {lineReceipts.map((receipt, index) => {
-                const isNew = !viewedIds.has(receipt.id);
+                const isNew = !viewedIds.has(receipt._id || receipt.id || '');
                 return (
                   <div
-                    key={receipt.id || index}
+                    key={(receipt._id || receipt.id) || index}
                     className={styles.galleryCard}
                     onClick={() => handleReceiptClick(receipt)}
                     style={{ cursor: 'pointer', position: 'relative' }}
@@ -282,8 +283,8 @@ export default function LineReceiptsPage() {
                       </div>
                     </div>
                     <div className={styles.imageContainer}>
-                      {receipt.extractedData?.imageData || receipt.imageUrl ? (
-                        <img src={receipt.extractedData?.imageData || getImageUrl(receipt.imageUrl) || undefined} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
+                      {receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl ? (
+                        <img src={receipt.extractedData?.imageData || getImageUrl(receipt.imageURL || receipt.imageUrl) || undefined} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
                       ) : (
                         <div className={styles.noImage}>
                           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -304,7 +305,7 @@ export default function LineReceiptsPage() {
                           </span>
                         )}
                       </div>
-                      <div className={styles.amount}>฿ {receipt.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</div>
+                      <div className={styles.amount}>฿ {((receipt.amount !== undefined ? receipt.amount : receipt.totalAmount) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</div>
                       <div className={styles.date}>
                         {new Date(receipt.createdAt).toLocaleDateString('th-TH', {
                           year: 'numeric', month: 'short', day: 'numeric',
