@@ -26,8 +26,9 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
   const [category, setCategory] = useState('อาหาร');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [extractedReceiptId, setExtractedReceiptId] = useState<string | null>(null);
 
-  const { createReceipt } = useReceipts();
+  const { createReceipt, updateReceipt } = useReceipts();
 
   // Reset form when modal opens
   useEffect(() => {
@@ -36,6 +37,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
       setAmount('');
       setDate(new Date().toISOString().split('T')[0]);
       setError(null);
+      setExtractedReceiptId(null);
     }
   }, [isOpen]);
 
@@ -51,16 +53,24 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
     setIsSubmitting(true);
     setError(null);
 
-    const result = await createReceipt({
-      storeName,
-      totalAmount: parseFloat(amount),
-      userId,
-      extractedData: {
-        date,
-        method: paymentMethod,
-        receiver: category
-      }
-    });
+    const payload = {
+      date,
+      method: paymentMethod,
+      receiver: category
+    };
+
+    const result = extractedReceiptId
+      ? await updateReceipt(extractedReceiptId, {
+          storeName,
+          totalAmount: parseFloat(amount),
+          extractedData: payload
+        })
+      : await createReceipt({
+          storeName,
+          totalAmount: parseFloat(amount),
+          userId,
+          extractedData: payload
+        });
 
     setIsSubmitting(false);
 
@@ -74,6 +84,9 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
 
   const handleOCRSuccess = (data: any) => {
     // When OCR succeeds, populate manual fields and switch to manual tab for review
+    if ((data._id || data.id)) {
+      setExtractedReceiptId((data._id || data.id));
+    }
     setStoreName(data.payee || data.store || '');
     setAmount(data.amount?.toString() || '');
     if (data.date) {
