@@ -104,15 +104,28 @@ export const receiptApi = {
     body: JSON.stringify(data),
   }),
 
-  update: (id: string, data: { storeName?: string; totalAmount?: number; extractedData?: unknown }) =>
-    apiRequest<Receipt>(`/receipts?id=${id}`, {
+  update: (id: string, data: { storeName?: string; totalAmount?: number; extractedData?: unknown }) => {
+    const isVercel = API_BASE_URL.includes('smart-slip-api.vercel.app');
+    if (isVercel) {
+      return apiRequest<Receipt>(`/receipts/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+    }
+    return apiRequest<Receipt>(`/receipts?id=${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
-    }),
+    });
+  },
 
   // ลบใบเสร็จ
-  delete: (id: string) =>
-    apiRequest(`/receipts?id=${id}`, { method: 'DELETE' }),
+  delete: (id: string) => {
+    const isVercel = API_BASE_URL.includes('smart-slip-api.vercel.app');
+    if (isVercel) {
+      return apiRequest(`/receipts/${id}`, { method: 'DELETE' });
+    }
+    return apiRequest(`/receipts?id=${id}`, { method: 'DELETE' });
+  },
 
   // ประมวลผล OCR และอัปโหลดขึ้น Drive
   extract: (file: File, userId: string) => {
