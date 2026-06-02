@@ -58,7 +58,7 @@ export const useReceipts = (): UseReceiptsReturn => {
     try {
       const result = await receiptApi.update(id, data) as any;
       if (result.success && result.data) {
-        setReceipts(prev => prev.map(r => r.id === id ? (result.data as Receipt) : r));
+        setReceipts(prev => prev.map(r => r._id === id ? (result.data as Receipt) : r));
         return { success: true, data: result.data };
       } else {
         return { success: false, error: result.error || 'Failed to update receipt' };
@@ -72,7 +72,7 @@ export const useReceipts = (): UseReceiptsReturn => {
     try {
       const result = await receiptApi.delete(id) as any;
       if (result.success) {
-        setReceipts(prev => prev.filter(r => r.id !== id));
+        setReceipts(prev => prev.filter(r => r._id !== id));
         return { success: true };
       } else {
         return { success: false, error: result.error || 'Failed to delete receipt' };

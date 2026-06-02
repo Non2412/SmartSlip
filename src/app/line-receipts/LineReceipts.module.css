@@ -128,6 +128,32 @@
   color: #94a3b8;
 }
 
+@media (max-width: 768px) {
+  .galleryGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .imageContainer {
+    height: 130px;
+  }
+
+  .cardDetails {
+    padding: 10px 12px;
+  }
+
+  .storeName {
+    font-size: 0.8rem;
+  }
+
+  .amount {
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+  }
+
+  .date {
+    font-size: 0.7rem;
+  }
 /* No-image placeholder */
 .noImage {
   display: flex;

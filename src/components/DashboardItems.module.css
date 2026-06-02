@@ -316,25 +316,55 @@
     display: inline-block;
 }
 
+/* Mobile dropdowns — hidden on desktop */
+.mobileDropdowns {
+    display: none;
+}
+
+.mobileSelect {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    color: #1e293b;
+    font-size: 0.9rem;
+    font-weight: 600;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+    cursor: pointer;
+    outline: none;
+}
+
+/* Desktop only — chips visible */
+.desktopOnly {
+    display: flex;
+}
+
 @media (max-width: 768px) {
     .filterBar {
         flex-direction: column;
         align-items: stretch;
-        gap: 16px;
+        gap: 12px;
     }
-    
+
     .searchWrapper {
         min-width: 100%;
     }
-    
-    .filterGroup {
-        flex-direction: column;
-        align-items: flex-start;
+
+    /* Hide chip groups on mobile */
+    .desktopOnly {
+        display: none !important;
     }
-    
-    .filterChips {
+
+    /* Show dropdowns on mobile */
+    .mobileDropdowns {
+        display: flex;
+        gap: 10px;
         width: 100%;
-        overflow-x: auto;
-        white-space: nowrap;
     }
 }
