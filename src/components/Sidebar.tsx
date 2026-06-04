@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -67,6 +67,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
         <ul className={styles.navList}>
           <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="รายการใบเสร็จ" icon={<ListIcon />} />
           <SidebarItem href="/line-receipts" active={pathname === '/line-receipts'} label="รูปภาพจาก LINE" icon={<ImageIcon />} badge={unreadCount} />
+          <SidebarItem href="/export" active={pathname === '/export'} label="ส่งออกข้อมูล" icon={<ExportIcon />} />
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} onClick={onAddReceipt} />
         </ul>
 
@@ -227,6 +228,16 @@ function UserIcon() {
 
 function ImageIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>;
+}
+
+function ExportIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  );
 }
 
 export default Sidebar;
