@@ -58,9 +58,9 @@ const TopBar = ({
                         {isSearchOpen ? <CloseIcon /> : <SearchIcon />}
                     </button>
 
-                    <button className={styles.iconButton}>
+                    <Link href="/notification" className={styles.iconButton} title="การแจ้งเตือน">
                         <BellIcon />
-                    </button>
+                    </Link>
 
                     <Link
                         href="/export"
