@@ -222,7 +222,7 @@ export default function ExportPage() {
     const csvRows = [headers.join(',')];
 
     filteredItems.forEach(item => {
-      const statusLabel = item.status === 'Approved' ? 'Approved' : 'Pending';
+      const statusLabel = item.status === 'Approved' ? 'อนุมัติแล้ว' : 'รอตรวจสอบ';
       const row = [
         `"${item.invoiceNo}"`,
         `"${item.storeName.replace(/"/g, '""')}"`,
@@ -418,7 +418,7 @@ export default function ExportPage() {
                           </td>
                           <td>
                             <span className={item.status === 'Approved' ? styles.statusBadgeApproved : styles.statusBadgePending}>
-                              {item.status === 'Approved' ? 'Approved' : 'Pending'}
+                              {item.status === 'Approved' ? 'อนุมัติแล้ว' : 'รอตรวจสอบ'}
                             </span>
                           </td>
                         </tr>
