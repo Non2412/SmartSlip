@@ -64,7 +64,7 @@ export default function ExportPage() {
   const [endDate, setEndDate] = useState<Date | null>(getTodayLocalDate());
 
   // Filters
-  const [statusFilter, setStatusFilter] = useState<string>('Approved'); // Default 'Approved' (อนุมัติแล้ว) as in mockup
+  const [statusFilter, setStatusFilter] = useState<string>('ทั้งหมด'); // Default to 'ทั้งหมด' to prevent showing empty table immediately
   const [categoryFilter, setCategoryFilter] = useState<string>('ทั้งหมด');
   const [submitterFilter, setSubmitterFilter] = useState<string>('ทั้งหมด');
 
@@ -145,7 +145,14 @@ export default function ExportPage() {
       const status: 'Approved' | 'Pending' = isApproved ? 'Approved' : 'Pending';
       const category = r.extractedData?.category || 'ไม่ระบุ';
       const source = (r.source === 'line' || r.transactionId?.startsWith('LINE-')) ? 'LINE' : 'Web';
-      const dateStr = r.extractedData?.date ? new Date(r.extractedData.date).toISOString().split('T')[0] : new Date(r.createdAt).toISOString().split('T')[0];
+      let dateStr = '';
+      if (r.extractedData?.date && /^\d{4}-\d{2}-\d{2}$/.test(r.extractedData.date)) {
+        dateStr = r.extractedData.date;
+      } else if (r.extractedData?.date) {
+        dateStr = formatDateToYYYYMMDD(new Date(r.extractedData.date));
+      } else {
+        dateStr = formatDateToYYYYMMDD(new Date(r.createdAt));
+      }
 
       return {
         id: r._id || r.id || `real-${idx}`,
@@ -193,16 +200,19 @@ export default function ExportPage() {
 
       // Date Range Filter
       if (startDate || endDate) {
-        const itemTime = new Date(item.date).getTime();
-        
-        if (startDate) {
-          const sTime = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime();
-          if (itemTime < sTime) return false;
-        }
+        const itemDateObj = parseLocalYYYYMMDD(item.date);
+        if (itemDateObj) {
+          const itemTime = itemDateObj.getTime();
+          
+          if (startDate) {
+            const sTime = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime();
+            if (itemTime < sTime) return false;
+          }
 
-        if (endDate) {
-          const eTime = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()).getTime();
-          if (itemTime > eTime) return false;
+          if (endDate) {
+            const eTime = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()).getTime();
+            if (itemTime > eTime) return false;
+          }
         }
       }
 
@@ -222,7 +232,7 @@ export default function ExportPage() {
     const csvRows = [headers.join(',')];
 
     filteredItems.forEach(item => {
-      const statusLabel = item.status === 'Approved' ? 'Approved' : 'Pending';
+      const statusLabel = item.status === 'Approved' ? 'อนุมัติแล้ว' : 'รอตรวจสอบ';
       const row = [
         `"${item.invoiceNo}"`,
         `"${item.storeName.replace(/"/g, '""')}"`,
@@ -418,7 +428,7 @@ export default function ExportPage() {
                           </td>
                           <td>
                             <span className={item.status === 'Approved' ? styles.statusBadgeApproved : styles.statusBadgePending}>
-                              {item.status === 'Approved' ? 'Approved' : 'Pending'}
+                              {item.status === 'Approved' ? 'อนุมัติแล้ว' : 'รอตรวจสอบ'}
                             </span>
                           </td>
                         </tr>

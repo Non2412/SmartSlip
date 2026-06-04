@@ -31,6 +31,23 @@ export default function DashboardPage() {
     }
   }, [session, fetchReceipts]);
 
+  // Auto-open receipt detail sheet if openReceiptId is present in URL
+  useEffect(() => {
+    if (typeof window !== 'undefined' && receipts.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const openReceiptId = params.get('openReceiptId');
+      if (openReceiptId) {
+        const matched = receipts.find(r => (r._id || r.id) === openReceiptId);
+        if (matched) {
+          setSelectedReceipt(matched);
+          // Clean the query parameter from URL to avoid reopening on reload
+          const newUrl = window.location.pathname;
+          window.history.replaceState({ path: newUrl }, '', newUrl);
+        }
+      }
+    }
+  }, [receipts]);
+
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [pathname]);
