@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
+import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
 import styles from './LineReceipts.module.css';
@@ -27,6 +28,7 @@ function saveViewedIds(ids: Set<string>) {
 export default function LineReceiptsPage() {
   const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<any | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
@@ -89,13 +91,14 @@ export default function LineReceiptsPage() {
         onClick={closeSidebar}
       />
 
-      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
+      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} onAddReceipt={() => setIsCreateSheetOpen(true)} />
 
       <main className="main-content">
         <TopBar
           title="แกลเลอรีรูปใบเสร็จจาก LINE"
           mobileTitle="แกลเลอรี"
           onToggleSidebar={toggleSidebar}
+          onCreateNew={() => setIsCreateSheetOpen(true)}
         />
 
         <div className="page-container">
@@ -322,6 +325,16 @@ export default function LineReceiptsPage() {
           </div>
         </div>
       )}
+
+      <CreateReceiptSheet
+        isOpen={isCreateSheetOpen}
+        onClose={() => setIsCreateSheetOpen(false)}
+        onSuccess={() => {
+          if (session?.user?.id) fetchReceipts(session.user.id);
+          setIsCreateSheetOpen(false);
+        }}
+        userId={session?.user?.id}
+      />
 
       {/* ── Receipt Detail Sheet ── */}
       <ReceiptDetailSheet

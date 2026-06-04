@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
 
 const shimmerKeyframes = `
@@ -97,6 +98,9 @@ interface VerificationLineItem {
 }
 
 const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceiptSheetProps) => {
+    const { data: session } = useSession();
+    const user = session?.user;
+    const displayName = (session as any)?.lineUserName || user?.name || 'ผู้ใช้';
     const [isMobile, setIsMobile] = useState(false);
     useEffect(() => {
         const mq = window.matchMedia('(max-width: 767px)');
@@ -1119,12 +1123,8 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                     <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' }}>รายจ่ายสำหรับ</p>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <span style={{ fontSize: '1rem', fontWeight: '900', color: '#1e293b' }}>นพนนท์ เกษอินทร์</span>
-                                            <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Nobphanan Katain</span>
+                                            <span style={{ fontSize: '1rem', fontWeight: '900', color: '#1e293b' }}>{displayName}</span>
                                         </div>
-                                        <button style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', background: 'white', fontSize: '0.8rem', fontWeight: '600', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> เปลี่ยนธุรกิจ
-                                        </button>
                                     </div>
                                 </div>
 

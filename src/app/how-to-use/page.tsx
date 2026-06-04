@@ -98,9 +98,10 @@ export default function HowToUsePage() {
             />
 
             <main className="main-content">
-                <TopBar 
-                    title="วิธีการใช้งาน" 
+                <TopBar
+                    title="วิธีการใช้งาน"
                     onToggleSidebar={toggleSidebar}
+                    onCreateNew={handleCreateNew}
                 />
 
 
