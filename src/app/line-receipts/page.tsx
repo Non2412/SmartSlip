@@ -28,9 +28,8 @@ function saveViewedIds(ids: Set<string>) {
 export default function LineReceiptsPage() {
   const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
-  const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<any | null>(null);
+  const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Receipt | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
   const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web'>('all');
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
@@ -46,16 +45,18 @@ export default function LineReceiptsPage() {
     }
   }, [session, fetchReceipts]);
 
-  const allImageReceipts = receipts.filter(r => r.extractedData?.imageData || r.imageUrl);
+  // Update unread count in localStorage whenever receipts or viewedIds change
+  const allImageReceipts = receipts.filter(r => r.extractedData?.imageData || r.imageURL || r.imageUrl);
   const lineReceipts = allImageReceipts.filter(r => {
-    if (filterTab === 'line') return r.source === 'line';
-    if (filterTab === 'web')  return r.source !== 'line';
+    const isLine = r.source === 'line' || r.transactionId?.startsWith('LINE-');
+    if (filterTab === 'line') return isLine;
+    if (filterTab === 'web')  return !isLine;
     return true;
   });
 
   useEffect(() => {
     if (lineReceipts.length === 0) return;
-    const unread = lineReceipts.filter(r => !viewedIds.has(r.id)).length;
+    const unread = lineReceipts.filter(r => !viewedIds.has(r._id || r.id || '')).length;
     localStorage.setItem('smartslip_unread_count', String(unread));
     window.dispatchEvent(new Event(UNREAD_EVENT));
   }, [lineReceipts, viewedIds]);
@@ -72,15 +73,24 @@ export default function LineReceiptsPage() {
     });
   }, []);
 
-  const handleReceiptClick = (receipt: any) => {
-    markAsViewed(receipt.id);
+  const handleReceiptClick = (receipt: Receipt) => {
+    markAsViewed(receipt._id || receipt.id || '');
     setSelectedReceipt(receipt);
   };
 
   const handleDeleteConfirmed = async () => {
     if (!deleteConfirm) return;
-    await deleteReceipt(deleteConfirm.id);
+    await deleteReceipt(deleteConfirm._id || deleteConfirm.id || '');
     setDeleteConfirm(null);
+  };
+
+  // Proxy GCS images through local API to bypass public access restrictions
+  const getImageUrl = (url?: string) => {
+    if (!url) return '';
+    if (url.includes('storage.googleapis.com')) {
+      return `/api/gcs-image?url=${encodeURIComponent(url)}`;
+    }
+    return url;
   };
 
   return (
@@ -198,11 +208,11 @@ export default function LineReceiptsPage() {
             </div>
           ) : (
             <div className={styles.galleryGrid}>
-              {lineReceipts.map(receipt => {
-                const isNew = !viewedIds.has(receipt.id);
+              {lineReceipts.map((receipt, index) => {
+                const isNew = !viewedIds.has(receipt._id || receipt.id || '');
                 return (
                   <div
-                    key={receipt.id}
+                    key={(receipt._id || receipt.id) || index}
                     className={styles.galleryCard}
                     onClick={() => handleReceiptClick(receipt)}
                     style={{ cursor: 'pointer', position: 'relative' }}
@@ -270,10 +280,19 @@ export default function LineReceiptsPage() {
                         </div>
                       </div>
                     </div>
-
                     <div className={styles.imageContainer}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={receipt.extractedData?.imageData || receipt.imageUrl} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
+                      {receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl ? (
+                        <img src={receipt.extractedData?.imageData || getImageUrl(receipt.imageURL || receipt.imageUrl) || undefined} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
+                      ) : (
+                        <div className={styles.noImage}>
+                          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                          </svg>
+                          <span>ไม่มีรูปภาพ</span>
+                        </div>
+                      )}
                     </div>
                     <div className={styles.cardDetails}>
                       <div className={styles.storeName} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -284,7 +303,7 @@ export default function LineReceiptsPage() {
                           </span>
                         )}
                       </div>
-                      <div className={styles.amount}>฿ {receipt.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</div>
+                      <div className={styles.amount}>฿ {((receipt.amount !== undefined ? receipt.amount : receipt.totalAmount) || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</div>
                       <div className={styles.date}>
                         {new Date(receipt.createdAt).toLocaleDateString('th-TH', {
                           year: 'numeric', month: 'short', day: 'numeric',
@@ -300,6 +319,7 @@ export default function LineReceiptsPage() {
         </div>
       </main>
 
+      {/* ── Delete Confirmation Dialog ── */}
       {deleteConfirm && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 2000,
@@ -322,16 +342,7 @@ export default function LineReceiptsPage() {
         </div>
       )}
 
-      <CreateReceiptSheet
-        isOpen={isCreateSheetOpen}
-        onClose={() => setIsCreateSheetOpen(false)}
-        onSuccess={() => {
-          if (session?.user?.id) fetchReceipts(session.user.id);
-          setIsCreateSheetOpen(false);
-        }}
-        userId={session?.user?.id}
-      />
-
+      {/* ── Receipt Detail Sheet ── */}
       <ReceiptDetailSheet
         isOpen={!!selectedReceipt}
         receipt={selectedReceipt}

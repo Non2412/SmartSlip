@@ -18,8 +18,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Decode base64 to buffer
-    let imageBuffer: Buffer;
     let mimeType = 'image/jpeg';
     let extension = 'jpg';
 
@@ -34,7 +32,7 @@ export async function POST(request: Request) {
       }
     }
 
-    imageBuffer = Buffer.from(base64Data, 'base64');
+    const imageBuffer = Buffer.from(base64Data, 'base64');
 
     // Generate unique filename
     const timestamp = Date.now();

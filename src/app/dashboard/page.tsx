@@ -32,7 +32,6 @@ export default function DashboardPage() {
   }, [session, fetchReceipts]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsSidebarOpen(false);
   }, [pathname]);
 
@@ -44,12 +43,12 @@ export default function DashboardPage() {
 
   const handleDeleteConfirmed = async () => {
     if (!deleteConfirm) return;
-    await deleteReceipt(deleteConfirm.id);
+    await deleteReceipt(deleteConfirm._id || deleteConfirm.id);
     setDeleteConfirm(null);
   };
 
   // คำนวณสถิติจริง
-  const totalAmount = receipts.reduce((acc, r) => acc + (r.totalAmount || 0), 0);
+  const totalAmount = receipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0);
   const pendingCount = receipts.filter(r => !r.extractedData).length;
   const approvedCount = receipts.filter(r => r.extractedData).length;
 

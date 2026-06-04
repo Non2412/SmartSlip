@@ -118,10 +118,11 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [creationMethod, setCreationMethod] = useState<CreationMethod>('manual');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const { createReceipt, extractFromImage } = useReceipts();
+    const { createReceipt, updateReceipt, extractFromImage } = useReceipts();
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    const [extractedReceiptId, setExtractedReceiptId] = useState<string | null>(null);
 
     // Simple form states (manual entry)
     const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>('paid');
@@ -178,7 +179,8 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         if (/^\d{4}-\d{2}-\d{2}$/.test(dateText)) return dateText;
         const slashMatch = dateText.match(/^(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})$/);
         if (slashMatch) {
-            let [, day, month, year] = slashMatch;
+            const [, day, month] = slashMatch;
+            let year = slashMatch[3];
             if (year.length === 2) year = `20${year}`;
             return `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
         }
@@ -255,6 +257,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 setVerItems([]);
                 setVerDiscount(0);
                 setVerVat(0);
+                setExtractedReceiptId(null);
             }, 400);
         }
     }, [isOpen]);
@@ -303,6 +306,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         try {
             const result = await extractFromImage(fileToProcess, userId ?? '') as any;
             if (result) {
+                if (result.id) {
+                    setExtractedReceiptId(result.id);
+                }
                 // ── Shared OCR values ──
                 const ocrStore    = result.store || result.vendor || '';
                 const ocrDate     = formatInputDate(result.date) || new Date().toISOString().split('T')[0];
@@ -394,9 +400,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ imageBase64: image, userId: userId ?? '' })
                     });
-                    const uploadData = await uploadRes.json();
-                    if (uploadData.success && uploadData.data?.imageUrl) {
-                        finalImageUrl = uploadData.data.imageUrl;
+                    const uploadResData = await uploadRes.json();
+                    if (uploadResData.success && uploadResData.data?.imageUrl) {
+                        finalImageUrl = uploadResData.data.imageUrl;
                     }
                 } catch (e) {
                     console.error("Upload failed", e);
@@ -404,29 +410,38 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
             }
 
             const grandTotal = calcVerTotal();
-            const result = await createReceipt({
-                userId: userId ?? '',
-                storeName: verStore,
-                totalAmount: grandTotal,
-                extractedData: {
-                    date: verDate,
-                    time: verTime,
-                    paymentStatus: 'paid',
-                    paymentMethod: verPaymentMethod,
-                    category: verCategory,
-                    currency: verCurrency,
-                    vendorTaxId: verTaxId,
-                    notes: `หมวดหมู่: ${verCategory}`,
-                    imageData: finalImageUrl,
-                    items: verItems,
-                    summary: {
-                        subtotal: calcVerSubtotal(),
-                        discount: verDiscount,
-                        vat: verVat,
-                        total: grandTotal,
-                    },
+            const payload = {
+                date: verDate,
+                time: verTime,
+                paymentStatus: 'paid',
+                paymentMethod: verPaymentMethod,
+                category: verCategory,
+                currency: verCurrency,
+                vendorTaxId: verTaxId,
+                notes: `หมวดหมู่: ${verCategory}`,
+                imageData: finalImageUrl,
+                items: verItems,
+                summary: {
+                    subtotal: calcVerSubtotal(),
+                    discount: verDiscount,
+                    vat: verVat,
+                    total: grandTotal,
                 },
-            }) as any;
+            };
+
+            const result = extractedReceiptId
+                ? await updateReceipt(extractedReceiptId, {
+                    storeName: verStore,
+                    totalAmount: grandTotal,
+                    extractedData: payload
+                  })
+                : await createReceipt({
+                    userId: userId ?? '',
+                    storeName: verStore,
+                    totalAmount: grandTotal,
+                    extractedData: payload,
+                  }) as any;
+
             if (result?.success) {
                 if (onSuccess) onSuccess();
                 onClose();
@@ -457,9 +472,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ imageBase64: image, userId: userId ?? '' })
                     });
-                    const uploadData = await uploadRes.json();
-                    if (uploadData.success && uploadData.data?.imageUrl) {
-                        finalImageUrl = uploadData.data.imageUrl;
+                    const uploadResData = await uploadRes.json();
+                    if (uploadResData.success && uploadResData.data?.imageUrl) {
+                        finalImageUrl = uploadResData.data.imageUrl;
                     }
                 } catch (e) {
                     console.error("Upload failed", e);
@@ -468,29 +483,38 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
             const { subtotal, vat, wht, total } = calculateTotals();
             const finalTotal = parseFloat(amount) || total;
-            const result = await createReceipt({
-                userId: userId ?? '',
-                storeName: shopName,
-                totalAmount: finalTotal,
-                extractedData: {
-                    date,
-                    time: manualTime,
-                    paymentStatus,
-                    paymentMethod,
-                    category: mainCategory,
-                    approver,
-                    isTaxInvoice,
-                    taxInvoiceNo,
-                    notes,
-                    receiptNo,
-                    vendorTaxId,
-                    vendorAddress,
-                    currency,
-                    imageData: image,
-                    items: expenseItems,
-                    summary: { subtotal: parseFloat(amount) || subtotal, vat, wht, total: finalTotal }
-                }
-            }) as any;
+            const payload = {
+                date,
+                time: manualTime,
+                paymentStatus,
+                paymentMethod,
+                category: mainCategory,
+                approver,
+                isTaxInvoice,
+                taxInvoiceNo,
+                notes,
+                receiptNo,
+                vendorTaxId,
+                vendorAddress,
+                currency,
+                imageData: image,
+                items: expenseItems,
+                summary: { subtotal: parseFloat(amount) || subtotal, vat, wht, total: finalTotal }
+            };
+
+            const result = extractedReceiptId
+                ? await updateReceipt(extractedReceiptId, {
+                    storeName: shopName,
+                    totalAmount: finalTotal,
+                    extractedData: payload
+                  })
+                : await createReceipt({
+                    userId: userId ?? '',
+                    storeName: shopName,
+                    totalAmount: finalTotal,
+                    extractedData: payload
+                  }) as any;
+
             if (result?.success) {
                 if (onSuccess) onSuccess();
                 onClose();

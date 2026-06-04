@@ -37,8 +37,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, source: 'local', data: ocrResult.data });
     } catch (localError: any) {
       console.warn('Local OCR service unavailable:', localError?.message || localError);
-    } catch (localError) {
-      console.warn('Local OCR service unavailable:', localError instanceof Error ? localError.message : localError);
     }
 
     if (!disableDocumentAi && hasDocumentAiConfig) {
