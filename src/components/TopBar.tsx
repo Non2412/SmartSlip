@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
+import { useReceipts } from '@/hooks/useReceipts';
 import styles from './TopBar.module.css';
 
 const TopBar = ({
@@ -16,6 +18,17 @@ const TopBar = ({
     onToggleSidebar?: () => void
 }) => {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const { data: session } = useSession();
+    const { receipts, fetchReceipts } = useReceipts();
+
+    useEffect(() => {
+        if (session?.user?.id) {
+            const lineUserId = (session as any)?.lineUserId as string | undefined;
+            fetchReceipts(session.user.id, lineUserId);
+        }
+    }, [session, fetchReceipts]);
+
+    const pendingCount = receipts.filter(r => !r.extractedData).length;
 
     return (
         <>
@@ -60,6 +73,9 @@ const TopBar = ({
 
                     <Link href="/notification" className={styles.iconButton} title="การแจ้งเตือน">
                         <BellIcon />
+                        {pendingCount > 0 && (
+                            <span className={styles.notificationBadge}>{pendingCount}</span>
+                        )}
                     </Link>
 
                     <Link
