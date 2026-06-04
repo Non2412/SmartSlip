@@ -37,9 +37,31 @@ export default function ExportPage() {
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
 
-  // Default range: July 2, 2024 to August 7, 2024 (matching mockup image)
-  const [startDate, setStartDate] = useState<Date | null>(new Date('2024-07-02'));
-  const [endDate, setEndDate] = useState<Date | null>(new Date('2024-08-07'));
+  // Helper to format Date to local YYYY-MM-DD
+  const formatDateToYYYYMMDD = (date: Date | null) => {
+    if (!date) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  // Helper to parse local YYYY-MM-DD string to Date object
+  const parseLocalYYYYMMDD = (val: string) => {
+    if (!val) return null;
+    const [y, m, d] = val.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+  // Helper to get today's local date (at midnight)
+  const getTodayLocalDate = () => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  };
+
+  // Default range: Initialized to today's local date
+  const [startDate, setStartDate] = useState<Date | null>(getTodayLocalDate());
+  const [endDate, setEndDate] = useState<Date | null>(getTodayLocalDate());
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('Approved'); // Default 'Approved' (อนุมัติแล้ว) as in mockup
@@ -250,93 +272,113 @@ export default function ExportPage() {
           </div>
 
           <div className={styles.formContainer}>
-            {/* Filter Section */}
-            <div className={styles.card}>
-              <h2 className={styles.sectionHeader}>ตัวเลือกการกรอง</h2>
+            <div className={styles.topConfigsRow}>
+              {/* Filter Section */}
+              <div className={styles.card}>
+                <h2 className={styles.sectionHeader}>ตัวเลือกการกรอง</h2>
 
-              {/* Date Input Range */}
-              <div className={styles.dateRangeRow}>
-                <div className={styles.dateCol}>
-                  <label className={styles.inputLabel}>วันที่เริ่มต้น</label>
-                  <input
-                    type="date"
-                    className={styles.dateInput}
-                    value={startDate ? startDate.toISOString().split('T')[0] : ''}
-                    onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : null)}
-                  />
+                 {/* Date Input Range */}
+                <div className={styles.dateRangeRow}>
+                  <div className={styles.dateCol}>
+                    <label className={styles.inputLabel}>วันที่เริ่มต้น</label>
+                    <input
+                      type="date"
+                      className={styles.dateInput}
+                      value={formatDateToYYYYMMDD(startDate)}
+                      onChange={(e) => setStartDate(parseLocalYYYYMMDD(e.target.value))}
+                    />
+                  </div>
+                  <div className={styles.dateCol}>
+                    <label className={styles.inputLabel}>วันที่สิ้นสุด</label>
+                    <input
+                      type="date"
+                      className={styles.dateInput}
+                      value={formatDateToYYYYMMDD(endDate)}
+                      onChange={(e) => setEndDate(parseLocalYYYYMMDD(e.target.value))}
+                    />
+                  </div>
                 </div>
-                <div className={styles.dateCol}>
-                  <label className={styles.inputLabel}>วันที่สิ้นสุด</label>
-                  <input
-                    type="date"
-                    className={styles.dateInput}
-                    value={endDate ? endDate.toISOString().split('T')[0] : ''}
-                    onChange={(e) => setEndDate(e.target.value ? new Date(e.target.value) : null)}
-                  />
+
+                {/* Selector Inputs */}
+                <div className={styles.selectRowGrid}>
+                  <div className={styles.selectCol}>
+                    <label className={styles.inputLabel}>สถานะ</label>
+                    <select
+                      className={styles.dropdownInput}
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                      <option value="ทั้งหมด">ทั้งหมด</option>
+                      <option value="Approved">อนุมัติแล้ว</option>
+                      <option value="Pending">รอตรวจสอบ</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.selectCol}>
+                    <label className={styles.inputLabel}>หมวดหมู่</label>
+                    <select
+                      className={styles.dropdownInput}
+                      value={categoryFilter}
+                      onChange={(e) => setCategoryFilter(e.target.value)}
+                    >
+                      {categoriesList.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className={styles.selectCol}>
+                    <label className={styles.inputLabel}>ผู้ส่ง</label>
+                    <select
+                      className={styles.dropdownInput}
+                      value={submitterFilter}
+                      onChange={(e) => setSubmitterFilter(e.target.value)}
+                    >
+                      <option value="ทั้งหมด">ทั้งหมด</option>
+                      <option value="LINE">LINE</option>
+                      <option value="Web">เว็บ</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              {/* Selector Inputs */}
-              <div className={styles.selectRowGrid}>
-                <div className={styles.selectCol}>
-                  <label className={styles.inputLabel}>สถานะ</label>
-                  <select
-                    className={styles.dropdownInput}
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+              {/* File Format & Actions Selection Card */}
+              <div className={`${styles.card} ${styles.formatCard}`}>
+                <h2 className={styles.sectionHeader}>เลือกรูปแบบไฟล์</h2>
+                <div className={styles.formatSegmentControl}>
+                  <button
+                    type="button"
+                    onClick={() => setFileFormat('excel')}
+                    className={`${styles.formatBtn} ${fileFormat === 'excel' ? styles.formatBtnActive : ''}`}
                   >
-                    <option value="ทั้งหมด">ทั้งหมด</option>
-                    <option value="Approved">อนุมัติแล้ว</option>
-                    <option value="Pending">รอตรวจสอบ</option>
-                  </select>
+                    Excel (.xlsx)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFileFormat('csv')}
+                    className={`${styles.formatBtn} ${fileFormat === 'csv' ? styles.formatBtnActive : ''}`}
+                  >
+                    CSV (.csv)
+                  </button>
                 </div>
 
-                <div className={styles.selectCol}>
-                  <label className={styles.inputLabel}>หมวดหมู่</label>
-                  <select
-                    className={styles.dropdownInput}
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
+                {/* Actions Row at the bottom of the card */}
+                <div className={styles.actionsBarInside}>
+                  <button
+                    type="button"
+                    onClick={handleClearFilters}
+                    className={styles.clearBtn}
                   >
-                    {categoriesList.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className={styles.selectCol}>
-                  <label className={styles.inputLabel}>ผู้ส่ง</label>
-                  <select
-                    className={styles.dropdownInput}
-                    value={submitterFilter}
-                    onChange={(e) => setSubmitterFilter(e.target.value)}
+                    ล้างค่า
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportDownload}
+                    className={styles.downloadBtn}
                   >
-                    <option value="ทั้งหมด">ทั้งหมด</option>
-                    <option value="LINE">LINE</option>
-                    <option value="Web">เว็บ</option>
-                  </select>
+                    สร้างและดาวน์โหลด
+                  </button>
                 </div>
-              </div>
-            </div>
-
-            {/* File Format Selection */}
-            <div className={styles.card}>
-              <h2 className={styles.sectionHeader}>เลือกรูปแบบไฟล์</h2>
-              <div className={styles.formatSegmentControl}>
-                <button
-                  type="button"
-                  onClick={() => setFileFormat('excel')}
-                  className={`${styles.formatBtn} ${fileFormat === 'excel' ? styles.formatBtnActive : ''}`}
-                >
-                  Excel (.xlsx)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFileFormat('csv')}
-                  className={`${styles.formatBtn} ${fileFormat === 'csv' ? styles.formatBtnActive : ''}`}
-                >
-                  CSV (.csv)
-                </button>
               </div>
             </div>
 
@@ -387,23 +429,7 @@ export default function ExportPage() {
               </div>
             </div>
 
-            {/* Actions Bar */}
-            <div className={styles.actionsBar}>
-              <button
-                type="button"
-                onClick={handleClearFilters}
-                className={styles.clearBtn}
-              >
-                ล้างค่า
-              </button>
-              <button
-                type="button"
-                onClick={handleExportDownload}
-                className={styles.downloadBtn}
-              >
-                สร้างและดาวน์โหลด
-              </button>
-            </div>
+
 
           </div>
         </div>
