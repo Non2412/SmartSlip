@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
+import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import { useReceipts } from '@/hooks/useReceipts';
 import styles from './Export.module.css';
 
@@ -24,6 +25,7 @@ export default function ExportPage() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const { receipts, fetchReceipts, loading } = useReceipts();
 
   // Load receipts on mount
@@ -266,13 +268,14 @@ export default function ExportPage() {
         onClick={closeSidebar}
       />
 
-      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
+      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} onAddReceipt={() => setIsCreateSheetOpen(true)} />
 
       <main className="main-content">
         <TopBar
           title="ส่งออกข้อมูล"
           mobileTitle="ส่งออก"
           onToggleSidebar={toggleSidebar}
+          onCreateNew={() => setIsCreateSheetOpen(true)}
         />
 
         <div className="page-container">
@@ -444,6 +447,16 @@ export default function ExportPage() {
           </div>
         </div>
       </main>
+
+      <CreateReceiptSheet
+        isOpen={isCreateSheetOpen}
+        onClose={() => setIsCreateSheetOpen(false)}
+        onSuccess={() => {
+          if (session?.user?.id) fetchReceipts(session.user.id);
+          setIsCreateSheetOpen(false);
+        }}
+        userId={session?.user?.id}
+      />
     </div>
   );
 }

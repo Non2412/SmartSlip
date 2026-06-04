@@ -28,6 +28,7 @@ function saveViewedIds(ids: Set<string>) {
 export default function LineReceiptsPage() {
   const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Receipt | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
@@ -341,6 +342,16 @@ export default function LineReceiptsPage() {
           </div>
         </div>
       )}
+
+      <CreateReceiptSheet
+        isOpen={isCreateSheetOpen}
+        onClose={() => setIsCreateSheetOpen(false)}
+        onSuccess={() => {
+          if (session?.user?.id) fetchReceipts(session.user.id);
+          setIsCreateSheetOpen(false);
+        }}
+        userId={session?.user?.id}
+      />
 
       {/* ── Receipt Detail Sheet ── */}
       <ReceiptDetailSheet
