@@ -392,7 +392,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     const uploadRes = await fetch('/api/upload', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ imageBase64: image })
+                        body: JSON.stringify({ imageBase64: image, userId: userId ?? '' })
                     });
                     const uploadData = await uploadRes.json();
                     if (uploadData.success && uploadData.data?.imageUrl) {
@@ -455,7 +455,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     const uploadRes = await fetch('/api/upload', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ imageBase64: image })
+                        body: JSON.stringify({ imageBase64: image, userId: userId ?? '' })
                     });
                     const uploadData = await uploadRes.json();
                     if (uploadData.success && uploadData.data?.imageUrl) {
