@@ -41,109 +41,14 @@ export default function ExportPage() {
   const [startDate, setStartDate] = useState<Date | null>(new Date('2024-07-02'));
   const [endDate, setEndDate] = useState<Date | null>(new Date('2024-08-07'));
 
-  // Calendar navigation state (starting display on July 2024)
-  const [currentYear, setCurrentYear] = useState(2024);
-  const [currentMonth, setCurrentMonth] = useState(6); // 0-indexed (6 is July)
-
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('Approved'); // Default 'Approved' (อนุมัติแล้ว) as in mockup
   const [categoryFilter, setCategoryFilter] = useState<string>('ทั้งหมด');
   const [submitterFilter, setSubmitterFilter] = useState<string>('ทั้งหมด');
 
   // Format selection
-  const [fileFormat, setFileFormat] = useState<'excel' | 'csv' | 'pdf'>('excel');
-
-  // Interactive Date Range Logic
-  const handleDateClick = (date: Date) => {
-    if (!startDate || (startDate && endDate)) {
-      setStartDate(date);
-      setEndDate(null);
-    } else if (startDate && !endDate) {
-      if (date < startDate) {
-        setStartDate(date);
-      } else {
-        setEndDate(date);
-      }
-    }
-  };
-
-  // Move calendar backwards
-  const prevMonths = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
-  };
-
-  // Move calendar forwards
-  const nextMonths = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
-  };
-
-  // Generate calendar days for a specific month/year
-  const getDaysInMonth = (year: number, month: number) => {
-    const date = new Date(year, month, 1);
-    const days = [];
-    const firstDayIndex = date.getDay(); // Day of week (0 = Sunday, 1 = Monday...)
-    const numDays = new Date(year, month + 1, 0).getDate();
-
-    // Padding for empty space before 1st of month
-    for (let i = 0; i < firstDayIndex; i++) {
-      days.push(null);
-    }
-
-    // Days in month
-    for (let d = 1; d <= numDays; d++) {
-      days.push(new Date(year, month, d));
-    }
-
-    return days;
-  };
-
-  // Left and Right month values
-  const leftYear = currentYear;
-  const leftMonth = currentMonth;
-
-  const rightYear = leftMonth === 11 ? leftYear + 1 : leftYear;
-  const rightMonth = leftMonth === 11 ? 0 : leftMonth + 1;
-
-  const leftMonthDays = useMemo(() => getDaysInMonth(leftYear, leftMonth), [leftYear, leftMonth]);
-  const rightMonthDays = useMemo(() => getDaysInMonth(rightYear, rightMonth), [rightYear, rightMonth]);
-
-  const monthNamesTh = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
-  // Helper check: is same day
-  const isSameDay = (d1: Date | null, d2: Date | null) => {
-    if (!d1 || !d2) return false;
-    return d1.getFullYear() === d2.getFullYear() &&
-           d1.getMonth() === d2.getMonth() &&
-           d1.getDate() === d2.getDate();
-  };
-
-  // Helper check: is in range
-  const isBetweenDates = (date: Date | null) => {
-    if (!date || !startDate || !endDate) return false;
-    // Set hours to 0 to compare purely by calendar day
-    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-    const s = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime();
-    const e = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()).getTime();
-    return d > s && d < e;
-  };
-
-  // Helper: check if date is start or end
-  const isEdgeDate = (date: Date | null) => {
-    return isSameDay(date, startDate) || isSameDay(date, endDate);
-  };
+  // Format selection
+  const [fileFormat, setFileFormat] = useState<'excel' | 'csv'>('excel');
 
   // Clear button action
   const handleClearFilters = () => {
@@ -290,40 +195,35 @@ export default function ExportPage() {
       return;
     }
 
-    if (fileFormat === 'excel' || fileFormat === 'csv') {
-      // Create CSV format
-      const headers = ['Invoice #', 'Store Name', 'Submission Date', 'Amount (THB)', 'Status', 'Category', 'Source'];
-      const csvRows = [headers.join(',')];
+    // Create CSV format
+    const headers = ['Invoice #', 'Store Name', 'Submission Date', 'Amount (THB)', 'Status', 'Category', 'Source'];
+    const csvRows = [headers.join(',')];
 
-      filteredItems.forEach(item => {
-        const statusLabel = item.status === 'Approved' ? 'Approved' : 'Pending';
-        const row = [
-          `"${item.invoiceNo}"`,
-          `"${item.storeName.replace(/"/g, '""')}"`,
-          `"${item.date}"`,
-          item.amount.toFixed(2),
-          `"${statusLabel}"`,
-          `"${item.category}"`,
-          `"${item.source}"`
-        ];
-        csvRows.push(row.join(','));
-      });
+    filteredItems.forEach(item => {
+      const statusLabel = item.status === 'Approved' ? 'Approved' : 'Pending';
+      const row = [
+        `"${item.invoiceNo}"`,
+        `"${item.storeName.replace(/"/g, '""')}"`,
+        `"${item.date}"`,
+        item.amount.toFixed(2),
+        `"${statusLabel}"`,
+        `"${item.category}"`,
+        `"${item.source}"`
+      ];
+      csvRows.push(row.join(','));
+    });
 
-      const csvContent = "\uFEFF" + csvRows.join('\n'); // Add UTF-8 BOM for Thai characters
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      const filename = `smartslip_export_${new Date().toISOString().split('T')[0]}.${fileFormat === 'excel' ? 'xls' : 'csv'}`;
-      
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else if (fileFormat === 'pdf') {
-      // Trigger browser printing for clean printout layout
-      window.print();
-    }
+    const csvContent = "\uFEFF" + csvRows.join('\n'); // Add UTF-8 BOM for Thai characters
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const filename = `smartslip_export_${new Date().toISOString().split('T')[0]}.${fileFormat === 'excel' ? 'xls' : 'csv'}`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -354,90 +254,25 @@ export default function ExportPage() {
             <div className={styles.card}>
               <h2 className={styles.sectionHeader}>ตัวเลือกการกรอง</h2>
 
-              {/* Date Range Calendar */}
-              <div className={styles.formGroup}>
-                <label className={styles.inputLabel}>ช่วงวันที่</label>
-                <div className={styles.calendarWidget}>
-                  
-                  {/* Calendar Header with navigation */}
-                  <div className={styles.calendarNavHeader}>
-                    <button type="button" onClick={prevMonths} className={styles.navBtn} title="ย้อนกลับ">
-                      &lt;
-                    </button>
-                    <span className={styles.monthDisplay}>
-                      {monthNamesTh[leftMonth]} {leftYear}
-                    </span>
-                    <span className={styles.monthDisplay}>
-                      {monthNamesTh[rightMonth]} {rightYear}
-                    </span>
-                    <button type="button" onClick={nextMonths} className={styles.navBtn} title="ถัดไป">
-                      &gt;
-                    </button>
-                  </div>
-
-                  {/* Dual Calendar View */}
-                  <div className={styles.dualCalendarContainer}>
-                    
-                    {/* Left Month */}
-                    <div className={styles.calendarMonth}>
-                      <div className={styles.dayNamesHeader}>
-                        <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
-                      </div>
-                      <div className={styles.daysGrid}>
-                        {leftMonthDays.map((date, idx) => {
-                          if (!date) return <div key={`empty-left-${idx}`} className={styles.emptyDay} />;
-                          
-                          const active = isEdgeDate(date);
-                          const between = isBetweenDates(date);
-                          const isStart = isSameDay(date, startDate);
-                          const isEnd = isSameDay(date, endDate);
-
-                          return (
-                            <button
-                              key={`left-${date.toISOString()}`}
-                              type="button"
-                              onClick={() => handleDateClick(date)}
-                              className={`${styles.dayBtn} ${active ? styles.activeDay : ''} ${between ? styles.betweenDay : ''} ${isStart ? styles.startDay : ''} ${isEnd ? styles.endDay : ''}`}
-                            >
-                              {date.getDate()}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Divider for responsiveness */}
-                    <div className={styles.calendarDivider} />
-
-                    {/* Right Month */}
-                    <div className={styles.calendarMonth}>
-                      <div className={styles.dayNamesHeader}>
-                        <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
-                      </div>
-                      <div className={styles.daysGrid}>
-                        {rightMonthDays.map((date, idx) => {
-                          if (!date) return <div key={`empty-right-${idx}`} className={styles.emptyDay} />;
-                          
-                          const active = isEdgeDate(date);
-                          const between = isBetweenDates(date);
-                          const isStart = isSameDay(date, startDate);
-                          const isEnd = isSameDay(date, endDate);
-
-                          return (
-                            <button
-                              key={`right-${date.toISOString()}`}
-                              type="button"
-                              onClick={() => handleDateClick(date)}
-                              className={`${styles.dayBtn} ${active ? styles.activeDay : ''} ${between ? styles.betweenDay : ''} ${isStart ? styles.startDay : ''} ${isEnd ? styles.endDay : ''}`}
-                            >
-                              {date.getDate()}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                  </div>
+              {/* Date Input Range */}
+              <div className={styles.dateRangeRow}>
+                <div className={styles.dateCol}>
+                  <label className={styles.inputLabel}>วันที่เริ่มต้น</label>
+                  <input
+                    type="date"
+                    className={styles.dateInput}
+                    value={startDate ? startDate.toISOString().split('T')[0] : ''}
+                    onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : null)}
+                  />
+                </div>
+                <div className={styles.dateCol}>
+                  <label className={styles.inputLabel}>วันที่สิ้นสุด</label>
+                  <input
+                    type="date"
+                    className={styles.dateInput}
+                    value={endDate ? endDate.toISOString().split('T')[0] : ''}
+                    onChange={(e) => setEndDate(e.target.value ? new Date(e.target.value) : null)}
+                  />
                 </div>
               </div>
 
@@ -501,13 +336,6 @@ export default function ExportPage() {
                   className={`${styles.formatBtn} ${fileFormat === 'csv' ? styles.formatBtnActive : ''}`}
                 >
                   CSV (.csv)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFileFormat('pdf')}
-                  className={`${styles.formatBtn} ${fileFormat === 'pdf' ? styles.formatBtnActive : ''}`}
-                >
-                  PDF (.pdf)
                 </button>
               </div>
             </div>
