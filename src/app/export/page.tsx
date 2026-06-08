@@ -26,6 +26,41 @@ export default function ExportPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { receipts, fetchReceipts, loading } = useReceipts();
 
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastDismissing, setToastDismissing] = useState(false);
+  const [showBlockedModal, setShowBlockedModal] = useState(false);
+
+  // Filter real pending receipts
+  const realPendingItems = useMemo(() => {
+    return receipts.filter(r => !r.extractedData);
+  }, [receipts]);
+
+  // Show notification if there are pending items upon receipts loading
+  useEffect(() => {
+    if (!loading && realPendingItems.length > 0) {
+      setToastVisible(true);
+      setToastDismissing(false);
+    }
+  }, [loading, realPendingItems]);
+
+  const handleCloseToast = () => {
+    setToastDismissing(true);
+    setTimeout(() => {
+      setToastVisible(false);
+      setToastDismissing(false);
+    }, 300);
+  };
+
+  // Auto-dismiss toast after 8 seconds
+  useEffect(() => {
+    if (toastVisible) {
+      const timer = setTimeout(() => {
+        handleCloseToast();
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastVisible]);
+
   // Load receipts on mount
   useEffect(() => {
     if (session?.user?.id) {
@@ -79,6 +114,11 @@ export default function ExportPage() {
     setStatusFilter('ทั้งหมด');
     setCategoryFilter('ทั้งหมด');
     setSubmitterFilter('ทั้งหมด');
+  };
+
+  const handleFilterPending = () => {
+    setStatusFilter('Pending');
+    handleCloseToast();
   };
 
   // Default mock data (matching exact invoice numbers and amounts in mockup)
@@ -220,8 +260,16 @@ export default function ExportPage() {
     });
   }, [allItems, startDate, endDate, statusFilter, categoryFilter, submitterFilter]);
 
+  const hasPendingItems = useMemo(() => {
+    return filteredItems.some(item => item.status === 'Pending');
+  }, [filteredItems]);
+
   // Export File Downloader Action
   const handleExportDownload = () => {
+    if (hasPendingItems) {
+      setShowBlockedModal(true);
+      return;
+    }
     if (filteredItems.length === 0) {
       alert("ไม่พบข้อมูลที่จะส่งออกในตัวกรองนี้");
       return;
@@ -260,6 +308,39 @@ export default function ExportPage() {
 
   return (
     <div className="dashboard-layout">
+      {/* Toast Notification Container */}
+      {toastVisible && (
+        <div className={styles.toastContainer}>
+          <div className={`${styles.toast} ${toastDismissing ? styles.toastDismissing : ''}`}>
+            <div className={styles.toastIcon}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <div className={styles.toastBody}>
+              <h4 className={styles.toastTitle}>พบรายการรอตรวจสอบ!</h4>
+              <p className={styles.toastDesc}>
+                {realPendingItems.length === 1 
+                  ? `พบสลิปโอนเงินรอตรวจสอบ 1 รายการ: "${realPendingItems[0].storeName || 'ไม่ระบุร้านค้า'}" ยอดเงิน ฿${(realPendingItems[0].amount !== undefined ? realPendingItems[0].amount : realPendingItems[0].totalAmount || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}`
+                  : `พบสลิปโอนเงินรอตรวจสอบ ${realPendingItems.length} รายการ`
+                }
+              </p>
+              <button onClick={handleFilterPending} className={styles.toastActionBtn}>
+                คลิกเพื่อกรองดูรายการนี้
+              </button>
+            </div>
+            <button onClick={handleCloseToast} className={styles.toastCloseBtn} aria-label="Close notification">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar overlay for mobile drawer */}
       <div
         className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`}
@@ -384,7 +465,7 @@ export default function ExportPage() {
                   <button
                     type="button"
                     onClick={handleExportDownload}
-                    className={styles.downloadBtn}
+                    className={`${styles.downloadBtn} ${hasPendingItems ? styles.downloadBtnDisabled : ''}`}
                   >
                     สร้างและดาวน์โหลด
                   </button>
@@ -444,6 +525,31 @@ export default function ExportPage() {
           </div>
         </div>
       </main>
+
+      {/* ── Blocked Export Dialog ── */}
+      {showBlockedModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 2000,
+          background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{ background: 'white', borderRadius: '16px', padding: '28px 32px', width: 'min(420px, 90vw)', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#0f172a', margin: '0 0 8px' }}>ไม่สามารถส่งออกข้อมูลได้</h3>
+            <p style={{ fontSize: '0.9rem', color: '#64748b', margin: '0 0 24px', lineHeight: 1.5 }}>
+              พบรายการสลิปที่ยังไม่ได้อนุมัติ (<strong style={{ color: '#f97316' }}>รอตรวจสอบ</strong>) ในการกรองนี้ กรุณาตรวจสอบ/อนุมัติรายการก่อนดาวน์โหลด หรือเลือกกรองสถานะเฉพาะ **"อนุมัติแล้ว"**
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setShowBlockedModal(false)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#3b82f6,#2563eb)', color: 'white', fontWeight: '800', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(37,99,235,0.35)' }}>ตกลง</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

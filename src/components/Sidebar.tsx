@@ -73,7 +73,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
 
         <div className={styles.navSection}>
           ช่วยเหลือ
-        </div>
+        </div>  
         <ul className={styles.navListNoMargin}>
           <SidebarItem
             href="/how-to-use"
