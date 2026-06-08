@@ -32,6 +32,11 @@ export default function LineReceiptsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<Receipt | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
   const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
+  const [selectedPeriod, setSelectedPeriod] = useState('30 วัน');
+  const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth());
+  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
 
   // Load viewed IDs from localStorage on mount
@@ -52,6 +57,72 @@ export default function LineReceiptsPage() {
     const isLine = r.source === 'line' || r.transactionId?.startsWith('LINE-');
     if (filterTab === 'line') return isLine;
     if (filterTab === 'web')  return !isLine;
+    return true;
+  });
+
+  const monthNames = [
+    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+  ];
+
+  const availableYears = Array.from(new Set([
+    new Date().getFullYear(),
+    new Date().getFullYear() - 1,
+    new Date().getFullYear() - 2,
+    new Date().getFullYear() - 3,
+    ...receipts.map(r => {
+      const dateStr = r.extractedData?.date || r.createdAt;
+      const d = new Date(dateStr);
+      return isNaN(d.getTime()) ? new Date(r.createdAt).getFullYear() : d.getFullYear();
+    }).filter(y => !isNaN(y))
+  ])).sort((a, b) => b - a);
+
+  const filteredReceipts = lineReceipts.filter(r => {
+    // 1. Search Query filter
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase().trim();
+      const storeName = (r.storeName || '').toLowerCase();
+      const amount = String(r.amount !== undefined ? r.amount : r.totalAmount || 0);
+      
+      const dateObj = new Date(r.extractedData?.date || r.createdAt);
+      const dateFormatted = dateObj.toLocaleDateString('th-TH', {
+        year: 'numeric', month: 'short', day: 'numeric',
+      }).toLowerCase();
+      
+      const matchStore = storeName.includes(q);
+      const matchAmount = amount.includes(q);
+      const matchDate = dateFormatted.includes(q);
+      
+      if (!matchStore && !matchAmount && !matchDate) {
+        return false;
+      }
+    }
+
+    // 2. Category filter
+    if (selectedCategory !== 'ทั้งหมด') {
+      const cat = r.extractedData?.category || 'ไม่ระบุ';
+      if (cat !== selectedCategory) {
+        return false;
+      }
+    }
+
+    // 3. Period filter
+    const dateObj = new Date(r.extractedData?.date || r.createdAt);
+    if (selectedPeriod === '30 วัน') {
+      const now = new Date();
+      const diffTime = Math.abs(now.getTime() - dateObj.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays > 30) return false;
+    } else if (selectedPeriod === 'รายเดือน') {
+      if (dateObj.getMonth() !== filterMonth || dateObj.getFullYear() !== filterYear) {
+        return false;
+      }
+    } else if (selectedPeriod === 'รายปี') {
+      if (dateObj.getFullYear() !== filterYear) {
+        return false;
+      }
+    }
+
     return true;
   });
 
@@ -191,6 +262,152 @@ export default function LineReceiptsPage() {
             </div>
           </div>
 
+          {/* Filter Bar (Search + Category + Period) */}
+          <div className={styles.filterBar}>
+            <div className={styles.searchWrapper}>
+              <span className={styles.searchIcon}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </span>
+              <input
+                type="text"
+                placeholder="ค้นหาร้านค้า, วันที่, ยอดเงิน..."
+                className={styles.searchInput}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            {/* Desktop: chips (hidden on mobile) */}
+            <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
+              <span className={styles.filterLabel}>หมวดหมู่:</span>
+              <div className={styles.filterChips}>
+                {['ทั้งหมด', 'อาหาร', 'ของใช้'].map(cat => (
+                  <div
+                    key={cat}
+                    className={`${styles.filterChip} ${selectedCategory === cat ? styles.filterChipActive : ''}`}
+                    onClick={() => setSelectedCategory(cat)}
+                  >
+                    {cat}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
+              <span className={styles.filterLabel}>ช่วงเวลา:</span>
+              <div className={styles.filterChips}>
+                {['30 วัน', 'รายเดือน', 'รายปี'].map(period => (
+                  <div
+                    key={period}
+                    className={`${styles.filterChip} ${selectedPeriod === period ? styles.filterChipActive : ''}`}
+                    onClick={() => setSelectedPeriod(period)}
+                  >
+                    {period}
+                  </div>
+                ))}
+              </div>
+
+              {/* Secondary dropdowns for Month and Year */}
+              {selectedPeriod === 'รายเดือน' && (
+                <div className={styles.secondaryFilters}>
+                  <select
+                    value={filterMonth}
+                    onChange={e => setFilterMonth(Number(e.target.value))}
+                    className={styles.secondarySelect}
+                  >
+                    {monthNames.map((name, index) => (
+                      <option key={index} value={index}>{name}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={filterYear}
+                    onChange={e => setFilterYear(Number(e.target.value))}
+                    className={styles.secondarySelect}
+                  >
+                    {availableYears.map(y => (
+                      <option key={y} value={y}>พ.ศ. {y + 543}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {selectedPeriod === 'รายปี' && (
+                <div className={styles.secondaryFilters}>
+                  <select
+                    value={filterYear}
+                    onChange={e => setFilterYear(Number(e.target.value))}
+                    className={styles.secondarySelect}
+                  >
+                    {availableYears.map(y => (
+                      <option key={y} value={y}>พ.ศ. {y + 543}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile: dropdowns (hidden on desktop) */}
+            <div className={styles.mobileDropdownsContainer}>
+              <div className={styles.mobileDropdowns}>
+                <select
+                  className={styles.mobileSelect}
+                  value={selectedCategory}
+                  onChange={e => setSelectedCategory(e.target.value)}
+                >
+                  <option value="ทั้งหมด">หมวดหมู่: ทั้งหมด</option>
+                  <option value="อาหาร">อาหาร</option>
+                  <option value="ของใช้">ของใช้</option>
+                </select>
+                <select
+                  className={styles.mobileSelect}
+                  value={selectedPeriod}
+                  onChange={e => setSelectedPeriod(e.target.value)}
+                >
+                  <option value="30 วัน">ช่วงเวลา: 30 วัน</option>
+                  <option value="รายเดือน">รายเดือน</option>
+                  <option value="รายปี">รายปี</option>
+                </select>
+              </div>
+
+              {/* Mobile Secondary selectors */}
+              {selectedPeriod === 'รายเดือน' && (
+                <div className={styles.mobileSecondaryFilters}>
+                  <select
+                    value={filterMonth}
+                    onChange={e => setFilterMonth(Number(e.target.value))}
+                    className={styles.mobileSelect}
+                  >
+                    {monthNames.map((name, index) => (
+                      <option key={index} value={index}>{name}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={filterYear}
+                    onChange={e => setFilterYear(Number(e.target.value))}
+                    className={styles.mobileSelect}
+                  >
+                    {availableYears.map(y => (
+                      <option key={y} value={y}>พ.ศ. {y + 543}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {selectedPeriod === 'รายปี' && (
+                <div className={styles.mobileSecondaryFilters}>
+                  <select
+                    value={filterYear}
+                    onChange={e => setFilterYear(Number(e.target.value))}
+                    className={styles.mobileSelect}
+                  >
+                    {availableYears.map(y => (
+                      <option key={y} value={y}>พ.ศ. {y + 543}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+
           {loading ? (
             <div className={styles.loadingContainer}>
               <div className={styles.spinner}></div>
@@ -206,9 +423,19 @@ export default function LineReceiptsPage() {
               <h3>ไม่พบรูปภาพ</h3>
               <p>{filterTab === 'line' ? 'ยังไม่มีรูปจาก LINE Bot' : filterTab === 'web' ? 'ยังไม่มีรูปที่อัปโหลดจากเว็บ' : 'ลองส่งรูปใบเสร็จเข้าไปในแชท LINE Bot ของคุณดูสิ!'}</p>
             </div>
+          ) : filteredReceipts.length === 0 ? (
+            <div className={styles.emptyState}>
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+              <h3>ไม่พบรูปภาพตามเงื่อนไข</h3>
+              <p>ลองปรับเปลี่ยนคำค้นหา หรือตัวกรองหมวดหมู่/ช่วงเวลาอื่นดูนะ</p>
+            </div>
           ) : (
             <div className={styles.galleryGrid}>
-              {lineReceipts.map((receipt, index) => {
+              {filteredReceipts.map((receipt, index) => {
                 const isNew = !viewedIds.has(receipt._id || receipt.id || '');
                 return (
                   <div

@@ -3,6 +3,39 @@
 import React, { useState, useEffect } from 'react';
 import { useReceipts } from '@/hooks/useReceipts';
 
+const formatToInputDate = (dateStr: string): string => {
+    if (!dateStr) return '';
+    try {
+        const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
+        if (match) {
+            return match[1];
+        }
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+    } catch {
+        // fallback
+    }
+    return dateStr;
+};
+
+const formatToInputTime = (timeStr: string): string => {
+    if (!timeStr) return '';
+    try {
+        const match = timeStr.match(/^(\d{2}:\d{2})/);
+        if (match) {
+            return match[1];
+        }
+    } catch {
+        // fallback
+    }
+    return timeStr;
+};
+
 const shimmer = `
 @keyframes spin { to { transform: rotate(360deg); } }
 input::-webkit-outer-spin-button,
@@ -76,8 +109,8 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
             const ed = receipt.extractedData || {};
             setStore(receipt.storeName || '');
             setCategory(ed.category || '');
-            setDate(ed.date || '');
-            setTime(ed.time || '');
+            setDate(formatToInputDate(ed.date || receipt.createdAt || ''));
+            setTime(formatToInputTime(ed.time || (receipt.createdAt ? new Date(receipt.createdAt).toLocaleTimeString('th-TH', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '')));
             setPaymentMethod(ed.paymentMethod || ed.method || '');
             setCurrency(ed.currency || 'THB');
             setTaxId(ed.vendorTaxId || '');

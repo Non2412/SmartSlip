@@ -5,7 +5,7 @@ import TopBar from '@/components/TopBar';
 import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
 
-import { StatCard, FilterBar, ReceiptTable, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
+import { StatCard, ReceiptTable, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -162,9 +162,6 @@ export default function DashboardPage() {
               </>
             )}
           </div>
-
-          <FilterBar />
-
           <ReceiptTable loading={loading} receipts={receipts} />
         </div>
       </main>
