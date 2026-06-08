@@ -66,7 +66,7 @@
   padding: 0 8px 8px;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .navList {
@@ -89,7 +89,7 @@
 .userCard {
   margin-top: auto;
   padding: 12px;
-  background-color: #f8fafc;
+  background-color: var(--surface-hover);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -121,7 +121,7 @@
   width: 12px;
   height: 12px;
   background-color: #22c55e;
-  border: 2px solid white;
+  border: 2px solid var(--surface-color);
   border-radius: 50%;
 }
 
@@ -172,13 +172,13 @@
 
 
 .sidebarLinkActive {
-  color: #1e293b;
-  background-color: #f1f5f9;
+  color: var(--text-main);
+  background-color: var(--sidebar-item-hover);
   font-weight: 700;
 }
 
 .sidebarLinkInactive {
-  color: #64748b;
+  color: var(--text-muted);
   background-color: transparent;
   font-weight: 500;
 }
@@ -189,7 +189,7 @@
 }
 
 .sidebarLinkIconActive {
-  color: #475569;
+  color: var(--text-main);
 }
 
 .sidebarLinkLabel {
@@ -206,7 +206,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  color: #94a3b8;
+  color: var(--text-muted);
   transition: all 0.2s ease;
   cursor: pointer;
   background: transparent;
@@ -248,12 +248,12 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 2px solid #e2e8f0;
-  background-color: white;
+  border: 2px solid var(--border-color);
+  background-color: var(--surface-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--surface-color);
   z-index: 2;
   transition: all 0.3s ease;
   font-size: 10px;
@@ -262,13 +262,13 @@
 .stepLine {
   width: 2px;
   flex: 1;
-  background-color: #f1f5f9;
+  background-color: var(--sidebar-item-hover);
   margin: 2px 0;
 }
 
 .stepLabel {
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: var(--text-muted);
   font-weight: 500;
   padding-top: 2px;
   transition: all 0.3s ease;
@@ -308,15 +308,15 @@
 
 .active .stepIndicator {
   border-color: #10b981;
-  background-color: white;
+  background-color: var(--surface-color);
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 .active .stepLabel {
-  color: #1e293b;
+  color: var(--text-main);
   font-weight: 700;
 }
 
 .pending .stepIndicator {
-  background-color: #f8fafc;
+  background-color: var(--input-bg);
 }

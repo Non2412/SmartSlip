@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: white;
+  background-color: var(--surface-color);
   margin-top: 8px;
   border-bottom: 1px solid var(--border-color);
   gap: 24px;
@@ -39,11 +39,12 @@
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  background-color: white;
+  background-color: var(--surface-color);
   border: 1px solid var(--border-color);
   cursor: pointer;
   flex-shrink: 0;
   box-shadow: var(--shadow-sm);
+  color: var(--text-main);
 }
 
 .searchContainer {
@@ -70,12 +71,13 @@
   font-size: 0.9rem;
   outline: none;
   transition: all 0.2s;
-  background-color: #f8fafc;
+  background-color: var(--input-bg);
+  color: var(--text-main);
 }
 
 .searchInput:focus {
   border-color: var(--primary-color);
-  background-color: white;
+  background-color: var(--surface-color);
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
@@ -101,7 +103,7 @@
   justify-content: center;
   border-radius: 12px;
   color: var(--text-muted);
-  background-color: white;
+  background-color: var(--surface-color);
   border: 1px solid var(--border-color);
   transition: all 0.2s;
   cursor: pointer;
@@ -111,7 +113,7 @@
   position: absolute;
   top: -2px;
   right: -2px;
-  background-color: #ef4444; /* red-500 */
+  background-color: #ef4444;
   color: white;
   font-size: 0.68rem;
   font-weight: 800;
@@ -122,12 +124,34 @@
   align-items: center;
   justify-content: center;
   padding: 0 4px;
-  border: 1.5px solid white;
+  border: 1.5px solid var(--surface-color);
   box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
 }
 
 .iconButton:hover {
-  background-color: #f8fafc;
+  background-color: var(--surface-hover);
+  color: var(--text-main);
+}
+
+/* Dark mode toggle button */
+.darkModeButton {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: var(--text-muted);
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  transition: all 0.2s;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.darkModeButton:hover {
+  background-color: var(--surface-hover);
   color: var(--text-main);
 }
 
@@ -210,7 +234,7 @@
     align-items: center;
     justify-content: center;
     border-radius: 12px;
-    background: white;
+    background: var(--surface-color);
     border: 1px solid var(--border-color);
     cursor: pointer;
     color: var(--text-muted);
@@ -219,7 +243,7 @@
   }
 
   .mobileSearchBtn:hover {
-    background: #f8fafc;
+    background: var(--surface-hover);
     color: var(--text-main);
   }
 
@@ -227,7 +251,7 @@
   .mobileSearchRow {
     display: block;
     padding: 8px 16px 10px;
-    background: white;
+    background: var(--surface-color);
     border-bottom: 1px solid var(--border-color);
   }
 
@@ -255,14 +279,15 @@
     border: 1px solid var(--border-color);
     font-size: 0.9rem;
     outline: none;
-    background: #f8fafc;
+    background: var(--input-bg);
+    color: var(--text-main);
     box-sizing: border-box;
     transition: all 0.2s;
   }
 
   .mobileSearchInput:focus {
     border-color: var(--primary-color);
-    background: white;
+    background: var(--surface-color);
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
   }
 }
