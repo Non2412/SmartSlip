@@ -7,6 +7,7 @@ import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
 import { Receipt } from '@/lib/apiClient';
+import { identifyDuplicateReceipts } from '@/lib/ocr-utils';
 import styles from './LineReceipts.module.css';
 
 const VIEWED_KEY = 'smartslip_viewed_receipts';
@@ -31,7 +32,7 @@ export default function LineReceiptsPage() {
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Receipt | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
-  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web'>('all');
+  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'duplicate'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
   const [selectedPeriod, setSelectedPeriod] = useState('30 วัน');
@@ -52,8 +53,16 @@ export default function LineReceiptsPage() {
   }, [session, fetchReceipts]);
 
   // Update unread count in localStorage whenever receipts or viewedIds change
+  const { duplicateIds, allDuplicateIds } = identifyDuplicateReceipts(receipts);
   const allImageReceipts = receipts.filter(r => r.extractedData?.imageData || r.imageURL || r.imageUrl);
   const lineReceipts = allImageReceipts.filter(r => {
+    const isSubsequentDuplicate = duplicateIds.has(r._id || r.id || '');
+    const isAnyDuplicate = allDuplicateIds.has(r._id || r.id || '');
+    if (filterTab === 'duplicate') return isAnyDuplicate;
+    
+    // For other tabs, exclude duplicates
+    if (isSubsequentDuplicate) return false;
+
     const isLine = r.source === 'line' || r.transactionId?.startsWith('LINE-');
     if (filterTab === 'line') return isLine;
     if (filterTab === 'web')  return !isLine;
@@ -192,7 +201,7 @@ export default function LineReceiptsPage() {
                 {
                   key: 'all',
                   label: 'ทั้งหมด',
-                  count: allImageReceipts.length,
+                  count: allImageReceipts.filter(r => !duplicateIds.has(r._id || r.id || '')).length,
                   icon: (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
@@ -206,7 +215,7 @@ export default function LineReceiptsPage() {
                 {
                   key: 'line',
                   label: 'LINE',
-                  count: allImageReceipts.filter(r => r.source === 'line').length,
+                  count: allImageReceipts.filter(r => (r.source === 'line' || r.transactionId?.startsWith('LINE-')) && !duplicateIds.has(r._id || r.id || '')).length,
                   icon: (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M12 2C6.48 2 2 5.92 2 10.72c0 3.1 1.73 5.84 4.35 7.52-.16.58-.52 2.1-.6 2.43-.1.4.15.4.31.29.13-.09 1.98-1.35 2.78-1.9.37.05.74.08 1.16.08 5.52 0 10-3.92 10-8.72S17.52 2 12 2z"/>
@@ -219,7 +228,7 @@ export default function LineReceiptsPage() {
                 {
                   key: 'web',
                   label: 'เว็บ',
-                  count: allImageReceipts.filter(r => r.source !== 'line').length,
+                  count: allImageReceipts.filter(r => !(r.source === 'line' || r.transactionId?.startsWith('LINE-')) && !duplicateIds.has(r._id || r.id || '')).length,
                   icon: (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
@@ -230,6 +239,22 @@ export default function LineReceiptsPage() {
                   activeBg: '#2563eb',
                   activeBadge: '#1d4ed8',
                 },
+                {
+                  key: 'duplicate',
+                  label: 'ซ้ำกัน',
+                  count: allImageReceipts.filter(r => allDuplicateIds.has(r._id || r.id || '')).length,
+                  icon: (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M17 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z" />
+                      <line x1="9" y1="9" x2="15" y2="9" />
+                      <line x1="9" y1="13" x2="13" y2="13" />
+                      <circle cx="17" cy="17" r="3" fill="#ef4444" stroke="none" />
+                    </svg>
+                  ),
+                  activeColor: '#ef4444',
+                  activeBg: '#ef4444',
+                  activeBadge: '#dc2626',
+                }
               ] as const).map(tab => {
                 const isActive = filterTab === tab.key;
                 return (
@@ -415,13 +440,26 @@ export default function LineReceiptsPage() {
             </div>
           ) : lineReceipts.length === 0 ? (
             <div className={styles.emptyState}>
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21 15 16 10 5 21" />
-              </svg>
-              <h3>ไม่พบรูปภาพ</h3>
-              <p>{filterTab === 'line' ? 'ยังไม่มีรูปจาก LINE Bot' : filterTab === 'web' ? 'ยังไม่มีรูปที่อัปโหลดจากเว็บ' : 'ลองส่งรูปใบเสร็จเข้าไปในแชท LINE Bot ของคุณดูสิ!'}</p>
+              {filterTab === 'duplicate' ? (
+                <>
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                  <h3 style={{ color: '#1e293b', marginTop: '16px' }}>ไม่พบสลิปที่ซ้ำกัน</h3>
+                  <p>ยอดเยี่ยมมาก! ไม่มีสลิปโอนเงินที่ซ้ำกันในระบบของคุณเลย</p>
+                </>
+              ) : (
+                <>
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                  <h3>ไม่พบรูปภาพ</h3>
+                  <p>{filterTab === 'line' ? 'ยังไม่มีรูปจาก LINE Bot' : filterTab === 'web' ? 'ยังไม่มีรูปที่อัปโหลดจากเว็บ' : 'ลองส่งรูปใบเสร็จเข้าไปในแชท LINE Bot ของคุณดูสิ!'}</p>
+                </>
+              )}
             </div>
           ) : filteredReceipts.length === 0 ? (
             <div className={styles.emptyState}>
