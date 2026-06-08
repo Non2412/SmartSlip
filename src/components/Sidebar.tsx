@@ -66,7 +66,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
         </div>
         <ul className={styles.navList}>
           <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="รายการใบเสร็จ" icon={<ListIcon />} />
-          <SidebarItem href="/line-receipts" active={pathname === '/line-receipts'} label="รูปภาพจาก LINE" icon={<ImageIcon />} badge={unreadCount} />
+          <SidebarItem href="/line-receipts" active={pathname === '/line-receipts'} label="รูปภาพ" icon={<ImageIcon />} badge={unreadCount} />
           <SidebarItem href="/export" active={pathname === '/export'} label="ส่งออกข้อมูล" icon={<ExportIcon />} />
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<PlusIcon />} onClick={onAddReceipt} />
         </ul>

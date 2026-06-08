@@ -5,12 +5,13 @@ import TopBar from '@/components/TopBar';
 import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
 
-import { StatCard, FilterBar, ReceiptTable, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
+import { StatCard, ReceiptTable, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
 import { StatCardSkeleton, ChartSkeleton, RecentUploadsSkeleton } from '@/components/Skeleton';
+import { identifyDuplicateReceipts } from '@/lib/ocr-utils';
 import styles from './Dashboard.module.css';
 
 export default function DashboardPage() {
@@ -64,10 +65,13 @@ export default function DashboardPage() {
     setDeleteConfirm(null);
   };
 
-  // คำนวณสถิติจริง
-  const totalAmount = receipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0);
-  const pendingCount = receipts.filter(r => !r.extractedData).length;
-  const approvedCount = receipts.filter(r => r.extractedData).length;
+  // คำนวณสถิติจริง (ไม่รวมใบที่ซ้ำกัน)
+  const { duplicateIds } = identifyDuplicateReceipts(receipts);
+  const uniqueReceipts = receipts.filter(r => !duplicateIds.has(r._id || r.id || ''));
+
+  const totalAmount = uniqueReceipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0);
+  const pendingCount = uniqueReceipts.filter(r => !r.extractedData).length;
+  const approvedCount = uniqueReceipts.filter(r => r.extractedData).length;
 
   return (
     <div className="dashboard-layout">
@@ -151,10 +155,10 @@ export default function DashboardPage() {
             ) : (
               <>
                 <div className={styles.chartColSpan2}>
-                  <ExpenseChart receipts={receipts} />
+                  <ExpenseChart receipts={uniqueReceipts} />
                 </div>
                 <RecentUploads
-                  receipts={receipts.filter(r => r.source === 'line')}
+                  receipts={uniqueReceipts.filter(r => r.source === 'line')}
                   onReceiptClick={setSelectedReceipt}
                   onEdit={setSelectedReceipt}
                   onDelete={setDeleteConfirm}
@@ -162,10 +166,7 @@ export default function DashboardPage() {
               </>
             )}
           </div>
-
-          <FilterBar />
-
-          <ReceiptTable loading={loading} receipts={receipts} />
+          <ReceiptTable loading={loading} receipts={uniqueReceipts} />
         </div>
       </main>
 
