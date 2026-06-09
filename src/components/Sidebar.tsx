@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -66,13 +66,14 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
         </div>
         <ul className={styles.navList}>
           <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="รายการใบเสร็จ" icon={<ListIcon />} />
-          <SidebarItem href="/line-receipts" active={pathname === '/line-receipts'} label="รูปภาพจาก LINE" icon={<ImageIcon />} badge={unreadCount} />
-          <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<UploadIcon />} onClick={onAddReceipt} />
+          <SidebarItem href="/line-receipts" active={pathname === '/line-receipts'} label="รูปภาพ" icon={<ImageIcon />} badge={unreadCount} />
+          <SidebarItem href="/export" active={pathname === '/export'} label="ส่งออกข้อมูล" icon={<ExportIcon />} />
+          <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<PlusIcon />} onClick={onAddReceipt} />
         </ul>
 
         <div className={styles.navSection}>
           ช่วยเหลือ
-        </div>
+        </div>  
         <ul className={styles.navListNoMargin}>
           <SidebarItem
             href="/how-to-use"
@@ -209,6 +210,10 @@ function UploadIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>;
 }
 
+function PlusIcon() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>;
+}
+
 function SheetsIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" /></svg>;
 }
@@ -227,6 +232,16 @@ function UserIcon() {
 
 function ImageIcon() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>;
+}
+
+function ExportIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  );
 }
 
 export default Sidebar;

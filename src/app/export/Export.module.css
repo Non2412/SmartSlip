@@ -1,0 +1,497 @@
+.headerArea {
+  margin-bottom: 2rem;
+}
+
+.mainTitle {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 0.5rem;
+}
+
+.subTitle {
+  font-size: 0.95rem;
+  color: #64748b;
+}
+
+.formContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.topConfigsRow {
+  display: grid;
+  grid-template-columns: 2.2fr 1fr;
+  gap: 1.5rem;
+}
+
+.actionsBarInside {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.actionsBarInside .clearBtn {
+  font-size: 0.88rem;
+  padding: 10px 14px;
+}
+
+.actionsBarInside .downloadBtn {
+  font-size: 0.9rem;
+  padding: 12px 18px;
+  white-space: nowrap;
+}
+
+.card {
+  background-color: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+}
+
+.sectionHeader {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  border-bottom: 1.5px solid #f1f5f9;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inputLabel {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Date Input Range styling */
+.dateRangeRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.dateCol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dateInput {
+  height: 44px;
+  padding: 0 16px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  background-color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+  outline: none;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.dateInput:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Select row grid options */
+.selectRowGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.selectCol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dropdownInput {
+  height: 44px;
+  padding: 0 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  background-color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #1e293b;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.dropdownInput:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* File format segmented control */
+.formatSegmentControl {
+  display: flex;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background-color: #f8fafc;
+  padding: 4px;
+}
+
+.formatBtn {
+  flex: 1;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #64748b;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.formatBtn:hover {
+  color: #1e293b;
+  background-color: #f1f5f9;
+}
+
+.formatBtnActive {
+  background-color: #ffffff !important;
+  color: #2563eb !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+}
+
+/* Table Preview CSS */
+.tableResponsiveContainer {
+  overflow-x: auto;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.previewTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.previewTable th {
+  background-color: #f8fafc;
+  padding: 14px 16px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1.5px solid #e2e8f0;
+}
+
+.previewTable td {
+  padding: 14px 16px;
+  font-size: 0.92rem;
+  color: #334155;
+  border-bottom: 1.5px solid #f1f5f9;
+}
+
+.previewTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.invoiceCell {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.amountCell {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.statusBadgeApproved {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  background-color: #ecfdf5;
+  color: #10b981;
+}
+
+.statusBadgePending {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  background-color: #fff7ed;
+  color: #f97316;
+}
+
+.loadingCell, .emptyCell {
+  text-align: center;
+  padding: 32px !important;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* Actions Bottom Row */
+.actionsBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.clearBtn {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #64748b;
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clearBtn:hover {
+  color: #1e293b;
+  background-color: #f1f5f9;
+}
+
+.downloadBtn {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #ffffff;
+  background-color: #2563eb;
+  padding: 12px 24px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+.downloadBtn:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 10px -1px rgba(37, 99, 235, 0.3);
+}
+
+.downloadBtnDisabled {
+  background-color: #cbd5e1 !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* Responsive CSS rules */
+@media (max-width: 768px) {
+  .dateRangeRow {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .topConfigsRow {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .selectRowGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .actionsBar {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .clearBtn, .downloadBtn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* Clean styling for browser page prints */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .tableResponsiveContainer, .tableResponsiveContainer * {
+    visibility: visible;
+  }
+  .tableResponsiveContainer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+
+/* ── Toast Notification Styles ── */
+.toastContainer {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+  max-width: 400px;
+  width: calc(100% - 48px);
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  gap: 16px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  border-left: 6px solid #f97316;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: slideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: all 0.3s ease;
+}
+
+.toastDismissing {
+  animation: slideOut 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toastIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background-color: #fff7ed;
+  color: #f97316;
+  flex-shrink: 0;
+}
+
+.toastBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-grow: 1;
+}
+
+.toastTitle {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.toastDesc {
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.toastActionBtn {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #2563eb;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  transition: color 0.15s;
+  align-self: flex-start;
+}
+
+.toastActionBtn:hover {
+  color: #1d4ed8;
+}
+
+.toastCloseBtn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  transition: color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.toastCloseBtn:hover {
+  color: #475569;
+  background-color: #f1f5f9;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .toastContainer {
+    top: 16px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+    max-width: none;
+  }
+}
+

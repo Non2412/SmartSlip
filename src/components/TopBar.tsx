@@ -1,6 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useSession } from 'next-auth/react';
+import { useReceipts } from '@/hooks/useReceipts';
 import styles from './TopBar.module.css';
 
 const TopBar = ({
@@ -15,6 +18,17 @@ const TopBar = ({
     onToggleSidebar?: () => void
 }) => {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const { data: session } = useSession();
+    const { receipts, fetchReceipts } = useReceipts();
+
+    useEffect(() => {
+        if (session?.user?.id) {
+            const lineUserId = (session as any)?.lineUserId as string | undefined;
+            fetchReceipts(session.user.id, lineUserId);
+        }
+    }, [session, fetchReceipts]);
+
+    const pendingCount = receipts.filter(r => !r.extractedData).length;
 
     return (
         <>
@@ -57,9 +71,20 @@ const TopBar = ({
                         {isSearchOpen ? <CloseIcon /> : <SearchIcon />}
                     </button>
 
-                    <button className={styles.iconButton}>
+                    <Link href="/notification" className={styles.iconButton} title="การแจ้งเตือน">
                         <BellIcon />
-                    </button>
+                        {pendingCount > 0 && (
+                            <span className={styles.notificationBadge}>{pendingCount}</span>
+                        )}
+                    </Link>
+
+                    <Link
+                        href="/export"
+                        className={styles.exportButton}
+                    >
+                        <ExportIcon />
+                        <span>ส่งออกข้อมูล</span>
+                    </Link>
 
                     <button
                         onClick={onCreateNew}
@@ -106,6 +131,14 @@ const PlusIcon = () => (
 );
 const MenuIcon = () => (
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+);
+
+const ExportIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+        <polyline points="16 6 12 2 8 6" />
+        <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
 );
 
 export default TopBar;
