@@ -93,17 +93,35 @@ export async function POST(req: NextRequest) {
             body: ocrFormData,
           });
 
-          if (!ocrResponse.ok) {
-            const errText = await ocrResponse.text();
-            throw new Error(`Backend OCR failed: ${ocrResponse.statusText} - ${errText}`);
-          }
+          let data: any = null;
+          let ocrFailed = false;
 
-          const ocrResult = await ocrResponse.json();
-          if (!ocrResult.success || !ocrResult.data) {
-            throw new Error(ocrResult.error || 'Failed to extract data using backend OCR');
-          }
+          try {
+            const ocrResponse = await fetch(backendUrl, {
+              method: 'POST',
+              headers: {
+                'x-api-key': apiKey,
+              },
+              body: ocrFormData,
+            });
 
-          const data = ocrResult.data;
+            if (!ocrResponse.ok) {
+              const errText = await ocrResponse.text();
+              console.error(`Backend OCR HTTP failed: ${ocrResponse.statusText} - ${errText}`);
+              ocrFailed = true;
+            } else {
+              const ocrResult = await ocrResponse.json();
+              if (ocrResult.success && ocrResult.data) {
+                data = ocrResult.data;
+              } else {
+                console.error(`Backend OCR logic failed: ${ocrResult.error || 'no data'}`);
+                ocrFailed = true;
+              }
+            }
+          } catch (ocrErr: any) {
+            console.error('OCR connection failed:', ocrErr);
+            ocrFailed = true;
+          }
 
           // 4. Upload to Google Cloud Storage
           let driveFileId = null;
@@ -117,7 +135,7 @@ export async function POST(req: NextRequest) {
           let driveErrorMsg = '';
           let userAccessToken: string | undefined;
           try {
-            const fileName = `line-receipt-${data.store || 'unknown'}-${Date.now()}.jpg`.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const fileName = `line-receipt-${data?.store || 'unknown'}-${Date.now()}.jpg`.replace(/[^a-zA-Z0-9.-]/g, '_');
             
             const { uploadToGCS } = await import('@/lib/gcs');
             const bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || 'smartslip-receipts';
@@ -133,11 +151,11 @@ export async function POST(req: NextRequest) {
 
           // 5. Save to MongoDB
           const newReceipt = {
-            storeName: data.store || 'Unknown Store',
-            totalAmount: parseFloat(data.amount) || 0,
+            storeName: data?.store || 'ไม่ระบุร้านค้า',
+            totalAmount: parseFloat(data?.amount) || 0,
             userId: internalUserId,
             source: 'line',
-            extractedData: data,
+            extractedData: data || null,
             imageFileId: driveFileId,
             imageUrl: gcsUrl,
             createdAt: new Date().toISOString(),
@@ -149,12 +167,12 @@ export async function POST(req: NextRequest) {
             try {
               const imageUrl = gcsUrl || '';
               await appendReceiptToUserSheet(userDoc.googleSheetId, {
-                date: data.date || new Date().toISOString(),
+                date: data?.date || new Date().toISOString(),
                 storeName: newReceipt.storeName,
-                sender: data.method || '',
+                sender: data?.method || '',
                 amount: newReceipt.totalAmount,
                 status: 'pending',
-                confidence: 'high',
+                confidence: ocrFailed ? 'low' : 'high',
                 receiptId: insertResult.insertedId.toString(),
                 imageUrl,
               }, userAccessToken);
@@ -164,23 +182,28 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // 7. Reply Success
-          const itemsText = data.items && data.items.length > 0 
-            ? `\n🛒 สินค้า:\n` + data.items.map((item: any, idx: number) => {
-                const uPrice = parseFloat(item.unitPrice ?? item.unit_price ?? 0);
-                const qty = parseFloat(item.quantity ?? 1);
-                const tPrice = parseFloat(item.totalPrice ?? item.total ?? item.total_price ?? (uPrice * qty));
-                return `${idx + 1}. ${item.description}\n   จำนวน: ${qty} x ฿${uPrice.toFixed(2)} = ฿${tPrice.toFixed(2)}`;
-              }).join('\n')
-            : '';
+          // 7. Reply Result to LINE User
+          if (ocrFailed) {
+            const warningMsg = `⚠️ ระบบได้รับภาพสลิปใบเสร็จแล้ว แต่ไม่สามารถดึงข้อมูลโดยอัตโนมัติได้ (สถานะ: รอตรวจสอบ)\n\nกรุณาเข้าไปตรวจสอบและแก้ไขข้อมูลด้วยตนเองที่เว็บไซต์ SmartSlip นะครับ`;
+            await replyMessage(replyToken, warningMsg);
+          } else {
+            const itemsText = data.items && data.items.length > 0 
+              ? `\n🛒 สินค้า:\n` + data.items.map((item: any, idx: number) => {
+                  const uPrice = parseFloat(item.unitPrice ?? item.unit_price ?? 0);
+                  const qty = parseFloat(item.quantity ?? 1);
+                  const tPrice = parseFloat(item.totalPrice ?? item.total ?? item.total_price ?? (uPrice * qty));
+                  return `${idx + 1}. ${item.description}\n   จำนวน: ${qty} x ฿${uPrice.toFixed(2)} = ฿${tPrice.toFixed(2)}`;
+                }).join('\n')
+              : '';
 
-          const successMsg = `✅ ประมวลผลสำเร็จ!\n\n💰 จำนวนเงิน: ฿${newReceipt.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n👤 ผู้ส่ง: ${data.method || 'Unknown'}\n🏢 ผู้รับ: ${newReceipt.storeName}\n📅 วันที่: ${data.date || new Date().toISOString().split('T')[0]}\n${itemsText}\n\n🎯 ความแม่นยำ: ✅ high${gcsUrl ? '\n☁️ บันทึกลง Cloud Storage แล้ว' : driveErrorMsg}`;
+            const successMsg = `✅ ประมวลผลสำเร็จ!\n\n💰 จำนวนเงิน: ฿${newReceipt.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n👤 ผู้ส่ง: ${data.method || 'Unknown'}\n🏢 ผู้รับ: ${newReceipt.storeName}\n📅 วันที่: ${data.date || new Date().toISOString().split('T')[0]}\n${itemsText}\n\n🎯 ความแม่นยำ: ✅ high${gcsUrl ? '\n☁️ บันทึกลง Cloud Storage แล้ว' : driveErrorMsg}`;
 
-          await replyMessage(replyToken, successMsg);
+            await replyMessage(replyToken, successMsg);
+          }
 
         } catch (procErr: any) {
           console.error('Processing error:', procErr);
-          await replyMessage(replyToken, `❌ เกิดข้อความผิดพลาดขณะประมวลผลรูปภาพ:\n${procErr.message || 'Unknown Error'}`);
+          await replyMessage(replyToken, `❌ เกิดข้อผิดพลาดร้ายแรงขณะบันทึกใบเสร็จ:\n${procErr.message || 'Unknown Error'}`);
         }
       }
     }
