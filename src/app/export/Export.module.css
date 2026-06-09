@@ -5,13 +5,13 @@
 .mainTitle {
   font-size: 1.85rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-main);
   margin-bottom: 0.5rem;
 }
 
 .subTitle {
   font-size: 0.95rem;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .formContainer {
@@ -49,8 +49,8 @@
 }
 
 .card {
-  background-color: #ffffff;
-  border: 1.5px solid #e2e8f0;
+  background-color: var(--card-bg);
+  border: 1.5px solid var(--border-color);
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
@@ -67,8 +67,8 @@
 .sectionHeader {
   font-size: 1.15rem;
   font-weight: 700;
-  color: #0f172a;
-  border-bottom: 1.5px solid #f1f5f9;
+  color: var(--text-main);
+  border-bottom: 1.5px solid var(--border-color);
   padding-bottom: 12px;
   margin-bottom: 4px;
 }
@@ -82,12 +82,11 @@
 .inputLabel {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #475569;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 
-/* Date Input Range styling */
 .dateRangeRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -103,16 +102,17 @@
 .dateInput {
   height: 44px;
   padding: 0 16px;
-  border: 1.5px solid #e2e8f0;
+  border: 1.5px solid var(--border-color);
   border-radius: 10px;
-  background-color: #ffffff;
+  background-color: var(--surface-color);
   font-size: 0.95rem;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main);
   outline: none;
   font-family: inherit;
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s;
+  color-scheme: light dark;
 }
 
 .dateInput:focus {
@@ -120,7 +120,6 @@
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-/* Select row grid options */
 .selectRowGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -136,12 +135,12 @@
 .dropdownInput {
   height: 44px;
   padding: 0 12px;
-  border: 1.5px solid #e2e8f0;
+  border: 1.5px solid var(--border-color);
   border-radius: 10px;
-  background-color: #ffffff;
+  background-color: var(--surface-color);
   font-size: 0.92rem;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main);
   outline: none;
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -152,13 +151,12 @@
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
-/* File format segmented control */
 .formatSegmentControl {
   display: flex;
-  border: 1.5px solid #e2e8f0;
+  border: 1.5px solid var(--border-color);
   border-radius: 10px;
   overflow: hidden;
-  background-color: #f8fafc;
+  background-color: var(--input-bg);
   padding: 4px;
 }
 
@@ -170,7 +168,7 @@
   justify-content: center;
   font-size: 0.92rem;
   font-weight: 700;
-  color: #64748b;
+  color: var(--text-muted);
   background: transparent;
   border: none;
   border-radius: 8px;
@@ -179,21 +177,20 @@
 }
 
 .formatBtn:hover {
-  color: #1e293b;
-  background-color: #f1f5f9;
+  color: var(--text-main);
+  background-color: var(--sidebar-item-hover);
 }
 
 .formatBtnActive {
-  background-color: #ffffff !important;
+  background-color: var(--surface-color) !important;
   color: #2563eb !important;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-color);
 }
 
-/* Table Preview CSS */
 .tableResponsiveContainer {
   overflow-x: auto;
-  border: 1.5px solid #e2e8f0;
+  border: 1.5px solid var(--border-color);
   border-radius: 10px;
 }
 
@@ -204,21 +201,21 @@
 }
 
 .previewTable th {
-  background-color: #f8fafc;
+  background-color: var(--input-bg);
   padding: 14px 16px;
   font-size: 0.82rem;
   font-weight: 700;
-  color: #64748b;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  border-bottom: 1.5px solid #e2e8f0;
+  border-bottom: 1.5px solid var(--border-color);
 }
 
 .previewTable td {
   padding: 14px 16px;
   font-size: 0.92rem;
-  color: #334155;
-  border-bottom: 1.5px solid #f1f5f9;
+  color: var(--text-main);
+  border-bottom: 1.5px solid var(--border-color);
 }
 
 .previewTable tbody tr:last-child td {
@@ -227,12 +224,12 @@
 
 .invoiceCell {
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-main);
 }
 
 .amountCell {
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 .statusBadgeApproved {
@@ -242,7 +239,7 @@
   border-radius: 20px;
   font-size: 0.78rem;
   font-weight: 800;
-  background-color: #ecfdf5;
+  background-color: rgba(16, 185, 129, 0.12);
   color: #10b981;
 }
 
@@ -253,18 +250,17 @@
   border-radius: 20px;
   font-size: 0.78rem;
   font-weight: 800;
-  background-color: #fff7ed;
+  background-color: rgba(249, 115, 22, 0.12);
   color: #f97316;
 }
 
 .loadingCell, .emptyCell {
   text-align: center;
   padding: 32px !important;
-  color: #64748b;
+  color: var(--text-muted);
   font-style: italic;
 }
 
-/* Actions Bottom Row */
 .actionsBar {
   display: flex;
   align-items: center;
@@ -276,7 +272,7 @@
 .clearBtn {
   font-size: 0.92rem;
   font-weight: 700;
-  color: #64748b;
+  color: var(--text-muted);
   padding: 10px 20px;
   border-radius: 10px;
   cursor: pointer;
@@ -284,8 +280,8 @@
 }
 
 .clearBtn:hover {
-  color: #1e293b;
-  background-color: #f1f5f9;
+  color: var(--text-main);
+  background-color: var(--sidebar-item-hover);
 }
 
 .downloadBtn {
@@ -306,7 +302,6 @@
   box-shadow: 0 6px 10px -1px rgba(37, 99, 235, 0.3);
 }
 
-/* Responsive CSS rules */
 @media (max-width: 768px) {
   .dateRangeRow {
     grid-template-columns: 1fr;
@@ -335,14 +330,9 @@
   }
 }
 
-/* Clean styling for browser page prints */
 @media print {
-  body * {
-    visibility: hidden;
-  }
-  .tableResponsiveContainer, .tableResponsiveContainer * {
-    visibility: visible;
-  }
+  body * { visibility: hidden; }
+  .tableResponsiveContainer, .tableResponsiveContainer * { visibility: visible; }
   .tableResponsiveContainer {
     position: absolute;
     left: 0;

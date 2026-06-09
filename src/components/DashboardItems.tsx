@@ -10,13 +10,16 @@ interface StatCardProps {
     trend?: string;
     status?: string;
     icon?: React.ReactNode;
-    iconBg?: string;
+    iconBg?: 'green' | 'orange' | string;
 }
 
-export const StatCard = ({ title, value, trend, status, icon, iconBg = '#ecfdf5' }: StatCardProps) => (
+export const StatCard = ({ title, value, trend, status, icon, iconBg = 'green' }: StatCardProps) => (
     <div className={styles.statCard}>
         <div className={styles.statCardHeader}>
-            <div className={styles.statIconWrapper} style={{ backgroundColor: iconBg, color: iconBg === '#ecfdf5' ? '#10b981' : '#f97316' }}>
+            <div className={styles.statIconWrapper} style={{
+                backgroundColor: iconBg === 'green' ? 'rgba(16,185,129,0.12)' : 'rgba(249,115,22,0.12)',
+                color: iconBg === 'green' ? '#10b981' : '#f97316',
+            }}>
                 {icon || (
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="2" y="5" width="20" height="14" rx="2" />
@@ -30,7 +33,7 @@ export const StatCard = ({ title, value, trend, status, icon, iconBg = '#ecfdf5'
                 </span>
             )}
             {status && (
-                <span className={styles.statusBadge} style={{ backgroundColor: '#fff7ed', color: '#f97316' }}>
+                <span className={styles.statusBadge}>
                     {status}
                 </span>
             )}
@@ -118,10 +121,10 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                                     <div style={{
                                         width: '36px', height: '36px', borderRadius: '8px',
                                         overflow: 'hidden', flexShrink: 0,
-                                        border: '1px solid #e5e7eb',
-                                        background: '#f1f5f9',
+                                        border: '1px solid var(--border-color)',
+                                        background: 'var(--input-bg)',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: '0.85rem', fontWeight: '700', color: '#64748b',
+                                        fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)',
                                     }}>
                                         {receipt.extractedData?.imageData ? (
                                             <img
@@ -133,7 +136,7 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                                             receipt.storeName?.charAt(0) || 'R'
                                         )}
                                     </div>
-                                    <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                                    <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>
                                         {receipt.storeName || 'ไม่ระบุ'}
                                     </span>
                                 </div>
