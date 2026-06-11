@@ -48,35 +48,57 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(base64Data, 'base64');
     const blob = new Blob([buffer], { type: mimeType });
 
-    // Build FormData to forward to backend API
-    const formData = new FormData();
-    formData.append('image', blob, 'receipt.jpg');
-    if (userId) {
-      formData.append('userId', userId);
+    let result: any = null;
+    const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY);
+
+    if (hasGeminiKey) {
+      try {
+        console.log('Processing extraction request with local Gemini OCR...');
+        const { processGeminiImage, parseGeminiResponse } = await import('@/lib/gemini-ocr');
+        const geminiResult = await processGeminiImage(image);
+        const parsed = parseGeminiResponse(geminiResult);
+        result = {
+          success: true,
+          data: parsed.data
+        };
+        console.log('✅ Local Gemini OCR extraction successful');
+      } catch (geminiErr: any) {
+        console.error('❌ Local Gemini OCR extraction failed, trying backend API fallback...', geminiErr);
+      }
     }
 
-    const backendUrl = `${process.env.BACKEND_API_URL || 'https://smart-slip-api.vercel.app'}/api/receipts/extract`;
-    const apiKey = process.env.NEXT_PUBLIC_API_KEY || 'super-secret-api-key-12345';
+    if (!result) {
+      // Build FormData to forward to backend API
+      const formData = new FormData();
+      formData.append('image', blob, 'receipt.jpg');
+      if (userId) {
+        formData.append('userId', userId);
+      }
 
-    console.log('Forwarding extraction request to backend API:', backendUrl);
-    const backendRes = await fetch(backendUrl, {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-      },
-      body: formData,
-    });
+      const backendUrl = `${process.env.BACKEND_API_URL || 'https://smart-slip-api.vercel.app'}/api/receipts/extract`;
+      const apiKey = process.env.NEXT_PUBLIC_API_KEY || 'super-secret-api-key-12345';
 
-    if (!backendRes.ok) {
-      const errorText = await backendRes.text();
-      console.error('Backend extraction failed:', errorText);
-      return NextResponse.json(
-        { success: false, error: `Backend API error: ${backendRes.statusText}` },
-        { status: backendRes.status }
-      );
+      console.log('Forwarding extraction request to backend API:', backendUrl);
+      const backendRes = await fetch(backendUrl, {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+        },
+        body: formData,
+      });
+
+      if (!backendRes.ok) {
+        const errorText = await backendRes.text();
+        console.error('Backend extraction failed:', errorText);
+        return NextResponse.json(
+          { success: false, error: `Backend API error: ${backendRes.statusText}` },
+          { status: backendRes.status }
+        );
+      }
+
+      result = await backendRes.json();
     }
 
-    const result = await backendRes.json();
     return NextResponse.json(result);
   } catch (error: any) {
     console.error('OCR Extraction Route Error:', error);
