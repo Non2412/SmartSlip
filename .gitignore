@@ -44,3 +44,7 @@ next-env.d.ts
 __pycache__/
 .temp_tsc_output.txt
 eslint-output.txt
+
+# uploads
+/public/uploads/
+
