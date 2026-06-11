@@ -74,53 +74,70 @@ export async function POST(req: NextRequest) {
           // 2. Download Image
           const imageBuffer = await getLineContent(messageId);
 
-          // 3. Process with Gemini via Backend API
-          const backendUrl = `${process.env.BACKEND_API_URL || 'https://smart-slip-api.vercel.app'}/api/receipts/extract`;
-          const apiKey = process.env.NEXT_PUBLIC_API_KEY || 'super-secret-api-key-12345';
-
-          console.log('LINE Webhook: Requesting OCR from backend API:', backendUrl);
-          
-          const ocrFormData = new FormData();
-          const imageBlob = new Blob([imageBuffer], { type: 'image/jpeg' });
-          ocrFormData.append('image', imageBlob, 'line-receipt.jpg');
-          ocrFormData.append('userId', internalUserId);
-
-          const ocrResponse = await fetch(backendUrl, {
-            method: 'POST',
-            headers: {
-              'x-api-key': apiKey,
-            },
-            body: ocrFormData,
-          });
-
+          // 3. Process with Gemini (Directly or via Backend API Fallback)
           let data: any = null;
           let ocrFailed = false;
 
-          try {
-            const ocrResponse = await fetch(backendUrl, {
-              method: 'POST',
-              headers: {
-                'x-api-key': apiKey,
-              },
-              body: ocrFormData,
-            });
-
-            if (!ocrResponse.ok) {
-              const errText = await ocrResponse.text();
-              console.error(`Backend OCR HTTP failed: ${ocrResponse.statusText} - ${errText}`);
-              ocrFailed = true;
-            } else {
-              const ocrResult = await ocrResponse.json();
-              if (ocrResult.success && ocrResult.data) {
-                data = ocrResult.data;
+          const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY);
+          if (hasGeminiKey) {
+            try {
+              console.log('LINE Webhook: Processing image with Gemini OCR directly...');
+              const base64Image = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+              const { processGeminiImage, parseGeminiResponse } = await import('@/lib/gemini-ocr');
+              const geminiResult = await processGeminiImage(base64Image);
+              const parsed = parseGeminiResponse(geminiResult);
+              if (parsed && parsed.data) {
+                data = parsed.data;
+                console.log('✅ LINE Webhook: Gemini OCR processed successfully:', data.store, data.amount);
               } else {
-                console.error(`Backend OCR logic failed: ${ocrResult.error || 'no data'}`);
+                console.error('❌ LINE Webhook: Gemini OCR returned invalid structure');
                 ocrFailed = true;
               }
+            } catch (geminiErr: any) {
+              console.error('❌ LINE Webhook: Gemini OCR failed, will try backend API fallback:', geminiErr);
+              ocrFailed = true;
             }
-          } catch (ocrErr: any) {
-            console.error('OCR connection failed:', ocrErr);
-            ocrFailed = true;
+          }
+
+          // Fallback to backend API if Gemini failed or is not configured
+          if (!data) {
+            try {
+              const backendUrl = `${process.env.BACKEND_API_URL || 'https://smart-slip-api.vercel.app'}/api/receipts/extract`;
+              const apiKey = process.env.NEXT_PUBLIC_API_KEY || 'super-secret-api-key-12345';
+              console.log('LINE Webhook: Requesting OCR from backend API:', backendUrl);
+              
+              const ocrFormData = new FormData();
+              const imageBlob = new Blob([imageBuffer], { type: 'image/jpeg' });
+              ocrFormData.append('image', imageBlob, 'line-receipt.jpg');
+              ocrFormData.append('userId', internalUserId);
+
+              const ocrResponse = await fetch(backendUrl, {
+                method: 'POST',
+                headers: {
+                  'x-api-key': apiKey,
+                },
+                body: ocrFormData,
+              });
+
+              if (!ocrResponse.ok) {
+                const errText = await ocrResponse.text();
+                console.error(`Backend OCR HTTP failed: ${ocrResponse.statusText} - ${errText}`);
+                ocrFailed = true;
+              } else {
+                const ocrResult = await ocrResponse.json();
+                if (ocrResult.success && ocrResult.data) {
+                  data = ocrResult.data;
+                  ocrFailed = false; // Reset in case Gemini failed but backend succeeded
+                  console.log('✅ LINE Webhook: Backend API OCR processed successfully:', data.store, data.amount);
+                } else {
+                  console.error(`Backend OCR logic failed: ${ocrResult.error || 'no data'}`);
+                  ocrFailed = true;
+                }
+              }
+            } catch (ocrErr: any) {
+              console.error('OCR connection failed:', ocrErr);
+              ocrFailed = true;
+            }
           }
 
           // 4. Upload to Google Cloud Storage
@@ -150,6 +167,7 @@ export async function POST(req: NextRequest) {
           }
 
           // 5. Save to MongoDB
+          const targetDb = client.db('smartslip_api');
           const newReceipt = {
             storeName: data?.store || 'ไม่ระบุร้านค้า',
             totalAmount: parseFloat(data?.amount) || 0,
@@ -160,7 +178,7 @@ export async function POST(req: NextRequest) {
             imageUrl: gcsUrl,
             createdAt: new Date().toISOString(),
           };
-          const insertResult = await db.collection('receipts').insertOne(newReceipt);
+          const insertResult = await targetDb.collection('receipts').insertOne(newReceipt);
 
           // 6. Append to Google Sheet (if user has a sheet)
           if (userDoc?.googleSheetId) {
