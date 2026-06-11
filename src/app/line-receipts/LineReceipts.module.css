@@ -128,6 +128,34 @@
   color: #94a3b8;
 }
 
+@media (max-width: 768px) {
+  .galleryGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .imageContainer {
+    height: 130px;
+  }
+
+  .cardDetails {
+    padding: 10px 12px;
+  }
+
+  .storeName {
+    font-size: 0.8rem;
+  }
+
+  .amount {
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+  }
+
+  .date {
+    font-size: 0.7rem;
+  }
+}
+
 /* No-image placeholder */
 .noImage {
   display: flex;
@@ -274,4 +302,203 @@
   padding: 6px 10px;
   background: #f8fafc;
   border-radius: 8px;
+}
+
+/* Filter Bar Styles */
+.filterBar {
+  background: white;
+  padding: 16px 24px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 24px;
+  border: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+.searchWrapper {
+  flex: 1;
+  min-width: 300px;
+  position: relative;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 10px 16px 10px 44px;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+  background-color: #f8fafc;
+  font-size: 0.9rem;
+  outline: none;
+  color: #1e293b;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.filterLabel {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.filterChips {
+  display: flex;
+  gap: 8px;
+  background: #f8fafc;
+  padding: 4px;
+  border-radius: 10px;
+}
+
+.filterChip {
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filterChipActive {
+  background: white;
+  color: #10b981;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Mobile dropdowns — hidden on desktop */
+.mobileDropdowns {
+  display: none;
+}
+
+.mobileSelect {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 14px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 0.9rem;
+  font-weight: 600;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.mobileSelect:hover {
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
+}
+
+.mobileSelect:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+/* Desktop only — chips visible */
+.desktopOnly {
+  display: flex;
+}
+
+@media (max-width: 768px) {
+  .filterBar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .searchWrapper {
+    min-width: 100%;
+  }
+
+  /* Hide chip groups on mobile */
+  .desktopOnly {
+    display: none !important;
+  }
+
+  /* Show dropdown container on mobile */
+  .mobileDropdownsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .mobileDropdowns {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .mobileSecondaryFilters {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+}
+
+.secondaryFilters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.secondarySelect {
+  padding: 8px 14px;
+  border-radius: 14px;
+  border: 1.5px solid #e2e8f0;
+  background-color: #ffffff;
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+  min-width: 125px;
+  
+  /* Custom arrow */
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.secondarySelect:hover {
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
+}
+
+.secondarySelect:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.mobileDropdownsContainer {
+  display: none;
 }

@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { processGeminiImage, parseGeminiResponse } from '@/lib/gemini-ocr';
 
 async function getRequestPayload(request: Request) {
   const contentType = request.headers.get('content-type') || '';
@@ -28,7 +27,7 @@ async function getRequestPayload(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { image } = await getRequestPayload(request);
+    const { image, userId } = await getRequestPayload(request);
     if (!image) {
       return NextResponse.json(
         { success: false, error: 'No image provided' },
@@ -36,28 +35,73 @@ export async function POST(request: Request) {
       );
     }
 
-    const geminiResult = await processGeminiImage(image);
-    const parsed = parseGeminiResponse(geminiResult);
+    // Convert image base64/data URI to buffer and blob for forwarding
+    let base64Data = image;
+    let mimeType = 'image/jpeg';
+    if (image.includes('data:')) {
+      const match = image.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        mimeType = match[1];
+        base64Data = match[2];
+      }
+    }
+    const buffer = Buffer.from(base64Data, 'base64');
+    const blob = new Blob([buffer], { type: mimeType });
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        store:      parsed.data.store     || '',
-        amount:     parseFloat(parsed.data.amount) || 0,
-        date:       parsed.data.date      || '',
-        time:       parsed.data.time      || '',
-        method:     parsed.data.method    || '',
-        category:   parsed.data.category  || 'อื่นๆ',
-        items:      parsed.data.items     || [],
-        discount:   parsed.data.discount  ?? 0,
-        vat:        parsed.data.vat       ?? 0,
-        subtotal:   parsed.data.subtotal  ?? 0,
-        taxId:      parsed.data.taxId     || '',
-        receiptNo:  parsed.data.receiptNo || '',
-      },
-    });
+    let result: any = null;
+    const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY);
+
+    if (hasGeminiKey) {
+      try {
+        console.log('Processing extraction request with local Gemini OCR...');
+        const { processGeminiImage, parseGeminiResponse } = await import('@/lib/gemini-ocr');
+        const geminiResult = await processGeminiImage(image);
+        const parsed = parseGeminiResponse(geminiResult);
+        result = {
+          success: true,
+          data: parsed.data
+        };
+        console.log('✅ Local Gemini OCR extraction successful');
+      } catch (geminiErr: any) {
+        console.error('❌ Local Gemini OCR extraction failed, trying backend API fallback...', geminiErr);
+      }
+    }
+
+    if (!result) {
+      // Build FormData to forward to backend API
+      const formData = new FormData();
+      formData.append('image', blob, 'receipt.jpg');
+      if (userId) {
+        formData.append('userId', userId);
+      }
+
+      const backendUrl = `${process.env.BACKEND_API_URL || 'https://smart-slip-api.vercel.app'}/api/receipts/extract`;
+      const apiKey = process.env.NEXT_PUBLIC_API_KEY || 'super-secret-api-key-12345';
+
+      console.log('Forwarding extraction request to backend API:', backendUrl);
+      const backendRes = await fetch(backendUrl, {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+        },
+        body: formData,
+      });
+
+      if (!backendRes.ok) {
+        const errorText = await backendRes.text();
+        console.error('Backend extraction failed:', errorText);
+        return NextResponse.json(
+          { success: false, error: `Backend API error: ${backendRes.statusText}` },
+          { status: backendRes.status }
+        );
+      }
+
+      result = await backendRes.json();
+    }
+
+    return NextResponse.json(result);
   } catch (error: any) {
-    console.error('Gemini OCR Error:', error);
+    console.error('OCR Extraction Route Error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'OCR extraction failed' },
       { status: 500 }

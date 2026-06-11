@@ -101,6 +101,7 @@ export default function HowToUsePage() {
                 <TopBar 
                     title="วิธีการใช้งาน" 
                     onToggleSidebar={toggleSidebar}
+                    onCreateNew={handleCreateNew}
                 />
 
 

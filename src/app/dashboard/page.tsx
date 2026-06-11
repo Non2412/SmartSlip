@@ -5,12 +5,13 @@ import TopBar from '@/components/TopBar';
 import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
 
-import { StatCard, FilterBar, ReceiptTable, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
+import { StatCard, ReceiptTable, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
 import { StatCardSkeleton, ChartSkeleton, RecentUploadsSkeleton } from '@/components/Skeleton';
+import { identifyDuplicateReceipts } from '@/lib/ocr-utils';
 import styles from './Dashboard.module.css';
 
 export default function DashboardPage() {
@@ -31,8 +32,24 @@ export default function DashboardPage() {
     }
   }, [session, fetchReceipts]);
 
+  // Auto-open receipt detail sheet if openReceiptId is present in URL
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (typeof window !== 'undefined' && receipts.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const openReceiptId = params.get('openReceiptId');
+      if (openReceiptId) {
+        const matched = receipts.find(r => (r._id || r.id) === openReceiptId);
+        if (matched) {
+          setSelectedReceipt(matched);
+          // Clean the query parameter from URL to avoid reopening on reload
+          const newUrl = window.location.pathname;
+          window.history.replaceState({ path: newUrl }, '', newUrl);
+        }
+      }
+    }
+  }, [receipts]);
+
+  useEffect(() => {
     setIsSidebarOpen(false);
   }, [pathname]);
 
@@ -44,14 +61,17 @@ export default function DashboardPage() {
 
   const handleDeleteConfirmed = async () => {
     if (!deleteConfirm) return;
-    await deleteReceipt(deleteConfirm.id);
+    await deleteReceipt(deleteConfirm._id || deleteConfirm.id);
     setDeleteConfirm(null);
   };
 
-  // คำนวณสถิติจริง
-  const totalAmount = receipts.reduce((acc, r) => acc + (r.totalAmount || 0), 0);
-  const pendingCount = receipts.filter(r => !r.extractedData).length;
-  const approvedCount = receipts.filter(r => r.extractedData).length;
+  // คำนวณสถิติจริง (ไม่รวมใบที่ซ้ำกัน)
+  const { duplicateIds } = identifyDuplicateReceipts(receipts);
+  const uniqueReceipts = receipts.filter(r => !duplicateIds.has(r._id || r.id || ''));
+
+  const totalAmount = uniqueReceipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0);
+  const pendingCount = uniqueReceipts.filter(r => !r.extractedData).length;
+  const approvedCount = uniqueReceipts.filter(r => r.extractedData).length;
 
   return (
     <div className="dashboard-layout">
@@ -135,10 +155,10 @@ export default function DashboardPage() {
             ) : (
               <>
                 <div className={styles.chartColSpan2}>
-                  <ExpenseChart receipts={receipts} />
+                  <ExpenseChart receipts={uniqueReceipts} />
                 </div>
                 <RecentUploads
-                  receipts={receipts}
+                  receipts={uniqueReceipts.filter(r => r.source === 'line')}
                   onReceiptClick={setSelectedReceipt}
                   onEdit={setSelectedReceipt}
                   onDelete={setDeleteConfirm}
@@ -146,10 +166,7 @@ export default function DashboardPage() {
               </>
             )}
           </div>
-
-          <FilterBar />
-
-          <ReceiptTable loading={loading} receipts={receipts} />
+          <ReceiptTable loading={loading} receipts={uniqueReceipts} />
         </div>
       </main>
 

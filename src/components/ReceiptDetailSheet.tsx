@@ -3,8 +3,44 @@
 import React, { useState, useEffect } from 'react';
 import { useReceipts } from '@/hooks/useReceipts';
 
+const formatToInputDate = (dateStr: string): string => {
+    if (!dateStr) return '';
+    try {
+        const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
+        if (match) {
+            return match[1];
+        }
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+    } catch {
+        // fallback
+    }
+    return dateStr;
+};
+
+const formatToInputTime = (timeStr: string): string => {
+    if (!timeStr) return '';
+    try {
+        const match = timeStr.match(/^(\d{2}:\d{2})/);
+        if (match) {
+            return match[1];
+        }
+    } catch {
+        // fallback
+    }
+    return timeStr;
+};
+
 const shimmer = `
 @keyframes spin { to { transform: rotate(360deg); } }
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
 `;
 
 interface ReceiptDetailSheetProps {
@@ -32,6 +68,29 @@ const inputStyle: React.CSSProperties = {
 const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDetailSheetProps) => {
     const { updateReceipt } = useReceipts();
 
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 767px)');
+        setIsMobile(mq.matches);
+        const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+        mq.addEventListener('change', handler);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
+
+    const [editingDescId, setEditingDescId] = useState<string | null>(null);
+    const [editingDescValue, setEditingDescValue] = useState('');
+
+    const openDescModal = (item: LineItem) => {
+        setEditingDescId(item.id);
+        setEditingDescValue(item.description);
+    };
+    const closeDescModal = () => {
+        if (editingDescId) {
+            updateItem(editingDescId, { description: editingDescValue });
+        }
+        setEditingDescId(null);
+    };
+
     const [store, setStore] = useState('');
     const [category, setCategory] = useState('');
     const [date, setDate] = useState('');
@@ -50,8 +109,8 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
             const ed = receipt.extractedData || {};
             setStore(receipt.storeName || '');
             setCategory(ed.category || '');
-            setDate(ed.date || '');
-            setTime(ed.time || '');
+            setDate(formatToInputDate(ed.date || receipt.createdAt || ''));
+            setTime(formatToInputTime(ed.time || (receipt.createdAt ? new Date(receipt.createdAt).toLocaleTimeString('th-TH', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '')));
             setPaymentMethod(ed.paymentMethod || ed.method || '');
             setCurrency(ed.currency || 'THB');
             setTaxId(ed.vendorTaxId || '');
@@ -72,7 +131,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                     id: '1',
                     description: receipt.storeName || '',
                     quantity: 1,
-                    unitPrice: receipt.totalAmount || 0,
+                    unitPrice: (receipt.amount !== undefined ? receipt.amount : receipt.totalAmount) || 0,
                 }]);
             }
         }
@@ -104,7 +163,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
         setErrorMsg(null);
         try {
             const grandTotal = calcTotal();
-            const result = await updateReceipt(receipt.id, {
+            const result = await updateReceipt(receipt._id || receipt.id || '', {
                 storeName: store,
                 totalAmount: grandTotal,
                 extractedData: {
@@ -138,9 +197,10 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
         }
     };
 
-    const imageData = receipt?.extractedData?.imageData || receipt?.imageUrl || null;
+    const getImageUrl = (url?: string) => { if (!url) return ''; if (url.includes('storage.googleapis.com')) { return '/api/gcs-image?url=' + encodeURIComponent(url); } return url; }; const imageData = receipt?.extractedData?.imageData || getImageUrl(receipt?.imageURL || receipt?.imageUrl) || null;
 
     return (
+        <>
         <div style={{
             position: 'fixed', top: 0, right: isOpen ? 0 : '-100vw',
             width: '100vw', height: '100vh', backgroundColor: '#ffffff',
@@ -167,18 +227,10 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
             )}
 
             {/* Two-column body */}
-            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-                {/* Left: Image */}
-                <div style={{ flex: '0 0 38%', borderRight: '1px solid #e2e8f0', backgroundColor: '#f8fafc', padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: '800', fontSize: '0.85rem', color: '#64748b' }}>ภาพถ่ายสลิปใบเสร็จต้นฉบับ</span>
-                        {imageData && (
-                            <button onClick={() => window.open(imageData, '_blank')} style={{ color: '#0052cc', fontSize: '0.8rem', fontWeight: '700', background: 'none', border: 'none', cursor: 'pointer' }}>
-                                ดูขนาดจริง ↗
-                            </button>
-                        )}
-                    </div>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflow: isMobile ? 'auto' : 'hidden', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
+                {/* Top (mobile) / Left (desktop): Image */}
+                <div style={{ flexGrow: 0, flexShrink: 0, flexBasis: isMobile ? 'auto' : '38%', width: isMobile ? '100%' : undefined, height: isMobile ? '240px' : undefined, borderRight: isMobile ? 'none' : '1px solid #e2e8f0', borderBottom: isMobile ? '1px solid #e2e8f0' : 'none', backgroundColor: '#f8fafc', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
+                    <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: '0%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                         {imageData ? (
                             <img src={imageData} alt="Receipt" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }} />
                         ) : (
@@ -191,7 +243,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                 </div>
 
                 {/* Right: Editable form */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px', backgroundColor: '#ffffff' }}>
+                <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflowY: 'auto', padding: '28px 32px', backgroundColor: '#ffffff' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
                         <div>
                             <label style={labelStyle}>ร้านค้า / ผู้ให้บริการ</label>
@@ -222,13 +274,6 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                             </div>
                         </div>
                         <div>
-                            <label style={labelStyle}>วิธีการชำระเงิน</label>
-                            <div style={{ position: 'relative' }}>
-                                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>💳</span>
-                                <input value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} placeholder="Mobile Banking" />
-                            </div>
-                        </div>
-                        <div>
                             <label style={labelStyle}>สกุลเงิน</label>
                             <div style={{ position: 'relative' }}>
                                 <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>$</span>
@@ -237,26 +282,29 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                         </div>
                     </div>
 
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={labelStyle}>เลขประจำตัวผู้เสียภาษีของร้านค้า (TAX ID)</label>
-                        <input value={taxId} onChange={e => setTaxId(e.target.value)} placeholder="เลข 13 หลักของบริษัท (ถ้ามี)" style={inputStyle} />
-                    </div>
-
                     {/* Line items */}
                     <div style={{ marginBottom: '20px', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
                         <div style={{ padding: '14px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h4 style={{ fontWeight: '900', fontSize: '0.95rem', margin: 0 }}>รายการสินค้าและบริการ ({items.length})</h4>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                            {['รายการ', 'จำนวน', 'ราคา/หน่วย', 'รวม', ''].map((h, i) => (
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 54px 90px 32px' : '1fr 80px 130px 36px', gap: '8px', padding: '8px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                            {['รายการ', 'จำนวน', 'ราคา', ''].map((h, i) => (
                                 <div key={i} style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textAlign: i >= 2 ? 'right' : 'left' }}>{h}</div>
                             ))}
                         </div>
                         {items.map(item => (
-                            <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 110px 110px 36px', gap: '8px', padding: '8px 16px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
-                                <input value={item.description} onChange={e => updateItem(item.id, { description: e.target.value })} placeholder="ชื่อสินค้า/บริการ" style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem' }} />
+                            <div key={item.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 54px 90px 32px' : '1fr 80px 130px 36px', gap: '8px', padding: '8px 16px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
+                                {isMobile ? (
+                                    <div
+                                        onClick={() => openDescModal(item)}
+                                        style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: item.description ? '#1e293b' : '#94a3b8' }}
+                                    >
+                                        {item.description || 'ชื่อสินค้า/บริการ'}
+                                    </div>
+                                ) : (
+                                    <input value={item.description} onChange={e => updateItem(item.id, { description: e.target.value })} placeholder="ชื่อสินค้า/บริการ" style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem' }} />
+                                )}
                                 <input type="number" value={item.quantity} onChange={e => updateItem(item.id, { quantity: parseInt(e.target.value) || 1 })} style={{ ...inputStyle, padding: '7px 8px', fontSize: '0.88rem', textAlign: 'center' }} />
-                                <input type="number" value={item.unitPrice} onChange={e => updateItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })} style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem', textAlign: 'right' }} />
                                 <div style={{ padding: '7px 10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.88rem', fontWeight: '700', textAlign: 'right', color: '#1e293b' }}>
                                     {(item.quantity * item.unitPrice).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                                 </div>
@@ -291,7 +339,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                             <span style={{ fontWeight: '700', color: '#1e293b' }}>{calcSubtotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })} THB</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '14px', borderTop: '2px solid #e2e8f0', alignItems: 'center' }}>
-                            <span style={{ fontWeight: '900', fontSize: '1.05rem', color: '#1e293b' }}>ยอดสุทธิทั้งหมด:</span>
+                            <span style={{ fontWeight: '900', fontSize: isMobile ? '0.95rem' : '1.05rem', color: '#1e293b' }}>{isMobile ? 'ยอดรวม:' : 'ยอดสุทธิทั้งหมด:'}</span>
                             <span style={{ fontWeight: '900', fontSize: '1.4rem', color: '#7c3aed' }}>
                                 {calcTotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })} THB
                             </span>
@@ -314,6 +362,40 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                 </button>
             </div>
         </div>
+
+        {/* Mobile description edit modal */}
+        {isMobile && editingDescId && (
+            <div
+                onClick={closeDescModal}
+                style={{
+                    position: 'fixed', inset: 0, zIndex: 2000,
+                    backgroundColor: 'rgba(15,23,42,0.6)',
+                    backdropFilter: 'blur(6px)',
+                    WebkitBackdropFilter: 'blur(6px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '24px',
+                }}
+            >
+                <div onClick={e => e.stopPropagation()} style={{ width: '100%', background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                    <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748b', margin: '0 0 10px' }}>ชื่อสินค้า / บริการ</p>
+                    <input
+                        autoFocus
+                        value={editingDescValue}
+                        onChange={e => setEditingDescValue(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && closeDescModal()}
+                        placeholder="ชื่อสินค้า/บริการ"
+                        style={{ ...inputStyle, fontSize: '1rem', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }}
+                    />
+                    <button
+                        onClick={closeDescModal}
+                        style={{ marginTop: '14px', width: '100%', padding: '12px', borderRadius: '10px', background: '#7c3aed', color: 'white', fontWeight: '800', border: 'none', fontSize: '0.95rem', cursor: 'pointer' }}
+                    >
+                        ยืนยัน
+                    </button>
+                </div>
+            </div>
+        )}
+        </>
     );
 };
 
