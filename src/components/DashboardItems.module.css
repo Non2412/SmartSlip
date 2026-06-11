@@ -84,12 +84,17 @@
 }
 
 .chartSelect {
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 8px;
   border: 1px solid var(--border-color);
   font-size: 0.8rem;
+  font-weight: 600;
   background-color: var(--surface-color);
   color: var(--text-main);
+  cursor: pointer;
+  outline: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  color-scheme: light dark;
 }
 
 .chartContainer {

@@ -152,6 +152,70 @@ body:has(.notification-banner) .dashboard-layout {
   position: relative;
 }
 
+/* ── CreateReceiptSheet dark mode overrides ── */
+[data-theme="dark"] .sr-ver-form {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .sr-ver-form > div {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+[data-theme="dark"] .sr-ver-form > div > div:first-child {
+  background: #334155 !important;
+  border-color: #334155 !important;
+}
+[data-theme="dark"] .sr-ver-form [style*="--text-main"],
+[data-theme="dark"] .sr-content [style*="--text-main"] {
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .sr-ver-form [style*="--text-muted"],
+[data-theme="dark"] .sr-content [style*="--text-muted"] {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] .sr-ver-form [style*="--card-bg"],
+[data-theme="dark"] .sr-content [style*="--card-bg"] {
+  background-color: #1e293b !important;
+  background: #1e293b !important;
+}
+[data-theme="dark"] .sr-ver-form [style*="--input-bg"],
+[data-theme="dark"] .sr-content [style*="--input-bg"] {
+  background-color: #1e293b !important;
+  background: #1e293b !important;
+}
+[data-theme="dark"] .sr-ver-form [style*="--surface-color"],
+[data-theme="dark"] .sr-content [style*="--surface-color"] {
+  background-color: #1e293b !important;
+  background: #1e293b !important;
+}
+[data-theme="dark"] .sr-ver-form [style*="--border-color"],
+[data-theme="dark"] .sr-content [style*="--border-color"] {
+  border-color: #334155 !important;
+}
+[data-theme="dark"] .sr-ver-form input,
+[data-theme="dark"] .sr-ver-form select,
+[data-theme="dark"] .sr-ver-form textarea {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+  color-scheme: dark;
+}
+[data-theme="dark"] .sr-ver-img {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+[data-theme="dark"] .sr-content {
+  background-color: #0f172a !important;
+}
+[data-theme="dark"] .sr-content input,
+[data-theme="dark"] .sr-content select,
+[data-theme="dark"] .sr-content textarea {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+  color-scheme: dark;
+}
+
 .page-container {
   padding: 1.5rem;
   padding-bottom: 6rem;

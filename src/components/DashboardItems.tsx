@@ -370,22 +370,10 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
 
                     {/* Secondary Dropdown for Month */}
                     {viewType === 'month' && (
-                        <select 
+                        <select
                             value={selectedMonth}
                             onChange={(e) => setSelectedMonth(Number(e.target.value))}
                             className={styles.chartSelect}
-                            style={{
-                                padding: '6px 10px',
-                                borderRadius: '8px',
-                                border: '1px solid #e2e8f0',
-                                fontSize: '0.8rem',
-                                fontWeight: '600',
-                                color: '#475569',
-                                backgroundColor: '#ffffff',
-                                cursor: 'pointer',
-                                outline: 'none',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                            }}
                         >
                             {monthNames.map((name, index) => (
                                 <option key={index} value={index}>{name}</option>
@@ -395,22 +383,10 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
 
                     {/* Secondary Dropdown for Year */}
                     {viewType === 'year' && (
-                        <select 
+                        <select
                             value={selectedYear}
                             onChange={(e) => setSelectedYear(Number(e.target.value))}
                             className={styles.chartSelect}
-                            style={{
-                                padding: '6px 10px',
-                                borderRadius: '8px',
-                                border: '1px solid #e2e8f0',
-                                fontSize: '0.8rem',
-                                fontWeight: '600',
-                                color: '#475569',
-                                backgroundColor: '#ffffff',
-                                cursor: 'pointer',
-                                outline: 'none',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                            }}
                         >
                             {availableYears.map((year) => (
                                 <option key={year} value={year}>พ.ศ. {year + 543}</option>
