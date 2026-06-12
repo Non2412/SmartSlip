@@ -27,10 +27,13 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 24px;
   margin-bottom: 32px;
+  align-items: stretch;
 }
 
 .chartColSpan2 {
   grid-column: span 2;
+  display: flex;
+  flex-direction: column;
 }
 
 @media (max-width: 1024px) {

@@ -72,13 +72,6 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
 
       <nav className={styles.nav}>
         <div className={styles.navSection}>
-          ข้อมูลของฉัน
-        </div>
-        <ul className={styles.navList}>
-          <SidebarItem href="/profile" active={pathname === '/profile'} label="โปรไฟล์ของฉัน" icon={<UserIcon />} />
-        </ul>
-
-        <div className={styles.navSection}>
           เมนูธุรกิจ
         </div>
         <ul className={styles.navList}>

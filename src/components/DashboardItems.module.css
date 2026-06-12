@@ -72,9 +72,11 @@
   padding: 24px;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  flex: 2;
+  flex: 1;
   min-height: 400px;
+  height: 100%;
   border: 1px solid var(--border-color);
+  box-sizing: border-box;
 }
 
 .chartTitle {
@@ -137,7 +139,9 @@
   box-shadow: var(--shadow-sm);
   flex: 1;
   min-width: 320px;
+  height: 100%;
   border: 1px solid var(--border-color);
+  box-sizing: border-box;
 }
 
 .recentTitle {

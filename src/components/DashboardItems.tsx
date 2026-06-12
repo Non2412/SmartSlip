@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import styles from './DashboardItems.module.css';
 import { TableRowSkeleton } from './Skeleton';
 
@@ -716,7 +717,11 @@ export const RecentUploads = ({
                     })
                 )}
             </div>
-            {receipts.length > 5 && <button className={styles.viewAllButton}>ดูทั้งหมด</button>}
+            {receipts.length > 0 && (
+                <Link href="/line-receipts?tab=line" className={styles.viewAllButton} style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
+                    ดูรายการทั้งหมด
+                </Link>
+            )}
         </div>
     );
 };

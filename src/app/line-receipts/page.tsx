@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
@@ -27,14 +28,19 @@ function saveViewedIds(ids: Set<string>) {
   window.dispatchEvent(new Event(UNREAD_EVENT));
 }
 
-export default function LineReceiptsPage() {
+function LineReceiptsContent() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Receipt | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
-  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'duplicate'>('all');
+  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'duplicate'>(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'line' || tab === 'web' || tab === 'duplicate') return tab;
+    return 'all';
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
   const [selectedPeriod, setSelectedPeriod] = useState('30 วัน');
@@ -630,5 +636,13 @@ export default function LineReceiptsPage() {
         }}
       />
     </div>
+  );
+}
+
+export default function LineReceiptsPage() {
+  return (
+    <Suspense>
+      <LineReceiptsContent />
+    </Suspense>
   );
 }
