@@ -20,14 +20,32 @@ if (!process.env.MONGODB_URI) {
     };
 
     if (!globalWithMongo._mongoClientPromise) {
+      console.log('🔌 [MongoDB] Connecting in development...');
       client = new MongoClient(uri, options);
-      globalWithMongo._mongoClientPromise = client.connect();
+      globalWithMongo._mongoClientPromise = client.connect()
+        .then(conn => {
+          console.log('✅ [MongoDB] Connected successfully in development');
+          return conn;
+        })
+        .catch(err => {
+          console.error('❌ [MongoDB] Connection error in development:', err);
+          throw err;
+        });
     }
     clientPromise = globalWithMongo._mongoClientPromise;
   } else {
     // In production mode, it's best to not use a global variable.
+    console.log('🔌 [MongoDB] Connecting in production...');
     client = new MongoClient(uri, options);
-    clientPromise = client.connect();
+    clientPromise = client.connect()
+      .then(conn => {
+        console.log('✅ [MongoDB] Connected successfully in production');
+        return conn;
+      })
+      .catch(err => {
+        console.error('❌ [MongoDB] Connection error in production:', err);
+        throw err;
+      });
   }
 }
 
