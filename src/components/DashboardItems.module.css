@@ -485,3 +485,116 @@
     }
 }
 
+/* Layout for the charts */
+.chartContainerLayout {
+    display: flex;
+    flex-direction: row;
+    gap: 32px;
+    align-items: stretch;
+    width: 100%;
+}
+
+.trendChartSection {
+    flex: 1.4;
+    min-width: 0; /* Prevents overflow in flexbox */
+}
+
+.pieChartSection {
+    flex: 1;
+    min-width: 250px;
+    border-left: 1px solid var(--border-color);
+    padding-left: 32px;
+    display: flex;
+    flex-direction: column;
+}
+
+.pieChartTitle {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 16px;
+    opacity: 0.85;
+}
+
+.pieChartContent {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    justify-content: center;
+    flex: 1;
+}
+
+.donutSvgWrapper {
+    width: 150px;
+    height: 150px;
+    margin: 0 auto;
+}
+
+.pieLegendList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+
+.pieLegendItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.825rem;
+}
+
+.legendColorBox {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.legendCategory {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.legendAmount {
+    color: var(--text-main);
+    font-weight: 600;
+    margin-left: auto;
+}
+
+/* Responsive design */
+@media (max-width: 992px) {
+    .chartContainerLayout {
+        flex-direction: column;
+        gap: 32px;
+    }
+    .pieChartSection {
+        border-left: none;
+        padding-left: 0;
+        border-top: 1px solid var(--border-color);
+        padding-top: 24px;
+    }
+    .pieChartContent {
+        flex-direction: row;
+        align-items: center;
+        gap: 32px;
+    }
+    .donutSvgWrapper {
+        margin: 0;
+    }
+    .pieLegendList {
+        flex: 1;
+    }
+}
+
+@media (max-width: 480px) {
+    .pieChartContent {
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+    }
+    .donutSvgWrapper {
+        margin: 0 auto;
+    }
+}
+
