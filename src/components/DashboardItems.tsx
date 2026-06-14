@@ -93,84 +93,219 @@ export const FilterBar = () => (
     </div>
 );
 
-export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, receipts?: any[] }) => (
-    <div className={styles.tableContainer}>
-        <table className={styles.receiptTable}>
-            <thead>
-                <tr>
-                    <th>ร้านค้า</th>
-                    <th>หมวดหมู่</th>
-                    <th>ยอดสุทธิ</th>
-                    <th>สถานะ</th>
-                    <th>วันที่</th>
-                </tr>
-            </thead>
-            <tbody>
-                {loading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                        <tr key={i}>
-                            <td colSpan={6} style={{ padding: '12px 0' }}>
-                                <TableRowSkeleton />
-                            </td>
-                        </tr>
-                    ))
-                ) : (
-                    receipts.map((receipt, index) => (
-                        <tr key={receipt._id || receipt.id || index}>
-                            <td className={styles.storeCell}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <div style={{
-                                        width: '36px', height: '36px', borderRadius: '8px',
-                                        overflow: 'hidden', flexShrink: 0,
-                                        border: '1px solid var(--border-color)',
-                                        background: 'var(--input-bg)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)',
-                                    }}>
-                                        {receipt.extractedData?.imageData ? (
-                                            <img
-                                                src={receipt.extractedData.imageData}
-                                                alt={receipt.storeName}
-                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                            />
-                                        ) : (
-                                            receipt.storeName?.charAt(0) || 'R'
-                                        )}
+export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, receipts?: any[] }) => {
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+
+    const totalItems = receipts.length;
+    const totalPages = Math.ceil(totalItems / pageSize) || 1;
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(1);
+        }
+    }, [totalItems, pageSize, totalPages, currentPage]);
+
+    const handlePageChange = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
+
+    const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setPageSize(Number(e.target.value));
+        setCurrentPage(1);
+    };
+
+    const paginatedReceipts = receipts.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
+
+    const getPageNumbers = () => {
+        const pages = [];
+        const maxVisiblePages = 5;
+        
+        if (totalPages <= maxVisiblePages) {
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            let start = Math.max(1, currentPage - 2);
+            let end = Math.min(totalPages, currentPage + 2);
+            
+            if (currentPage <= 3) {
+                start = 1;
+                end = maxVisiblePages;
+            } else if (currentPage >= totalPages - 2) {
+                start = totalPages - maxVisiblePages + 1;
+                end = totalPages;
+            }
+            
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+        }
+        return pages;
+    };
+
+    const pageNumbers = getPageNumbers();
+    const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const endIndex = Math.min(currentPage * pageSize, totalItems);
+
+    return (
+        <div className={styles.tableContainer}>
+            <table className={styles.receiptTable}>
+                <thead>
+                    <tr>
+                        <th>ร้านค้า</th>
+                        <th>หมวดหมู่</th>
+                        <th>ยอดสุทธิ</th>
+                        <th>สถานะ</th>
+                        <th>วันที่</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {loading ? (
+                        Array.from({ length: 5 }).map((_, i) => (
+                            <tr key={i}>
+                                <td colSpan={6} style={{ padding: '12px 0' }}>
+                                    <TableRowSkeleton />
+                                </td>
+                            </tr>
+                        ))
+                    ) : (
+                        paginatedReceipts.map((receipt, index) => (
+                            <tr key={receipt._id || receipt.id || index}>
+                                <td className={styles.storeCell}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <div style={{
+                                            width: '36px', height: '36px', borderRadius: '8px',
+                                            overflow: 'hidden', flexShrink: 0,
+                                            border: '1px solid var(--border-color)',
+                                            background: 'var(--input-bg)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)',
+                                        }}>
+                                            {receipt.extractedData?.imageData ? (
+                                                <img
+                                                    src={receipt.extractedData.imageData}
+                                                    alt={receipt.storeName}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                />
+                                            ) : (
+                                                receipt.storeName?.charAt(0) || 'R'
+                                            )}
+                                        </div>
+                                        <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>
+                                            {receipt.storeName || 'ไม่ระบุ'}
+                                        </span>
                                     </div>
-                                    <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>
-                                        {receipt.storeName || 'ไม่ระบุ'}
+                                </td>
+                                <td>{receipt.extractedData?.category || 'ไม่ระบุ'}</td>
+                                <td className={styles.amountCell}>฿ {(receipt.amount !== undefined ? receipt.amount : receipt.totalAmount)?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</td>
+                                <td>
+                                    <span className={!receipt.extractedData ? styles.statusWarning : styles.statusSuccess}>
+                                        {!receipt.extractedData ? 'รอตรวจสอบ' : 'สำเร็จ'}
                                     </span>
-                                </div>
-                            </td>
-                            <td>{receipt.extractedData?.category || 'ไม่ระบุ'}</td>
-                            <td className={styles.amountCell}>฿ {(receipt.amount !== undefined ? receipt.amount : receipt.totalAmount)?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</td>
-                            <td>
-                                <span className={!receipt.extractedData ? styles.statusWarning : styles.statusSuccess}>
-                                    {!receipt.extractedData ? 'รอตรวจสอบ' : 'สำเร็จ'}
-                                </span>
-                            </td>
-                            <td>
-                                {receipt.extractedData?.date ? 
-                                    new Date(receipt.extractedData.date).toLocaleDateString('th-TH') : 
-                                    new Date(receipt.createdAt).toLocaleDateString('th-TH')}
-                            </td>
-                        </tr>
-                    ))
-                )}
-            </tbody>
-        </table>
-        {!loading && receipts.length === 0 && (
-            <div className={styles.emptyState}>
-                ไม่พบรายการใบเสร็จในขณะนี้
-            </div>
-        )}
-        {loading && (
-            <div className={styles.emptyState}>
-                กำลังโหลด...
-            </div>
-        )}
-    </div>
-);
+                                </td>
+                                <td>
+                                    {receipt.extractedData?.date ? 
+                                        new Date(receipt.extractedData.date).toLocaleDateString('th-TH') : 
+                                        new Date(receipt.createdAt).toLocaleDateString('th-TH')}
+                                </td>
+                            </tr>
+                        ))
+                    )}
+                </tbody>
+            </table>
+            {!loading && receipts.length === 0 && (
+                <div className={styles.emptyState}>
+                    ไม่พบรายการใบเสร็จในขณะนี้
+                </div>
+            )}
+            {loading && (
+                <div className={styles.emptyState}>
+                    กำลังโหลด...
+                </div>
+            )}
+            
+            {/* Pagination Controls */}
+            {!loading && totalItems > 0 && (
+                <div className={styles.paginationContainer}>
+                    <div className={styles.paginationInfo}>
+                        แสดง {startIndex} ถึง {endIndex} จากทั้งหมด {totalItems} รายการ
+                    </div>
+                    <div className={styles.paginationControls}>
+                        <div className={styles.pageSizeSelector}>
+                            <span>แสดงหน้าละ:</span>
+                            <select 
+                                value={pageSize} 
+                                onChange={handlePageSizeChange}
+                                className={styles.pageSizeSelect}
+                            >
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                            </select>
+                            <span>รายการ</span>
+                        </div>
+                        <div className={styles.paginationButtons}>
+                            <button 
+                                onClick={() => handlePageChange(1)}
+                                disabled={currentPage === 1}
+                                className={`${styles.pageBtn} ${currentPage === 1 ? styles.pageBtnDisabled : ''}`}
+                                title="หน้าแรก"
+                                aria-label="First page"
+                            >
+                                &lt;&lt;
+                            </button>
+                            <button 
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className={`${styles.pageBtn} ${currentPage === 1 ? styles.pageBtnDisabled : ''}`}
+                                title="หน้าก่อนหน้า"
+                                aria-label="Previous page"
+                            >
+                                &lt;
+                            </button>
+                            
+                            {pageNumbers.map(page => (
+                                <button
+                                    key={page}
+                                    onClick={() => handlePageChange(page)}
+                                    className={`${styles.pageBtn} ${currentPage === page ? styles.pageBtnActive : ''}`}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+                            
+                            <button 
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className={`${styles.pageBtn} ${currentPage === totalPages ? styles.pageBtnDisabled : ''}`}
+                                title="หน้าถัดไป"
+                                aria-label="Next page"
+                            >
+                                &gt;
+                            </button>
+                            <button 
+                                onClick={() => handlePageChange(totalPages)}
+                                disabled={currentPage === totalPages}
+                                className={`${styles.pageBtn} ${currentPage === totalPages ? styles.pageBtnDisabled : ''}`}
+                                title="หน้าสุดท้าย"
+                                aria-label="Last page"
+                            >
+                                &gt;&gt;
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
     const [viewType, setViewType] = useState<'week' | 'month' | 'year'>('week');
