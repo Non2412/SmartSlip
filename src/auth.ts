@@ -10,6 +10,7 @@ import Credentials from "next-auth/providers/credentials"
 export const { handlers, auth, signIn, signOut } = NextAuth({
     adapter: MongoDBAdapter(clientPromise),
     trustHost: true,
+    debug: process.env.NODE_ENV === "development" || process.env.NEXTAUTH_DEBUG === "true" || true,
     session: {
         strategy: "jwt",
     },
