@@ -211,6 +211,14 @@ GOOGLE_DRIVE_FOLDER_ID=your-google-drive-folder-id
     *   *Computer Science Student*
     *   **GitHub**: [github.com/Non2412](https://github.com/Non2412)
 
+    **Suppachai Wicheer**
+    *   *Computer Science Student*
+    *   *   **GitHub**: [github.com/suppachai0](https://github.com/suppachai0)
+
+*   **Nobphanan**
+    *   *Computer Science Student*
+    *   **GitHub**: [github.com/Nobphanan47](https://github.com/Nobphanan47)
+
 ---
 
 ## Project Statistics
