@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import styles from './DashboardItems.module.css';
 import { TableRowSkeleton } from './Skeleton';
 
@@ -10,13 +11,16 @@ interface StatCardProps {
     trend?: string;
     status?: string;
     icon?: React.ReactNode;
-    iconBg?: string;
+    iconBg?: 'green' | 'orange' | string;
 }
 
-export const StatCard = ({ title, value, trend, status, icon, iconBg = '#ecfdf5' }: StatCardProps) => (
+export const StatCard = ({ title, value, trend, status, icon, iconBg = 'green' }: StatCardProps) => (
     <div className={styles.statCard}>
         <div className={styles.statCardHeader}>
-            <div className={styles.statIconWrapper} style={{ backgroundColor: iconBg, color: iconBg === '#ecfdf5' ? '#10b981' : '#f97316' }}>
+            <div className={styles.statIconWrapper} style={{
+                backgroundColor: iconBg === 'green' ? 'rgba(16,185,129,0.12)' : 'rgba(249,115,22,0.12)',
+                color: iconBg === 'green' ? '#10b981' : '#f97316',
+            }}>
                 {icon || (
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="2" y="5" width="20" height="14" rx="2" />
@@ -30,7 +34,7 @@ export const StatCard = ({ title, value, trend, status, icon, iconBg = '#ecfdf5'
                 </span>
             )}
             {status && (
-                <span className={styles.statusBadge} style={{ backgroundColor: '#fff7ed', color: '#f97316' }}>
+                <span className={styles.statusBadge}>
                     {status}
                 </span>
             )}
@@ -118,10 +122,10 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                                     <div style={{
                                         width: '36px', height: '36px', borderRadius: '8px',
                                         overflow: 'hidden', flexShrink: 0,
-                                        border: '1px solid #e5e7eb',
-                                        background: '#f1f5f9',
+                                        border: '1px solid var(--border-color)',
+                                        background: 'var(--input-bg)',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: '0.85rem', fontWeight: '700', color: '#64748b',
+                                        fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)',
                                     }}>
                                         {receipt.extractedData?.imageData ? (
                                             <img
@@ -133,7 +137,7 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                                             receipt.storeName?.charAt(0) || 'R'
                                         )}
                                     </div>
-                                    <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                                    <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>
                                         {receipt.storeName || 'ไม่ระบุ'}
                                     </span>
                                 </div>
@@ -367,22 +371,10 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
 
                     {/* Secondary Dropdown for Month */}
                     {viewType === 'month' && (
-                        <select 
+                        <select
                             value={selectedMonth}
                             onChange={(e) => setSelectedMonth(Number(e.target.value))}
                             className={styles.chartSelect}
-                            style={{
-                                padding: '6px 10px',
-                                borderRadius: '8px',
-                                border: '1px solid #e2e8f0',
-                                fontSize: '0.8rem',
-                                fontWeight: '600',
-                                color: '#475569',
-                                backgroundColor: '#ffffff',
-                                cursor: 'pointer',
-                                outline: 'none',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                            }}
                         >
                             {monthNames.map((name, index) => (
                                 <option key={index} value={index}>{name}</option>
@@ -392,22 +384,10 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
 
                     {/* Secondary Dropdown for Year */}
                     {viewType === 'year' && (
-                        <select 
+                        <select
                             value={selectedYear}
                             onChange={(e) => setSelectedYear(Number(e.target.value))}
                             className={styles.chartSelect}
-                            style={{
-                                padding: '6px 10px',
-                                borderRadius: '8px',
-                                border: '1px solid #e2e8f0',
-                                fontSize: '0.8rem',
-                                fontWeight: '600',
-                                color: '#475569',
-                                backgroundColor: '#ffffff',
-                                cursor: 'pointer',
-                                outline: 'none',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                            }}
                         >
                             {availableYears.map((year) => (
                                 <option key={year} value={year}>พ.ศ. {year + 543}</option>
@@ -737,7 +717,11 @@ export const RecentUploads = ({
                     })
                 )}
             </div>
-            {receipts.length > 5 && <button className={styles.viewAllButton}>ดูทั้งหมด</button>}
+            {receipts.length > 0 && (
+                <Link href="/line-receipts?tab=line" className={styles.viewAllButton} style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
+                    ดูรายการทั้งหมด
+                </Link>
+            )}
         </div>
     );
 };
