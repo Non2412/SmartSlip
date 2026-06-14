@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
+import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
 import { Receipt } from '@/lib/apiClient';
@@ -26,13 +28,19 @@ function saveViewedIds(ids: Set<string>) {
   window.dispatchEvent(new Event(UNREAD_EVENT));
 }
 
-export default function LineReceiptsPage() {
+function LineReceiptsContent() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Receipt | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
-  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'duplicate'>('all');
+  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'duplicate'>(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'line' || tab === 'web' || tab === 'duplicate') return tab;
+    return 'all';
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
   const [selectedPeriod, setSelectedPeriod] = useState('30 วัน');
@@ -40,7 +48,6 @@ export default function LineReceiptsPage() {
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
 
-  // Load viewed IDs from localStorage on mount
   useEffect(() => {
     setViewedIds(getViewedIds());
   }, []);
@@ -181,13 +188,14 @@ export default function LineReceiptsPage() {
         onClick={closeSidebar}
       />
 
-      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
+      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} onAddReceipt={() => setIsCreateSheetOpen(true)} />
 
       <main className="main-content">
         <TopBar
           title="แกลเลอรีรูปใบเสร็จจาก LINE"
           mobileTitle="แกลเลอรี"
           onToggleSidebar={toggleSidebar}
+          onCreateNew={() => setIsCreateSheetOpen(true)}
         />
 
         <div className="page-container">
@@ -265,9 +273,9 @@ export default function LineReceiptsPage() {
                       padding: '8px 16px', borderRadius: '10px', cursor: 'pointer',
                       fontSize: '0.875rem', fontWeight: '700', transition: 'all 0.2s',
                       display: 'flex', alignItems: 'center', gap: '7px',
-                      border: isActive ? 'none' : '1.5px solid #e2e8f0',
-                      background: isActive ? tab.activeBg : 'white',
-                      color: isActive ? 'white' : '#64748b',
+                      border: isActive ? 'none' : '1.5px solid var(--border-color)',
+                      background: isActive ? tab.activeBg : 'var(--surface-color)',
+                      color: isActive ? 'white' : 'var(--text-muted)',
                       boxShadow: isActive ? `0 4px 12px ${tab.activeBg}40` : '0 1px 3px rgba(0,0,0,0.06)',
                     }}
                   >
@@ -275,8 +283,8 @@ export default function LineReceiptsPage() {
                     {tab.label}
                     <span style={{
                       fontSize: '0.72rem', fontWeight: '800', padding: '2px 7px', borderRadius: '20px',
-                      background: isActive ? tab.activeBadge : '#f1f5f9',
-                      color: isActive ? 'white' : '#94a3b8',
+                      background: isActive ? tab.activeBadge : 'var(--sidebar-item-hover)',
+                      color: isActive ? 'white' : 'var(--text-muted)',
                       minWidth: '20px', textAlign: 'center',
                     }}>
                       {tab.count}
@@ -482,7 +490,6 @@ export default function LineReceiptsPage() {
                     onClick={() => handleReceiptClick(receipt)}
                     style={{ cursor: 'pointer', position: 'relative' }}
                   >
-                    {/* NEW badge — red dot */}
                     {isNew && (
                       <div style={{
                         position: 'absolute', top: '8px', left: '8px', zIndex: 10,
@@ -492,7 +499,6 @@ export default function LineReceiptsPage() {
                       }} title="ใหม่" />
                     )}
 
-                    {/* Three-dot menu */}
                     <div
                       style={{ position: 'absolute', top: '8px', right: '8px', zIndex: 10 }}
                       onClick={e => e.stopPropagation()}
@@ -506,15 +512,15 @@ export default function LineReceiptsPage() {
                           }}
                           style={{
                             width: '28px', height: '28px', borderRadius: '6px',
-                            border: 'none', background: 'rgba(255,255,255,0.9)',
+                            border: 'none', background: 'var(--surface-color)',
                             boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
                             cursor: 'pointer', display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', fontSize: '1rem', fontWeight: '900', color: '#374151',
+                            justifyContent: 'center', fontSize: '1rem', fontWeight: '900', color: 'var(--text-main)',
                           }}
                         >⋮</button>
                         <div style={{
                           display: 'none', position: 'absolute', right: 0, top: '32px',
-                          background: 'white', borderRadius: '10px', border: '1px solid #e5e7eb',
+                          background: 'var(--card-bg)', borderRadius: '10px', border: '1px solid var(--border-color)',
                           boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: '130px', overflow: 'hidden', zIndex: 20,
                         }}>
                           <button
@@ -593,7 +599,7 @@ export default function LineReceiptsPage() {
           background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <div style={{ background: 'white', borderRadius: '16px', padding: '28px 32px', width: 'min(400px, 90vw)', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+          <div style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '28px 32px', width: 'min(400px, 90vw)', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </div>
@@ -602,12 +608,22 @@ export default function LineReceiptsPage() {
               ต้องการลบ <strong style={{ color: '#1e293b' }}>{deleteConfirm.storeName || 'รายการนี้'}</strong> ออกจากระบบ? การกระทำนี้ไม่สามารถย้อนกลับได้
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid #e2e8f0', background: 'white', fontWeight: '700', fontSize: '0.9rem', color: '#64748b', cursor: 'pointer' }}>ยกเลิก</button>
+              <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border-color)', background: 'var(--surface-color)', fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-muted)', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleDeleteConfirmed} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: 'white', fontWeight: '800', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(239,68,68,0.35)' }}>ลบ</button>
             </div>
           </div>
         </div>
       )}
+
+      <CreateReceiptSheet
+        isOpen={isCreateSheetOpen}
+        onClose={() => setIsCreateSheetOpen(false)}
+        onSuccess={() => {
+          if (session?.user?.id) fetchReceipts(session.user.id);
+          setIsCreateSheetOpen(false);
+        }}
+        userId={session?.user?.id}
+      />
 
       {/* ── Receipt Detail Sheet ── */}
       <ReceiptDetailSheet
@@ -620,5 +636,13 @@ export default function LineReceiptsPage() {
         }}
       />
     </div>
+  );
+}
+
+export default function LineReceiptsPage() {
+  return (
+    <Suspense>
+      <LineReceiptsContent />
+    </Suspense>
   );
 }

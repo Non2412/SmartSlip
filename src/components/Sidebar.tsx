@@ -18,6 +18,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
   const { data: session } = useSession();
   const user = session?.user;
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     const update = () => {
@@ -34,6 +35,22 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
       window.removeEventListener('storage', update);
     };
   }, []);
+
+  useEffect(() => {
+    const checkTheme = () => {
+      setIsDark(document.documentElement.getAttribute('data-theme') === 'dark');
+    };
+    checkTheme();
+    // Re-check when localStorage changes (TopBar toggle fires storage event)
+    window.addEventListener('storage', checkTheme);
+    // Also observe attribute changes on <html>
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => {
+      window.removeEventListener('storage', checkTheme);
+      observer.disconnect();
+    };
+  }, []);
   const userId = user?.id || 'guest';
   
   // Show LINE user info as primary account, fallback to current user
@@ -46,7 +63,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
       <div className={styles.logoContainer}>
         <Link href="/">
           <img
-            src="/logo.png"
+            src={isDark ? '/logo-dark.png' : '/logo.png'}
             alt="SmartSlip AI"
             className={styles.logo}
           />
@@ -54,13 +71,6 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
       </div>
 
       <nav className={styles.nav}>
-        <div className={styles.navSection}>
-          ข้อมูลของฉัน
-        </div>
-        <ul className={styles.navList}>
-          <SidebarItem href="/profile" active={pathname === '/profile'} label="โปรไฟล์ของฉัน" icon={<UserIcon />} />
-        </ul>
-
         <div className={styles.navSection}>
           เมนูธุรกิจ
         </div>
