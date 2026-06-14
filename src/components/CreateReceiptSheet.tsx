@@ -874,8 +874,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                 { id: 'อาหาร', icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
                                                 { id: 'เดินทาง', icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
                                                 { id: 'ช้อปปิ้ง', icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
-                                                { id: 'สาธารณูปโภค', icon: '💡', color: '#ecfdf5', border: '#22c55e', text: '#166534' },
-                                                { id: 'บันเทิง', icon: '🎬', color: '#fff1f2', border: '#f43f5e', text: '#9f1239' },
                                                 { id: 'อื่นๆ', icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
                                             ].map(cat => {
                                                 const active = verCategory === cat.id;
@@ -900,7 +898,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                             })}
                                         </div>
                                         {/* fallback text if not in chips */}
-                                        {!['อาหาร','เดินทาง','ช้อปปิ้ง','สาธารณูปโภค','บันเทิง','อื่นๆ'].includes(verCategory) && (
+                                        {!['อาหาร','เดินทาง','ช้อปปิ้ง','อื่นๆ'].includes(verCategory) && (
                                             <input
                                                 value={verCategory}
                                                 onChange={e => setVerCategory(e.target.value)}
@@ -1384,8 +1382,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                             { id: 'อาหาร',       icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
                                                             { id: 'เดินทาง',     icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
                                                             { id: 'ช้อปปิ้ง',   icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
-                                                            { id: 'สาธารณูปโภค', icon: '💡', color: '#ecfdf5', border: '#22c55e', text: '#166534' },
-                                                            { id: 'บันเทิง',    icon: '🎬', color: '#fff1f2', border: '#f43f5e', text: '#9f1239' },
                                                             { id: 'อื่นๆ',      icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
                                                         ].map(cat => {
                                                             const active = mainCategory === cat.id;
