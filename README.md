@@ -223,6 +223,9 @@ GOOGLE_DRIVE_FOLDER_ID=your-google-drive-folder-id
 *   **Suppachai Wicheer**
     *   *Computer Science Student*
     *   **GitHub**: [github.com/suppachai0](https://github.com/suppachai0)
+    **Suppachai Wicheer**
+    *   *Computer Science Student*
+    *   **GitHub**: [github.com/suppachai0](https://github.com/suppachai0)
 
 *   **Nobphanan**
     *   *Computer Science Student*
