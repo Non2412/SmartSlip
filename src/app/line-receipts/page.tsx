@@ -216,8 +216,8 @@ function LineReceiptsContent() {
                       <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
                     </svg>
                   ),
-                  activeColor: '#0f172a',
-                  activeBg: '#0f172a',
+                  activeColor: '#475569',
+                  activeBg: '#475569',
                   activeBadge: '#334155',
                 },
                 {
