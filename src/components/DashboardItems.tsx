@@ -95,7 +95,7 @@ export const FilterBar = () => (
 
 export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, receipts?: any[] }) => {
     const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
+    const [pageSize, setPageSize] = useState(5);
 
     const totalItems = receipts.length;
     const totalPages = Math.ceil(totalItems / pageSize) || 1;
