@@ -193,6 +193,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [formTab, setFormTab] = useState<'info' | 'items'>('info');
     const [creationMethod, setCreationMethod] = useState<CreationMethod>('manual');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const manualImageRef = useRef<HTMLInputElement>(null);
 
     const { createReceipt, updateReceipt, extractFromImage } = useReceipts();
     const [isProcessing, setIsProcessing] = useState(false);
@@ -371,6 +372,18 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) handleFile(file);
+    };
+
+    const handleManualImageFile = (file: File) => {
+        if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+            setErrorMsg('กรุณาอัพโหลดไฟล์รูปภาพหรือ PDF เท่านั้น');
+            return;
+        }
+        setSelectedFile(file);
+        const reader = new FileReader();
+        reader.onload = (e) => setImage(e.target?.result as string);
+        reader.readAsDataURL(file);
+        setErrorMsg(null);
     };
 
     const runOCR = async (file?: File) => {
@@ -861,8 +874,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                 { id: 'อาหาร', icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
                                                 { id: 'เดินทาง', icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
                                                 { id: 'ช้อปปิ้ง', icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
-                                                { id: 'สาธารณูปโภค', icon: '💡', color: '#ecfdf5', border: '#22c55e', text: '#166534' },
-                                                { id: 'บันเทิง', icon: '🎬', color: '#fff1f2', border: '#f43f5e', text: '#9f1239' },
                                                 { id: 'อื่นๆ', icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
                                             ].map(cat => {
                                                 const active = verCategory === cat.id;
@@ -887,7 +898,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                             })}
                                         </div>
                                         {/* fallback text if not in chips */}
-                                        {!['อาหาร','เดินทาง','ช้อปปิ้ง','สาธารณูปโภค','บันเทิง','อื่นๆ'].includes(verCategory) && (
+                                        {!['อาหาร','เดินทาง','ช้อปปิ้ง','อื่นๆ'].includes(verCategory) && (
                                             <input
                                                 value={verCategory}
                                                 onChange={e => setVerCategory(e.target.value)}
@@ -1371,8 +1382,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                             { id: 'อาหาร',       icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
                                                             { id: 'เดินทาง',     icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
                                                             { id: 'ช้อปปิ้ง',   icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
-                                                            { id: 'สาธารณูปโภค', icon: '💡', color: '#ecfdf5', border: '#22c55e', text: '#166534' },
-                                                            { id: 'บันเทิง',    icon: '🎬', color: '#fff1f2', border: '#f43f5e', text: '#9f1239' },
                                                             { id: 'อื่นๆ',      icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
                                                         ].map(cat => {
                                                             const active = mainCategory === cat.id;
@@ -1427,6 +1436,75 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                         style={{ ...inputStyle, height: '44px', resize: 'none' }}
                                                     />
                                                 </div>
+                                            </div>
+                                        </div>
+
+                                        {/* ── Card 4: รูปภาพหลักฐาน ── */}
+                                        <div style={{ background: bgCard, borderRadius: '12px', border: `1px solid ${bdColor}`, overflow: 'hidden' }}>
+                                            <div style={{ padding: '12px 18px', borderBottom: `1px solid ${bdLight}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: bgSect }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                                    </div>
+                                                    <span style={{ fontWeight: '800', fontSize: '0.82rem', color: txMain }}>รูปภาพหลักฐาน</span>
+                                                    <span style={{ fontSize: '0.72rem', color: txMuted, fontWeight: '500' }}>(ไม่บังคับ)</span>
+                                                </div>
+                                                {image && (
+                                                    <button
+                                                        onClick={() => { setImage(null); setSelectedFile(null); }}
+                                                        style={{ padding: '4px 10px', borderRadius: '6px', border: `1px solid #fca5a5`, background: 'rgba(239,68,68,0.08)', color: '#ef4444', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                    >
+                                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                                        ลบรูป
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div style={{ padding: '16px 18px' }}>
+                                                {image ? (
+                                                    /* Preview */
+                                                    <div style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', border: `1px solid ${bdColor}`, background: bgMuted }}>
+                                                        <img
+                                                            src={image}
+                                                            alt="หลักฐานใบเสร็จ"
+                                                            style={{ width: '100%', maxHeight: '220px', objectFit: 'contain', display: 'block' }}
+                                                        />
+                                                        {selectedFile && (
+                                                            <div style={{ padding: '8px 14px', borderTop: `1px solid ${bdColor}`, display: 'flex', alignItems: 'center', gap: '8px', background: bgCard }}>
+                                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                                                <span style={{ fontSize: '0.75rem', color: txMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedFile.name}</span>
+                                                                <span style={{ fontSize: '0.68rem', color: txMuted, flexShrink: 0 }}>({(selectedFile.size / 1024).toFixed(0)} KB)</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    /* Dropzone */
+                                                    <div
+                                                        onClick={() => manualImageRef.current?.click()}
+                                                        onDragOver={e => { e.preventDefault(); (e.currentTarget as HTMLDivElement).style.borderColor = '#22c55e'; (e.currentTarget as HTMLDivElement).style.background = 'rgba(34,197,94,0.06)'; }}
+                                                        onDragLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = bdColor; (e.currentTarget as HTMLDivElement).style.background = bgMuted; }}
+                                                        onDrop={e => {
+                                                            e.preventDefault();
+                                                            (e.currentTarget as HTMLDivElement).style.borderColor = bdColor;
+                                                            (e.currentTarget as HTMLDivElement).style.background = bgMuted;
+                                                            const file = e.dataTransfer.files?.[0];
+                                                            if (file) handleManualImageFile(file);
+                                                        }}
+                                                        style={{ border: `2px dashed ${bdColor}`, borderRadius: '10px', padding: '28px 20px', textAlign: 'center', cursor: 'pointer', background: bgMuted, transition: 'all 0.2s' }}
+                                                    >
+                                                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
+                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                                        </div>
+                                                        <p style={{ fontSize: '0.85rem', fontWeight: '700', color: txMain, margin: '0 0 4px' }}>คลิกเพื่อเลือกรูปหรือลากไฟล์มาวาง</p>
+                                                        <p style={{ fontSize: '0.75rem', color: txMuted, margin: 0 }}>รองรับ JPG, PNG, WEBP, PDF</p>
+                                                    </div>
+                                                )}
+                                                <input
+                                                    type="file"
+                                                    ref={manualImageRef}
+                                                    accept=".jpg,.jpeg,.png,.webp,.heic,.pdf"
+                                                    style={{ display: 'none' }}
+                                                    onChange={e => { const f = e.target.files?.[0]; if (f) handleManualImageFile(f); e.target.value = ''; }}
+                                                />
                                             </div>
                                         </div>
 

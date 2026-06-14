@@ -5,12 +5,14 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
+import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import { useReceipts } from '@/hooks/useReceipts';
 import styles from './Notification.module.css';
 
 export default function NotificationPage() {
   const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const { receipts, fetchReceipts, loading } = useReceipts();
 
   useEffect(() => {
@@ -22,6 +24,8 @@ export default function NotificationPage() {
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
+  const openCreateSheet = () => setIsCreateSheetOpen(true);
+  const closeCreateSheet = () => setIsCreateSheetOpen(false);
 
   // Filter for receipts in pending status (no extractedData)
   const pendingReceipts = receipts.filter(r => !r.extractedData);
@@ -34,13 +38,14 @@ export default function NotificationPage() {
         onClick={closeSidebar}
       />
 
-      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
+      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} onAddReceipt={openCreateSheet} />
 
       <main className="main-content">
         <TopBar
           title="การแจ้งเตือน"
           mobileTitle="แจ้งเตือน"
           onToggleSidebar={toggleSidebar}
+          onCreateNew={openCreateSheet}
         />
 
         <div className="page-container">
@@ -128,6 +133,18 @@ export default function NotificationPage() {
           </div>
         </div>
       </main>
+
+      <CreateReceiptSheet
+        isOpen={isCreateSheetOpen}
+        onClose={closeCreateSheet}
+        onSuccess={() => {
+          if (session?.user?.id) {
+            const lineUserId = (session as any)?.lineUserId as string | undefined;
+            fetchReceipts(session.user.id, lineUserId);
+          }
+        }}
+        userId={session?.user?.id || 'user123'}
+      />
     </div>
   );
 }

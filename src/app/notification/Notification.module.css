@@ -231,3 +231,77 @@
     align-self: flex-start;
   }
 }
+
+/* ── Dark Mode ── */
+:global([data-theme="dark"]) .mainTitle {
+  color: #f1f5f9;
+}
+
+:global([data-theme="dark"]) .subTitle {
+  color: #94a3b8;
+}
+
+:global([data-theme="dark"]) .loadingState {
+  color: #94a3b8;
+}
+
+:global([data-theme="dark"]) .spinner {
+  border-color: #1e293b;
+  border-top-color: #60a5fa;
+}
+
+:global([data-theme="dark"]) .emptyState {
+  background-color: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+:global([data-theme="dark"]) .successIconWrapper {
+  background-color: #064e3b;
+}
+
+:global([data-theme="dark"]) .emptyTitle {
+  color: #f1f5f9;
+}
+
+:global([data-theme="dark"]) .emptySubtitle {
+  color: #94a3b8;
+}
+
+:global([data-theme="dark"]) .alertSummaryBanner {
+  background-color: #1c1407;
+  border-color: #78350f;
+  color: #fbbf24;
+}
+
+:global([data-theme="dark"]) .alertSummaryBanner strong {
+  color: #fcd34d;
+}
+
+:global([data-theme="dark"]) .alertCard {
+  background-color: #1e293b;
+  border-color: #78350f;
+  border-left-color: #d97706;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+:global([data-theme="dark"]) .alertCard:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+:global([data-theme="dark"]) .warningIconCircle {
+  background-color: #1c1407;
+}
+
+:global([data-theme="dark"]) .alertTitle {
+  color: #fcd34d;
+}
+
+:global([data-theme="dark"]) .alertMeta {
+  background-color: #1c1407;
+  color: #fbbf24;
+}
+
+:global([data-theme="dark"]) .alertText {
+  color: #94a3b8;
+}

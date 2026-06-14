@@ -529,6 +529,18 @@ export default function ExportPage() {
         </div>
       </main>
 
+      <CreateReceiptSheet
+        isOpen={isCreateSheetOpen}
+        onClose={() => setIsCreateSheetOpen(false)}
+        onSuccess={() => {
+          setIsCreateSheetOpen(false);
+          if (session?.user?.id) {
+            const lineUserId = (session as any)?.lineUserId as string | undefined;
+            fetchReceipts(session.user.id, lineUserId);
+          }
+        }}
+      />
+
       {/* ── Blocked Export Dialog ── */}
       {showBlockedModal && (
         <div style={{

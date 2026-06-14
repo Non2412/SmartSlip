@@ -12,6 +12,16 @@
   width: 100%;
 }
 
+:global([data-theme="dark"]) .skeleton {
+  background: #1e293b;
+  background-image: linear-gradient(
+    90deg,
+    #1e293b 0px,
+    #334155 40px,
+    #1e293b 80px
+  );
+}
+
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
