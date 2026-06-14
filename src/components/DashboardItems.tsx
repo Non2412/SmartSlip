@@ -65,13 +65,15 @@ export const FilterBar = () => (
             <div className={styles.filterChips}>
                 <div className={`${styles.filterChip} ${styles.filterChipActive}`}>ทั้งหมด</div>
                 <div className={styles.filterChip}>อาหาร</div>
-                <div className={styles.filterChip}>ของใช้</div>
+                <div className={styles.filterChip}>เดินทาง</div>
+                <div className={styles.filterChip}>ช้อปปิ้ง</div>
+                <div className={styles.filterChip}>อื่นๆ</div>
             </div>
         </div>
         <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
             <span className={styles.filterLabel}>ช่วงเวลา:</span>
             <div className={styles.filterChips}>
-                <div className={`${styles.filterChip} ${styles.filterChipActive}`}>30 วัน</div>
+                <div className={styles.filterChip}>7 วัน</div>
                 <div className={styles.filterChip}>รายเดือน</div>
                 <div className={styles.filterChip}>รายปี</div>
             </div>
@@ -82,10 +84,13 @@ export const FilterBar = () => (
             <select className={styles.mobileSelect} defaultValue="all">
                 <option value="all">หมวดหมู่: ทั้งหมด</option>
                 <option value="food">อาหาร</option>
-                <option value="item">ของใช้</option>
+                <option value="travel">เดินทาง</option>
+                <option value="shopping">ช้อปปิ้ง</option>
+                <option value="other">อื่นๆ</option>
             </select>
-            <select className={styles.mobileSelect} defaultValue="30d">
-                <option value="30d">ช่วงเวลา: 30 วัน</option>
+            <select className={styles.mobileSelect} defaultValue="">
+                <option value="">ช่วงเวลา</option>
+                <option value="7d">7 วัน</option>
                 <option value="month">รายเดือน</option>
                 <option value="year">รายปี</option>
             </select>
@@ -95,7 +100,7 @@ export const FilterBar = () => (
 
 export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, receipts?: any[] }) => {
     const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
+    const [pageSize, setPageSize] = useState(5);
 
     const totalItems = receipts.length;
     const totalPages = Math.ceil(totalItems / pageSize) || 1;

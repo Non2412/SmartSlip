@@ -43,7 +43,7 @@ function LineReceiptsContent() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
-  const [selectedPeriod, setSelectedPeriod] = useState('30 วัน');
+  const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
   const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth());
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
@@ -124,11 +124,11 @@ function LineReceiptsContent() {
 
     // 3. Period filter
     const dateObj = new Date(r.extractedData?.date || r.createdAt);
-    if (selectedPeriod === '30 วัน') {
+    if (selectedPeriod === '7 วัน') {
       const now = new Date();
       const diffTime = Math.abs(now.getTime() - dateObj.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays > 30) return false;
+      if (diffDays > 7) return false;
     } else if (selectedPeriod === 'รายเดือน') {
       if (dateObj.getMonth() !== filterMonth || dateObj.getFullYear() !== filterYear) {
         return false;
@@ -216,8 +216,8 @@ function LineReceiptsContent() {
                       <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
                     </svg>
                   ),
-                  activeColor: '#0f172a',
-                  activeBg: '#0f172a',
+                  activeColor: '#475569',
+                  activeBg: '#475569',
                   activeBadge: '#334155',
                 },
                 {
@@ -314,7 +314,7 @@ function LineReceiptsContent() {
             <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
               <span className={styles.filterLabel}>หมวดหมู่:</span>
               <div className={styles.filterChips}>
-                {['ทั้งหมด', 'อาหาร', 'ของใช้'].map(cat => (
+                {['ทั้งหมด', 'อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'].map(cat => (
                   <div
                     key={cat}
                     className={`${styles.filterChip} ${selectedCategory === cat ? styles.filterChipActive : ''}`}
@@ -328,11 +328,11 @@ function LineReceiptsContent() {
             <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
               <span className={styles.filterLabel}>ช่วงเวลา:</span>
               <div className={styles.filterChips}>
-                {['30 วัน', 'รายเดือน', 'รายปี'].map(period => (
+                {['7 วัน', 'รายเดือน', 'รายปี'].map(period => (
                   <div
                     key={period}
                     className={`${styles.filterChip} ${selectedPeriod === period ? styles.filterChipActive : ''}`}
-                    onClick={() => setSelectedPeriod(period)}
+                    onClick={() => setSelectedPeriod(prev => prev === period ? null : period)}
                   >
                     {period}
                   </div>
@@ -388,14 +388,17 @@ function LineReceiptsContent() {
                 >
                   <option value="ทั้งหมด">หมวดหมู่: ทั้งหมด</option>
                   <option value="อาหาร">อาหาร</option>
-                  <option value="ของใช้">ของใช้</option>
+                  <option value="เดินทาง">เดินทาง</option>
+                  <option value="ช้อปปิ้ง">ช้อปปิ้ง</option>
+                  <option value="อื่นๆ">อื่นๆ</option>
                 </select>
                 <select
                   className={styles.mobileSelect}
-                  value={selectedPeriod}
-                  onChange={e => setSelectedPeriod(e.target.value)}
+                  value={selectedPeriod || ''}
+                  onChange={e => setSelectedPeriod(e.target.value || null)}
                 >
-                  <option value="30 วัน">ช่วงเวลา: 30 วัน</option>
+                  <option value="">ช่วงเวลา</option>
+                  <option value="7 วัน">7 วัน</option>
                   <option value="รายเดือน">รายเดือน</option>
                   <option value="รายปี">รายปี</option>
                 </select>

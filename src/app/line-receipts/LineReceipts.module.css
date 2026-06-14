@@ -377,7 +377,14 @@
 .filterChipActive {
   background: var(--surface-color);
   color: #10b981;
+  font-weight: 700;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+:global([data-theme="dark"]) .filterChipActive {
+  background: #334155;
+  color: #34d399;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
 
 /* Mobile dropdowns — hidden on desktop */
