@@ -590,7 +590,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 currency: verCurrency,
                 vendorTaxId: verTaxId,
                 notes: `หมวดหมู่: ${verCategory}`,
-                imageData: finalImageUrl,
+                imageData: finalImageUrl || undefined,
                 items: verItems,
                 summary: {
                     subtotal: calcVerSubtotal(),
@@ -602,6 +602,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
             const result = extractedReceiptId
                 ? await updateReceipt(extractedReceiptId, {
+                    userId: userId ?? '',
+                    imageUrl: finalImageUrl || undefined,
+                    source: 'web',
                     storeName: verStore,
                     totalAmount: grandTotal,
                     extractedData: payload
@@ -668,13 +671,16 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 vendorTaxId,
                 vendorAddress,
                 currency,
-                imageData: image,
+                imageData: finalImageUrl || undefined,
                 items: expenseItems,
                 summary: { subtotal: parseFloat(amount) || subtotal, vat, wht, total: finalTotal }
             };
 
             const result = extractedReceiptId
                 ? await updateReceipt(extractedReceiptId, {
+                    userId: userId ?? '',
+                    imageUrl: finalImageUrl || undefined,
+                    source: 'web',
                     storeName: shopName,
                     totalAmount: finalTotal,
                     extractedData: payload

@@ -108,7 +108,7 @@ export const receiptApi = {
     body: JSON.stringify(data),
   }),
 
-  update: (id: string, data: { storeName?: string; totalAmount?: number; extractedData?: unknown }) => {
+  update: (id: string, data: Partial<Receipt>) => {
     const isVercel = API_BASE_URL.includes('smart-slip-api.vercel.app');
     if (isVercel) {
       return apiRequest<Receipt>(`/receipts/${id}`, {

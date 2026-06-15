@@ -7,7 +7,7 @@ export interface UseReceiptsReturn {
   receipts: Receipt[];
   fetchReceipts: (userId: string, lineUserId?: string) => Promise<void>;
   createReceipt: (data: CreateReceiptData) => Promise<{ success: boolean; data?: Receipt; error?: string }>;
-  updateReceipt: (id: string, data: { storeName?: string; totalAmount?: number; extractedData?: unknown }) => Promise<{ success: boolean; data?: Receipt; error?: string }>;
+  updateReceipt: (id: string, data: Partial<Receipt>) => Promise<{ success: boolean; data?: Receipt; error?: string }>;
   deleteReceipt: (id: string) => Promise<{ success: boolean; error?: string }>;
   extractFromImage: (file: File, userId: string) => Promise<any>;
   loading: boolean;
@@ -54,7 +54,7 @@ export const useReceipts = (): UseReceiptsReturn => {
     }
   }, []);
 
-  const updateReceipt = useCallback(async (id: string, data: { storeName?: string; totalAmount?: number; extractedData?: unknown }) => {
+  const updateReceipt = useCallback(async (id: string, data: Partial<Receipt>) => {
     try {
       const result = await receiptApi.update(id, data) as any;
       if (result.success && result.data) {
