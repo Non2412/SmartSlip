@@ -186,7 +186,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                   <option value="อาหาร">อาหารและเครื่องดื่ม</option>
                   <option value="ของใช้">ของใช้ทั่วไป</option>
                   <option value="เดินทาง">การเดินทาง</option>
-                  <option value="บันเทิง">ความบันเทิง</option>
+
                   <option value="อื่นๆ">อื่นๆ</option>
                 </select>
               </div>

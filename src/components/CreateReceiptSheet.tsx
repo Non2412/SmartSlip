@@ -194,6 +194,16 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [creationMethod, setCreationMethod] = useState<CreationMethod>('manual');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const manualImageRef = useRef<HTMLInputElement>(null);
+    const extraFileInputRef = useRef<HTMLInputElement>(null);
+    const [extraFiles, setExtraFiles] = useState<{name: string, data: string, type: string}[]>([]);
+    const [showDocStrip, setShowDocStrip] = useState(true);
+    const [activeDocIndex, setActiveDocIndex] = useState(-1);
+    const [fileQueue, setFileQueue] = useState<File[]>([]);
+    const [queueIndex, setQueueIndex] = useState(0);
+    const [queueThumbnails, setQueueThumbnails] = useState<string[]>([]);
+    const [queueSummaries, setQueueSummaries] = useState<{shopName: string, amount: string, date: string, thumb: string}[]>([]);
+    const ocrGenerationRef = useRef(0);
+    const ocrTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const { createReceipt, updateReceipt, extractFromImage } = useReceipts();
     const [isProcessing, setIsProcessing] = useState(false);
@@ -313,6 +323,13 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 setVendorTaxId('');
                 setVendorAddress('');
                 setCreationMethod('manual');
+                setExtraFiles([]);
+                setShowDocStrip(true);
+                setActiveDocIndex(-1);
+                setFileQueue([]);
+                setQueueIndex(0);
+                setQueueThumbnails([]);
+                setQueueSummaries([]);
                 setZoom(1);
                 setRotation(0);
                 setPosition({ x: 0, y: 0 });
@@ -366,12 +383,102 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         reader.onload = (e) => setImage(e.target?.result as string);
         reader.readAsDataURL(file);
         setErrorMsg(null);
-        setTimeout(() => runOCR(file), 500);
+        const gen = ++ocrGenerationRef.current;
+        if (ocrTimeoutRef.current) clearTimeout(ocrTimeoutRef.current);
+        ocrTimeoutRef.current = setTimeout(() => runOCR(file, gen), 500);
+    };
+
+    const resetForNextReceipt = () => {
+        setImage(null); setSelectedFile(null); setIsProcessing(false); setIsSaving(false);
+        setShopName(''); setAmount(''); setDate(new Date().toISOString().split('T')[0]);
+        setPaymentMethod('โอน'); setMainCategory('อื่นๆ'); setNotes('');
+        setErrorMsg(null); setSuccessMsg(null); setFormTab('info');
+        setReceiptNo(''); setVendorTaxId(''); setVendorAddress('');
+        setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 });
+        setExpenseItems([{ id: '1', description: '', type: 'product', category: '', quantity: 1, amount: 0, subtotal: 0, vat: 0, wht: 0, note: '' }]);
+        setSelectedItemId('1'); setPaymentStatus('paid'); setIsTaxInvoice(false); setTaxInvoiceNo('');
+        setShowVerification(false); setVerStore(''); setVerCategory(''); setVerDate(''); setVerTime('');
+        setVerPaymentMethod(''); setVerCurrency('THB'); setVerTaxId(''); setVerItems([]); setVerDiscount(0); setVerVat(0);
+        setExtractedReceiptId(null); setExtraFiles([]); setActiveDocIndex(-1);
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) handleFile(file);
+        const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
+        if (files.length === 0) return;
+        setFileQueue(files);
+        setQueueIndex(0);
+        setQueueThumbnails(new Array(files.length).fill(''));
+        setQueueSummaries([]);
+        files.forEach((file, idx) => {
+            if (file.type === 'application/pdf') {
+                setQueueThumbnails(prev => { const t = [...prev]; t[idx] = 'pdf'; return t; });
+            } else {
+                const r = new FileReader();
+                r.onload = (ev) => setQueueThumbnails(prev => { const t = [...prev]; t[idx] = ev.target?.result as string; return t; });
+                r.readAsDataURL(file);
+            }
+        });
+        handleFile(files[0]);
+        e.target.value = '';
+    };
+
+    const deleteFromQueue = (idx: number) => {
+        const newQueue = fileQueue.filter((_, i) => i !== idx);
+        const newThumbs = queueThumbnails.filter((_, i) => i !== idx);
+        if (newQueue.length === 0) {
+            setFileQueue([]); setQueueThumbnails([]); setQueueIndex(0);
+            resetForNextReceipt();
+            return;
+        }
+        setFileQueue(newQueue);
+        setQueueThumbnails(newThumbs);
+        if (idx === queueIndex) {
+            const nextIdx = Math.min(idx, newQueue.length - 1);
+            setQueueIndex(nextIdx);
+            resetForNextReceipt();
+            handleFile(newQueue[nextIdx]);
+        } else if (idx < queueIndex) {
+            setQueueIndex(prev => prev - 1);
+        }
+    };
+
+    const handleExtraFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newFiles = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
+        if (newFiles.length === 0) { e.target.value = ''; return; }
+
+        if (fileQueue.length === 0 && selectedFile) {
+            // Bootstrap queue: current file + new files
+            const allFiles = [selectedFile, ...newFiles];
+            setFileQueue(allFiles);
+            setQueueIndex(0);
+            setQueueSummaries([]);
+            const thumbs: string[] = [image || '', ...new Array(newFiles.length).fill('')];
+            setQueueThumbnails(thumbs);
+            newFiles.forEach((file, i) => {
+                if (file.type === 'application/pdf') {
+                    setQueueThumbnails(prev => { const t = [...prev]; t[i + 1] = 'pdf'; return t; });
+                } else {
+                    const r = new FileReader();
+                    r.onload = (ev) => setQueueThumbnails(prev => { const t = [...prev]; t[i + 1] = ev.target?.result as string; return t; });
+                    r.readAsDataURL(file);
+                }
+            });
+        } else {
+            // Append to existing queue
+            const startIdx = fileQueue.length;
+            setFileQueue(prev => [...prev, ...newFiles]);
+            setQueueThumbnails(prev => [...prev, ...new Array(newFiles.length).fill('')]);
+            newFiles.forEach((file, i) => {
+                if (file.type === 'application/pdf') {
+                    setQueueThumbnails(prev => { const t = [...prev]; t[startIdx + i] = 'pdf'; return t; });
+                } else {
+                    const r = new FileReader();
+                    r.onload = (ev) => setQueueThumbnails(prev => { const t = [...prev]; t[startIdx + i] = ev.target?.result as string; return t; });
+                    r.readAsDataURL(file);
+                }
+            });
+        }
+        e.target.value = '';
     };
 
     const handleManualImageFile = (file: File) => {
@@ -386,14 +493,16 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         setErrorMsg(null);
     };
 
-    const runOCR = async (file?: File) => {
+    const runOCR = async (file?: File, generation?: number) => {
         const fileToProcess = file || selectedFile;
         if (!fileToProcess) return;
+        if (generation !== undefined && generation !== ocrGenerationRef.current) return;
         setIsProcessing(true);
         setErrorMsg(null);
 
         try {
             const result = await extractFromImage(fileToProcess, userId ?? '') as any;
+            if (generation !== undefined && generation !== ocrGenerationRef.current) return;
             if (result) {
                 if (result.id) {
                     setExtractedReceiptId(result.id);
@@ -533,7 +642,15 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
             if (result?.success) {
                 if (onSuccess) onSuccess();
-                onClose();
+                const nextIdx = queueIndex + 1;
+                if (nextIdx < fileQueue.length) {
+                    setQueueSummaries(prev => [...prev, { shopName: verStore, amount: String(grandTotal), date, thumb: queueThumbnails[queueIndex] || '' }]);
+                    resetForNextReceipt();
+                    setQueueIndex(nextIdx);
+                    handleFile(fileQueue[nextIdx]);
+                } else {
+                    onClose();
+                }
             } else {
                 setErrorMsg('บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
             }
@@ -586,7 +703,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 vendorTaxId,
                 vendorAddress,
                 currency,
-                imageData: image,
+                imageData: finalImageUrl,
                 items: expenseItems,
                 summary: { subtotal: parseFloat(amount) || subtotal, vat, wht, total: finalTotal }
             };
@@ -606,7 +723,15 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
             if (result?.success) {
                 if (onSuccess) onSuccess();
-                onClose();
+                const nextIdx = queueIndex + 1;
+                if (nextIdx < fileQueue.length) {
+                    setQueueSummaries(prev => [...prev, { shopName, amount: String(finalTotal), date, thumb: queueThumbnails[queueIndex] || '' }]);
+                    resetForNextReceipt();
+                    setQueueIndex(nextIdx);
+                    handleFile(fileQueue[nextIdx]);
+                } else {
+                    onClose();
+                }
             } else {
                 setErrorMsg('บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
             }
@@ -654,6 +779,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const txMain  = isDark ? '#f1f5f9' : '#1e293b';
     const txMuted = isDark ? '#94a3b8' : '#64748b';
     const txLabel = isDark ? '#94a3b8' : '#64748b';
+
+    const viewingImage = activeDocIndex === -1 ? image : (extraFiles[activeDocIndex]?.data ?? image);
+    const viewingFileType = activeDocIndex === -1 ? (selectedFile?.type ?? '') : (extraFiles[activeDocIndex]?.type ?? '');
 
     const inputStyle: React.CSSProperties = {
         width: '100%', padding: '10px 14px', borderRadius: '4px', border: `1px solid ${bdColor}`,
@@ -765,41 +893,68 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     {/* ── Two-column body ── */}
                     <div className="sr-ver-layout" style={{ display: 'flex', flex: 1, overflow: isMobile ? 'auto' : 'hidden', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
 
-                        {/* ═══ LEFT: Receipt image panel ═══ */}
-                        <div className="sr-ver-img" style={{ flex: isMobile ? 'none' : '0 0 38%', width: isMobile ? '100%' : undefined, height: isMobile ? '240px' : undefined, borderRight: isMobile ? 'none' : `1px solid ${bdColor}`, borderBottom: isMobile ? `1px solid ${bdColor}` : 'none', background: bgImage, display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }}>
-                            {/* image display */}
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '20px', position: 'relative' }}>
-                                {image ? (
-                                    <>
-                                        <img
-                                            src={image}
-                                            alt="Receipt"
-                                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '10px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)', transition: 'box-shadow 0.2s' }}
-                                        />
-                                        {/* AI badge */}
-                                        <div style={{ position: 'absolute', top: '28px', left: '28px', padding: '4px 10px', background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 12px rgba(124,58,237,0.4)' }}>
-                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                                            <span style={{ fontSize: '0.68rem', fontWeight: '800', color: 'white', letterSpacing: '0.03em' }}>วิเคราะห์โดย AI</span>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div style={{ textAlign: 'center', color: '#94a3b8' }}>
-                                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.4, marginBottom: '8px' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                                        <p style={{ fontSize: '0.85rem', fontWeight: '600' }}>ไม่มีรูปภาพ</p>
-                                    </div>
-                                )}
+                        {/* ═══ LEFT: Receipt image panel (matches main upload style) ═══ */}
+                        <div className="sr-ver-img" style={{ flex: isMobile ? 'none' : '0 0 42%', width: isMobile ? '100%' : undefined, height: isMobile ? '260px' : undefined, borderRight: isMobile ? 'none' : `1px solid ${bdLight}`, borderBottom: isMobile ? `1px solid ${bdLight}` : 'none', background: bgImage, display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
+                            {/* AI confirmed badge */}
+                            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 16px 0', flexShrink: 0 }}>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '6px 14px', borderRadius: '999px', background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', boxShadow: '0 3px 12px rgba(124,58,237,0.35)' }}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                    <span style={{ fontSize: '0.78rem', fontWeight: '800', color: 'white', letterSpacing: '0.03em' }}>AI วิเคราะห์สำเร็จ</span>
+                                </div>
                             </div>
 
-                            {/* filename chip */}
-                            {selectedFile && (
-                                <div style={{ padding: '10px 16px', borderTop: `1px solid ${bdColor}`, background: bgCard, display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                                    <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                    </div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontSize: '0.75rem', fontWeight: '700', color: txMain, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedFile.name}</div>
-                                        <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>{(selectedFile.size / 1024).toFixed(1)} KB</div>
-                                    </div>
+                            {/* Pannable / zoomable image */}
+                            <div
+                                style={{ flex: 1, position: 'relative', overflow: 'hidden', cursor: isDraggingImage ? 'grabbing' : 'grab', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                onWheel={handleWheel}
+                                onMouseDown={handleMouseDown}
+                                onMouseMove={handleMouseMove}
+                                onMouseUp={handleMouseUp}
+                                onMouseLeave={handleMouseUp}
+                            >
+                                <div style={{ transition: isDraggingImage ? 'none' : 'transform 0.3s cubic-bezier(0.4,0,0.2,1)', transform: `translate(${position.x}px,${position.y}px) scale(${zoom}) rotate(${rotation}deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {image ? (
+                                        selectedFile?.type === 'application/pdf' ? (
+                                            <embed src={image} type="application/pdf" style={{ width: '80vw', height: '85vh', borderRadius: '4px', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' }} />
+                                        ) : (
+                                            <img src={image} style={{ maxWidth: '90%', maxHeight: '85vh', borderRadius: '6px', boxShadow: '0 4px 24px rgba(0,0,0,0.2)', pointerEvents: 'none' }} alt="Receipt" />
+                                        )
+                                    ) : (
+                                        <div style={{ textAlign: 'center', color: '#94a3b8' }}>
+                                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.4, marginBottom: '8px' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                            <p style={{ fontSize: '0.85rem', fontWeight: '600' }}>ไม่มีรูปภาพ</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Zoom / Rotate toolbar */}
+                                <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', display: 'flex', background: bgCard, border: `1px solid ${bdColor}`, borderRadius: '4px', padding: '6px 14px', gap: '14px', alignItems: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.1)', zIndex: 20 }}>
+                                    <button onClick={() => setZoom(z => Math.max(0.1, z - 0.1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: txMuted }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                                    <span style={{ fontSize: '0.85rem', fontWeight: '600', width: '42px', textAlign: 'center', color: txMain }}>{Math.round(zoom * 100)}%</span>
+                                    <button onClick={() => setZoom(z => Math.min(5, z + 0.1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: txMuted }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                                    <div style={{ width: '1px', height: '20px', backgroundColor: bdColor }} />
+                                    <button onClick={() => setRotation(r => r - 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: txMuted }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2.5 2v6h6"/><path d="M2.66 15.57a10 10 0 1 0 .57-8.38"/></svg></button>
+                                    <button onClick={() => setRotation(r => r + 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: txMuted }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg></button>
+                                    <div style={{ width: '1px', height: '20px', backgroundColor: bdColor }} />
+                                    <button onClick={() => { setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: txMuted, display: 'flex', alignItems: 'center', gap: '5px' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><span style={{ fontSize: '0.82rem' }}>รีเซ็ต</span></button>
+                                </div>
+                            </div>
+
+                            {/* Queue progress strip (queue mode) */}
+                            {fileQueue.length > 1 && (
+                                <div style={{ flexShrink: 0, borderTop: `1px solid ${bdLight}`, background: bgCard, padding: '8px 16px', display: 'flex', gap: '8px', overflowX: 'auto', alignItems: 'center' }}>
+                                    {queueThumbnails.map((thumb, idx) => (
+                                        <div key={idx} style={{ width: '48px', height: '36px', borderRadius: '5px', overflow: 'hidden', border: `2px solid ${idx === queueIndex ? '#0052cc' : bdColor}`, opacity: idx === queueIndex ? 1 : 0.5, flexShrink: 0 }}>
+                                            {thumb === 'pdf' ? (
+                                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fef2f2' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+                                            ) : thumb ? (
+                                                <img src={thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            ) : (
+                                                <div style={{ width: '100%', height: '100%', background: bgMuted }} />
+                                            )}
+                                        </div>
+                                    ))}
+                                    <span style={{ fontSize: '0.72rem', color: txMuted, fontWeight: '600', flexShrink: 0 }}>{queueIndex + 1} / {fileQueue.length}</span>
                                 </div>
                             )}
                         </div>
@@ -874,8 +1029,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                 { id: 'อาหาร', icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
                                                 { id: 'เดินทาง', icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
                                                 { id: 'ช้อปปิ้ง', icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
-                                                { id: 'สาธารณูปโภค', icon: '💡', color: '#ecfdf5', border: '#22c55e', text: '#166534' },
-                                                { id: 'บันเทิง', icon: '🎬', color: '#fff1f2', border: '#f43f5e', text: '#9f1239' },
                                                 { id: 'อื่นๆ', icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
                                             ].map(cat => {
                                                 const active = verCategory === cat.id;
@@ -900,7 +1053,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                             })}
                                         </div>
                                         {/* fallback text if not in chips */}
-                                        {!['อาหาร','เดินทาง','ช้อปปิ้ง','สาธารณูปโภค','บันเทิง','อื่นๆ'].includes(verCategory) && (
+                                        {!['อาหาร','เดินทาง','ช้อปปิ้ง','อื่นๆ'].includes(verCategory) && (
                                             <input
                                                 value={verCategory}
                                                 onChange={e => setVerCategory(e.target.value)}
@@ -1178,11 +1331,11 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                 alignItems: 'center',
                                 justifyContent: 'center'
                             }}>
-                                {image ? (
-                                    selectedFile?.type === 'application/pdf' ? (
-                                        <embed src={image} type="application/pdf" style={{ width: '80vw', height: '85vh', borderRadius: '4px', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }} />
+                                {viewingImage ? (
+                                    viewingFileType === 'application/pdf' ? (
+                                        <embed src={viewingImage} type="application/pdf" style={{ width: '80vw', height: '85vh', borderRadius: '4px', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }} />
                                     ) : (
-                                        <img src={image} style={{ maxWidth: '90%', maxHeight: '85vh', borderRadius: '4px', boxShadow: '0 4px 24px rgba(0,0,0,0.15)', pointerEvents: 'none' }} alt="Receipt" />
+                                        <img src={viewingImage} style={{ maxWidth: '90%', maxHeight: '85vh', borderRadius: '4px', boxShadow: '0 4px 24px rgba(0,0,0,0.15)', pointerEvents: 'none' }} alt="Receipt" />
                                     )
                                 ) : (
                                     <div style={{ textAlign: 'center', color: '#94a3b8' }}>
@@ -1210,21 +1363,159 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                 <button onClick={() => { setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: txMuted, display: 'flex', alignItems: 'center', gap: '6px' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><span style={{ fontSize: '0.85rem' }}>รีเซ็ต</span></button>
                             </div>
                         </div>
+
+                        {/* ── Document Strip ── */}
+                        <div style={{ flexShrink: 0, borderTop: `1px solid ${bdLight}`, backgroundColor: bgCard }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ fontSize: '0.82rem', fontWeight: '700', color: txMain }}>เอกสารรายจ่าย</span>
+                                    {!showDocStrip && (
+                                        <span style={{ fontSize: '0.75rem', color: txMuted }}>ไฟล์ที่ Paypers อ่าน</span>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={() => setShowDocStrip(s => !s)}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: txMuted, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                    {showDocStrip ? 'ซ่อน' : 'แสดงเอกสาร'}
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points={showDocStrip ? '18 15 12 9 6 15' : '6 9 12 15 18 9'}/></svg>
+                                </button>
+                            </div>
+
+                            {showDocStrip && (
+                                <div style={{ display: 'flex', gap: '10px', padding: '0 16px 14px', overflowX: 'auto' }}>
+                                    {/* Queue thumbnails — one per file */}
+                                    {queueThumbnails.map((thumb, idx) => {
+                                        const isCurrent = idx === queueIndex;
+                                        const isPdf = thumb === 'pdf';
+                                        return (
+                                            <div
+                                                key={idx}
+                                                onClick={() => { setActiveDocIndex(-1); setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); }}
+                                                style={{ width: '80px', flexShrink: 0, cursor: 'pointer', borderRadius: '8px', overflow: 'hidden', border: `2px solid ${isCurrent ? '#0052cc' : bdColor}`, boxShadow: isCurrent ? '0 0 0 3px rgba(0,82,204,0.15)' : 'none', transition: 'all 0.15s', position: 'relative', opacity: isCurrent ? 1 : 0.55 }}
+                                            >
+                                                <div style={{ width: '80px', height: '60px', overflow: 'hidden', background: bgMuted }}>
+                                                    {isPdf ? (
+                                                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#1c1407' : '#fef2f2' }}>
+                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                                        </div>
+                                                    ) : thumb ? (
+                                                        <img src={thumb} alt={`receipt-${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                    ) : (
+                                                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                            <div style={{ width: '16px', height: '16px', border: `2px solid ${bdColor}`, borderTop: '2px solid #0052cc', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div style={{ padding: '4px 6px', background: bgCard }}>
+                                                    <p style={{ fontSize: '0.65rem', color: isCurrent ? '#0052cc' : txMain, fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                        {isCurrent ? 'Paypers อ่าน' : `ใบที่ ${idx + 1}`}
+                                                    </p>
+                                                    <p style={{ fontSize: '0.6rem', color: txMuted }}>{isCurrent ? 'กำลังวิเคราะห์' : 'รอดำเนินการ'}</p>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); deleteFromQueue(idx); }}
+                                                    style={{ position: 'absolute', top: '3px', right: '3px', width: '16px', height: '16px', borderRadius: '50%', background: 'rgba(239,68,68,0.9)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                                                >
+                                                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {/* Extra file thumbnails */}
+                                    {extraFiles.map((f, idx) => (
+                                        <div
+                                            key={idx}
+                                            onClick={() => { setActiveDocIndex(idx); setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); }}
+                                            style={{ width: '80px', flexShrink: 0, cursor: 'pointer', borderRadius: '8px', overflow: 'hidden', border: `2px solid ${activeDocIndex === idx ? '#0052cc' : bdColor}`, boxShadow: activeDocIndex === idx ? '0 0 0 3px rgba(0,82,204,0.15)' : 'none', transition: 'all 0.15s', position: 'relative' }}
+                                        >
+                                            <div style={{ width: '80px', height: '60px', overflow: 'hidden', background: bgMuted }}>
+                                                {f.type === 'application/pdf' ? (
+                                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDark ? '#1c1407' : '#fef2f2' }}>
+                                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                                    </div>
+                                                ) : (
+                                                    <img src={f.data} alt={f.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                )}
+                                            </div>
+                                            <div style={{ padding: '4px 6px', background: bgCard }}>
+                                                <p style={{ fontSize: '0.65rem', color: txMain, fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</p>
+                                                <p style={{ fontSize: '0.6rem', color: txMuted }}>หลักฐาน</p>
+                                            </div>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setExtraFiles(prev => prev.filter((_, i) => i !== idx));
+                                                    if (activeDocIndex === idx) { setActiveDocIndex(-1); setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); }
+                                                    else if (activeDocIndex > idx) setActiveDocIndex(prev => prev - 1);
+                                                }}
+                                                style={{ position: 'absolute', top: '3px', right: '3px', width: '16px', height: '16px', borderRadius: '50%', background: 'rgba(239,68,68,0.9)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                                            >
+                                                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                            </button>
+                                        </div>
+                                    ))}
+
+                                    {/* Add more button */}
+                                    <div
+                                        onClick={() => extraFileInputRef.current?.click()}
+                                        style={{ width: '80px', height: '96px', flexShrink: 0, cursor: 'pointer', borderRadius: '8px', border: `1.5px dashed ${bdColor}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', color: txMuted, transition: 'all 0.15s' }}
+                                    >
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                                        <span style={{ fontSize: '0.6rem', fontWeight: '600', textAlign: 'center', lineHeight: 1.3 }}>เพิ่มใบเสร็จ<br/>เข้าคิว</span>
+                                    </div>
+                                    <input type="file" ref={extraFileInputRef} multiple accept="image/*,.pdf" onChange={handleExtraFileChange} style={{ display: 'none' }} />
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
 
                 {/* RIGHT SIDE: ข้อมูล */}
                 <div style={{ flex: '1', minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', backgroundColor: bgMain }}>
                     <div className="sr-header" style={{ padding: '20px 32px 0 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h3 className="sr-page-title" style={{ fontSize: '1.3rem', fontWeight: '900', color: txMain }}>อัปโหลดใบเสร็จ</h3>
-                        <button onClick={onClose} style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: bgMuted, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <h3 className="sr-page-title" style={{ fontSize: '1.3rem', fontWeight: '900', color: txMain }}>อัปโหลดใบเสร็จ</h3>
+                            {fileQueue.length > 1 && (
+                                <span style={{ padding: '3px 10px', borderRadius: '20px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#0052cc', fontSize: '0.78rem', fontWeight: '800' }}>
+                                    {queueIndex + 1} / {fileQueue.length}
+                                </span>
+                            )}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {fileQueue.length > 1 && queueIndex < fileQueue.length - 1 && (
+                                <button
+                                    onClick={() => {
+                                        const nextIdx = queueIndex + 1;
+                                        setQueueSummaries(prev => [...prev, { shopName, amount, date, thumb: queueThumbnails[queueIndex] || '' }]);
+                                        resetForNextReceipt();
+                                        setQueueIndex(nextIdx);
+                                        handleFile(fileQueue[nextIdx]);
+                                    }}
+                                    style={{ padding: '6px 14px', borderRadius: '8px', border: `1px solid ${bdColor}`, background: bgCard, color: txMuted, fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                    ข้าม
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                                </button>
+                            )}
+                            <button onClick={onClose} style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: bgMuted, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                            </button>
+                        </div>
                     </div>
 
                     <div className="sr-tabs" style={{ display: 'flex', borderBottom: `1px solid ${bdLight}`, padding: '0 32px' }}>
                         <button className="sr-tab-btn" onClick={() => setFormTab('info')} style={{ padding: '16px 16px', marginRight: '16px', backgroundColor: 'transparent', border: 'none', borderBottom: formTab === 'info' ? '3px solid #0052cc' : '3px solid transparent', color: formTab === 'info' ? '#0052cc' : '#94a3b8', fontSize: '0.9rem', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s' }}>
                             ข้อมูลรายจ่าย
+                        </button>
+                        <button className="sr-tab-btn" onClick={() => setFormTab('items')} style={{ padding: '16px 16px', marginRight: '16px', backgroundColor: 'transparent', border: 'none', borderBottom: formTab === 'items' ? '3px solid #0052cc' : '3px solid transparent', color: formTab === 'items' ? '#0052cc' : '#94a3b8', fontSize: '0.9rem', fontWeight: '800', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            รายการใบเสร็จ
+                            {(fileQueue.length > 1 ? queueSummaries.length + 1 : expenseItems.filter(i => i.description).length) > 0 && (
+                                <span style={{ padding: '1px 7px', borderRadius: '20px', background: formTab === 'items' ? '#eff6ff' : bgSect, border: `1px solid ${formTab === 'items' ? '#bfdbfe' : bdColor}`, color: formTab === 'items' ? '#0052cc' : '#94a3b8', fontSize: '0.72rem', fontWeight: '800' }}>
+                                    {fileQueue.length > 1 ? queueSummaries.length + 1 : expenseItems.filter(i => i.description).length}
+                                </span>
+                            )}
                         </button>
                     </div>
 
@@ -1323,7 +1614,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                         )}
                                     </div>
                                 )}
-                                <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept=".jpg,.jpeg,.png,.webp,.heic,.pdf" />
+                                <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} style={{ display: 'none' }} accept=".jpg,.jpeg,.png,.webp,.heic,.pdf" />
 
                                 {(creationMethod === 'manual' || (creationMethod === 'upload' && image)) && (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -1384,8 +1675,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                             { id: 'อาหาร',       icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
                                                             { id: 'เดินทาง',     icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
                                                             { id: 'ช้อปปิ้ง',   icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
-                                                            { id: 'สาธารณูปโภค', icon: '💡', color: '#ecfdf5', border: '#22c55e', text: '#166534' },
-                                                            { id: 'บันเทิง',    icon: '🎬', color: '#fff1f2', border: '#f43f5e', text: '#9f1239' },
                                                             { id: 'อื่นๆ',      icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
                                                         ].map(cat => {
                                                             const active = mainCategory === cat.id;
@@ -1517,7 +1806,52 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                             </div>
                         )}
 
-                        {formTab === 'items' && (
+                        {formTab === 'items' && fileQueue.length > 1 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <div style={{ background: bgCard, borderRadius: '12px', border: `1px solid ${bdColor}`, overflow: 'hidden' }}>
+                                    <div style={{ padding: '12px 18px', borderBottom: `1px solid ${bdLight}`, display: 'flex', alignItems: 'center', gap: '8px', background: bgSect }}>
+                                        <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0052cc" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                                        </div>
+                                        <span style={{ fontWeight: '800', fontSize: '0.82rem', color: txMain }}>สรุปใบเสร็จในชุด</span>
+                                        <span style={{ padding: '2px 8px', borderRadius: '20px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#0052cc', fontSize: '0.72rem', fontWeight: '800' }}>{queueSummaries.length + 1} / {fileQueue.length}</span>
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '28px 48px 1fr 90px 70px', gap: '8px', padding: '8px 16px', background: bgMuted, borderBottom: `1px solid ${bdLight}` }}>
+                                        {['#', '', 'ร้าน / ผู้รับเงิน', 'ยอด (฿)', 'สถานะ'].map((h, i) => (
+                                            <div key={i} style={{ fontSize: '0.68rem', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: i >= 3 ? 'right' : 'left' }}>{h}</div>
+                                        ))}
+                                    </div>
+                                    {[...queueSummaries.map((s, i) => ({ ...s, isCurrent: false, idx: i })), { shopName, amount, date, thumb: queueThumbnails[queueIndex] || '', isCurrent: true, idx: queueSummaries.length }].map((row) => (
+                                        <div key={row.idx} style={{ display: 'grid', gridTemplateColumns: '28px 48px 1fr 90px 70px', gap: '8px', padding: '10px 16px', borderBottom: `1px solid ${bdLight}`, alignItems: 'center', background: row.isCurrent ? (isDark ? 'rgba(0,82,204,0.08)' : 'rgba(0,82,204,0.04)') : 'transparent' }}>
+                                            <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#94a3b8' }}>{row.idx + 1}</span>
+                                            <div style={{ width: '40px', height: '32px', borderRadius: '6px', overflow: 'hidden', border: `1px solid ${bdColor}`, background: bgMuted, flexShrink: 0 }}>
+                                                {row.thumb === 'pdf' ? (
+                                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+                                                ) : row.thumb ? (
+                                                    <img src={row.thumb} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                ) : (
+                                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ width: '10px', height: '10px', border: `2px solid ${bdColor}`, borderTop: '2px solid #0052cc', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /></div>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p style={{ fontSize: '0.83rem', fontWeight: '700', color: txMain, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.shopName || (row.isCurrent && isProcessing ? 'กำลังวิเคราะห์...' : '—')}</p>
+                                                <p style={{ fontSize: '0.68rem', color: txMuted }}>{row.date}</p>
+                                            </div>
+                                            <div style={{ textAlign: 'right', fontSize: '0.85rem', fontWeight: '800', color: row.isCurrent ? '#0052cc' : txMain }}>
+                                                {row.amount ? `฿${parseFloat(row.amount).toLocaleString('th-TH', { minimumFractionDigits: 2 })}` : '—'}
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <span style={{ padding: '2px 8px', borderRadius: '20px', fontSize: '0.65rem', fontWeight: '700', background: row.isCurrent ? '#eff6ff' : '#f0fdf4', border: `1px solid ${row.isCurrent ? '#bfdbfe' : '#bbf7d0'}`, color: row.isCurrent ? '#0052cc' : '#15803d' }}>
+                                                    {row.isCurrent ? 'กำลังดำเนินการ' : 'บันทึกแล้ว'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {formTab === 'items' && fileQueue.length <= 1 && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
                                 {/* ── Card: รายการสินค้าและบริการ ── */}
@@ -1676,7 +2010,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     <div className="sr-footer" style={{ padding: '16px 32px', borderTop: `1px solid ${bdLight}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: bgCard }}>
                         <button onClick={onClose} style={{ padding: '10px 24px', borderRadius: '8px', border: `1.5px solid ${bdColor}`, backgroundColor: bgCard, color: txMuted, fontWeight: '800', cursor: 'pointer' }}>ยกเลิก</button>
                         <button onClick={handleSave} disabled={isSaving} style={{ padding: '12px 32px', borderRadius: '10px', backgroundColor: '#1e293b', color: '#ffffff', fontWeight: '800', border: 'none', display: 'flex', alignItems: 'center', gap: '10px', cursor: isSaving ? 'not-allowed' : 'pointer' }}>
-                            {isSaving ? <LoadingSpinner /> : <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg> สร้างรายจ่าย</>}
+                            {isSaving ? <LoadingSpinner /> : <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg> {fileQueue.length > 1 && queueIndex < fileQueue.length - 1 ? `บันทึก และถัดไป (${queueIndex + 1}/${fileQueue.length})` : 'สร้างรายจ่าย'}</>}
                         </button>
                     </div>
                 </div>

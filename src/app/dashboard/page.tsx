@@ -20,8 +20,15 @@ export default function DashboardPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
+  const [selectedReceiptIndex, setSelectedReceiptIndex] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState<any | null>(null);
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
+
+  const handleReceiptClick = (r: any) => {
+    const idx = receipts.indexOf(r);
+    setSelectedReceiptIndex(idx >= 0 ? idx : 0);
+    setSelectedReceipt(r);
+  };
 
 
 
@@ -40,7 +47,7 @@ export default function DashboardPage() {
       if (openReceiptId) {
         const matched = receipts.find(r => (r._id || r.id) === openReceiptId);
         if (matched) {
-          setSelectedReceipt(matched);
+          handleReceiptClick(matched);
           // Clean the query parameter from URL to avoid reopening on reload
           const newUrl = window.location.pathname;
           window.history.replaceState({ path: newUrl }, '', newUrl);
@@ -159,8 +166,8 @@ export default function DashboardPage() {
                 </div>
                 <RecentUploads
                   receipts={uniqueReceipts.filter(r => r.source === 'line')}
-                  onReceiptClick={setSelectedReceipt}
-                  onEdit={setSelectedReceipt}
+                  onReceiptClick={handleReceiptClick}
+                  onEdit={handleReceiptClick}
                   onDelete={setDeleteConfirm}
                 />
               </>
@@ -174,25 +181,25 @@ export default function DashboardPage() {
       {deleteConfirm && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 2000,
-          background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div style={{
-            background: 'white', borderRadius: '16px', padding: '28px 32px',
+            background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '28px 32px',
             width: 'min(400px, 90vw)', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
           }}>
             {/* Icon */}
-            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a', margin: '0 0 8px' }}>ยืนยันการลบ</h3>
-            <p style={{ fontSize: '0.9rem', color: '#64748b', margin: '0 0 24px', lineHeight: 1.5 }}>
-              ต้องการลบ <strong style={{ color: '#1e293b' }}>{deleteConfirm.storeName || 'รายการนี้'}</strong> ออกจากระบบ? การกระทำนี้ไม่สามารถย้อนกลับได้
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-main)', margin: '0 0 8px' }}>ยืนยันการลบ</h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 24px', lineHeight: 1.5 }}>
+              ต้องการลบ <strong style={{ color: 'var(--text-main)' }}>{deleteConfirm.storeName || 'รายการนี้'}</strong> ออกจากระบบ? การกระทำนี้ไม่สามารถย้อนกลับได้
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
                 onClick={() => setDeleteConfirm(null)}
-                style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid #e2e8f0', background: 'white', fontWeight: '700', fontSize: '0.9rem', color: '#64748b', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border-color)', background: 'var(--surface-color)', fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-muted)', cursor: 'pointer' }}
               >
                 ยกเลิก
               </button>
@@ -220,13 +227,10 @@ export default function DashboardPage() {
 
       <ReceiptDetailSheet
         isOpen={!!selectedReceipt}
-        receipt={selectedReceipt}
+        receipt={selectedReceipt ?? undefined}
         onClose={() => setSelectedReceipt(null)}
         onSuccess={() => {
-          if (session?.user?.id) {
-            fetchReceipts(session.user.id);
-          }
-          setSelectedReceipt(null);
+          if (session?.user?.id) fetchReceipts(session.user.id);
         }}
       />
     </div>

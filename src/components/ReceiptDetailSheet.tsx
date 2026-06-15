@@ -1,45 +1,30 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useReceipts } from '@/hooks/useReceipts';
 
 const formatToInputDate = (dateStr: string): string => {
     if (!dateStr) return '';
     try {
         const match = dateStr.match(/^(\d{4}-\d{2}-\d{2})/);
-        if (match) {
-            return match[1];
-        }
+        if (match) return match[1];
         const d = new Date(dateStr);
         if (!isNaN(d.getTime())) {
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         }
-    } catch {
-        // fallback
-    }
+    } catch { /* fallback */ }
     return dateStr;
 };
 
 const formatToInputTime = (timeStr: string): string => {
     if (!timeStr) return '';
-    try {
-        const match = timeStr.match(/^(\d{2}:\d{2})/);
-        if (match) {
-            return match[1];
-        }
-    } catch {
-        // fallback
-    }
-    return timeStr;
+    const match = timeStr.match(/^(\d{2}:\d{2})/);
+    return match ? match[1] : timeStr;
 };
 
-const shimmer = `
+const css = `
 @keyframes spin { to { transform: rotate(360deg); } }
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 input[type=number] { -moz-appearance: textfield; }
 `;
 
@@ -47,7 +32,9 @@ interface ReceiptDetailSheetProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess?: () => void;
-    receipt: any | null;
+    receipt?: any | null;
+    allReceipts?: any[];
+    initialIndex?: number;
 }
 
 interface LineItem {
@@ -57,16 +44,26 @@ interface LineItem {
     unitPrice: number;
 }
 
-const labelStyle: React.CSSProperties = {
-    fontSize: '0.85rem', fontWeight: '800', color: '#1e293b', marginBottom: '8px', display: 'block'
-};
 const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '10px 14px', borderRadius: '4px', border: '1px solid #e2e8f0',
-    fontSize: '0.95rem', outline: 'none', backgroundColor: '#ffffff', color: '#1e293b'
+    width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0',
+    fontSize: '0.92rem', outline: 'none', backgroundColor: '#ffffff', color: '#1e293b',
+    boxSizing: 'border-box' as const,
+};
+const darkInputStyle: React.CSSProperties = {
+    width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)',
+    fontSize: '0.92rem', outline: 'none', backgroundColor: 'var(--input-bg)', color: 'var(--text-main)',
+    boxSizing: 'border-box' as const,
+};
+const darkLabelStyle: React.CSSProperties = {
+    fontSize: '0.8rem', fontWeight: '800', color: '#64748b', marginBottom: '6px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em'
 };
 
-const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDetailSheetProps) => {
+const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, initialIndex = 0 }: ReceiptDetailSheetProps) => {
     const { updateReceipt } = useReceipts();
+    const isQueueMode = !!(allReceipts && allReceipts.length > 0);
+
+    const [currentIdx, setCurrentIdx] = useState(initialIndex);
+    const currentReceipt = isQueueMode ? allReceipts![currentIdx] : receipt;
 
     const [isMobile, setIsMobile] = useState(false);
     useEffect(() => {
@@ -77,20 +74,44 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
         return () => mq.removeEventListener('change', handler);
     }, []);
 
+    // Reset index when opening / allReceipts changes
+    useEffect(() => {
+        if (isOpen) setCurrentIdx(initialIndex);
+    }, [isOpen, initialIndex]);
+
+    // Image zoom/pan state
+    const [zoom, setZoom] = useState(1);
+    const [rotation, setRotation] = useState(0);
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const dragStart = useRef({ x: 0, y: 0, px: 0, py: 0 });
+
+    const resetView = useCallback(() => { setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); }, []);
+
+    const handleWheel = useCallback((e: React.WheelEvent) => {
+        e.preventDefault();
+        setZoom(z => Math.min(5, Math.max(0.1, z - e.deltaY * 0.001)));
+    }, []);
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        setIsDragging(true);
+        dragStart.current = { x: e.clientX, y: e.clientY, px: position.x, py: position.y };
+    }, [position]);
+    const handleMouseMove = useCallback((e: React.MouseEvent) => {
+        if (!isDragging) return;
+        setPosition({ x: dragStart.current.px + e.clientX - dragStart.current.x, y: dragStart.current.py + e.clientY - dragStart.current.y });
+    }, [isDragging]);
+    const handleMouseUp = useCallback(() => setIsDragging(false), []);
+
+    // Mobile description edit
     const [editingDescId, setEditingDescId] = useState<string | null>(null);
     const [editingDescValue, setEditingDescValue] = useState('');
-
-    const openDescModal = (item: LineItem) => {
-        setEditingDescId(item.id);
-        setEditingDescValue(item.description);
-    };
+    const openDescModal = (item: LineItem) => { setEditingDescId(item.id); setEditingDescValue(item.description); };
     const closeDescModal = () => {
-        if (editingDescId) {
-            updateItem(editingDescId, { description: editingDescValue });
-        }
+        if (editingDescId) updateItem(editingDescId, { description: editingDescValue });
         setEditingDescId(null);
     };
 
+    // Form state
     const [store, setStore] = useState('');
     const [category, setCategory] = useState('');
     const [date, setDate] = useState('');
@@ -104,20 +125,20 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
     const [isSaving, setIsSaving] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+    // Populate form when currentReceipt changes
     useEffect(() => {
-        if (receipt && isOpen) {
-            const ed = receipt.extractedData || {};
-            setStore(receipt.storeName || '');
+        if (currentReceipt && isOpen) {
+            const ed = currentReceipt.extractedData || {};
+            setStore(currentReceipt.storeName || '');
             setCategory(ed.category || '');
-            setDate(formatToInputDate(ed.date || receipt.createdAt || ''));
-            setTime(formatToInputTime(ed.time || (receipt.createdAt ? new Date(receipt.createdAt).toLocaleTimeString('th-TH', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '')));
+            setDate(formatToInputDate(ed.date || currentReceipt.createdAt || ''));
+            setTime(formatToInputTime(ed.time || (currentReceipt.createdAt ? new Date(currentReceipt.createdAt).toLocaleTimeString('th-TH', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '')));
             setPaymentMethod(ed.paymentMethod || ed.method || '');
             setCurrency(ed.currency || 'THB');
             setTaxId(ed.vendorTaxId || '');
             setDiscount(ed.summary?.discount ?? 0);
             setVat(ed.summary?.vat ?? ed.vat ?? 0);
             setErrorMsg(null);
-
             const rawItems = ed.items;
             if (Array.isArray(rawItems) && rawItems.length > 0) {
                 setItems(rawItems.map((it: any, idx: number) => ({
@@ -127,66 +148,48 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
                     unitPrice: it.unitPrice ?? it.unit_price ?? it.amount ?? it.total ?? 0,
                 })));
             } else {
-                setItems([{
-                    id: '1',
-                    description: receipt.storeName || '',
-                    quantity: 1,
-                    unitPrice: (receipt.amount !== undefined ? receipt.amount : receipt.totalAmount) || 0,
-                }]);
+                setItems([{ id: '1', description: currentReceipt.storeName || '', quantity: 1, unitPrice: (currentReceipt.amount !== undefined ? currentReceipt.amount : currentReceipt.totalAmount) || 0 }]);
             }
+            resetView();
         }
-    }, [receipt, isOpen]);
+    }, [currentReceipt, isOpen]);
 
     useEffect(() => {
-        if (!isOpen) {
-            setTimeout(() => {
-                setErrorMsg(null);
-                setIsSaving(false);
-            }, 400);
-        }
+        if (!isOpen) { setTimeout(() => { setErrorMsg(null); setIsSaving(false); }, 400); }
     }, [isOpen]);
 
-    const updateItem = (id: string, updates: Partial<LineItem>) => {
-        setItems(prev => prev.map(it => it.id === id ? { ...it, ...updates } : it));
-    };
+    const updateItem = (id: string, updates: Partial<LineItem>) => setItems(prev => prev.map(it => it.id === id ? { ...it, ...updates } : it));
     const removeItem = (id: string) => setItems(prev => prev.filter(it => it.id !== id));
     const addItem = () => setItems(prev => [...prev, { id: Date.now().toString(), description: '', quantity: 1, unitPrice: 0 }]);
     const calcSubtotal = () => items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
     const calcTotal = () => calcSubtotal() - discount + vat;
 
     const handleSave = async () => {
-        if (!store || !date) {
-            setErrorMsg('กรุณาระบุร้านค้าและวันที่');
-            return;
-        }
+        if (!store || !date) { setErrorMsg('กรุณาระบุร้านค้าและวันที่'); return; }
+        if (!currentReceipt) return;
         setIsSaving(true);
         setErrorMsg(null);
         try {
             const grandTotal = calcTotal();
-            const result = await updateReceipt(receipt._id || receipt.id || '', {
+            const result = await updateReceipt(currentReceipt._id || currentReceipt.id || '', {
                 storeName: store,
                 totalAmount: grandTotal,
                 extractedData: {
-                    ...receipt.extractedData,
-                    date,
-                    time,
-                    paymentMethod,
-                    category,
-                    currency,
+                    ...currentReceipt.extractedData,
+                    date, time, paymentMethod, category, currency,
                     vendorTaxId: taxId,
                     items,
-                    summary: {
-                        subtotal: calcSubtotal(),
-                        discount,
-                        vat,
-                        total: grandTotal,
-                    },
+                    summary: { subtotal: calcSubtotal(), discount, vat, total: grandTotal },
                 },
             }) as any;
 
             if (result?.success) {
                 if (onSuccess) onSuccess();
-                onClose();
+                if (isQueueMode && currentIdx < allReceipts!.length - 1) {
+                    setCurrentIdx(i => i + 1);
+                } else {
+                    onClose();
+                }
             } else {
                 setErrorMsg(result?.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
             }
@@ -197,7 +200,16 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
         }
     };
 
-    const getImageUrl = (url?: string) => { if (!url) return ''; if (url.includes('storage.googleapis.com')) { return '/api/gcs-image?url=' + encodeURIComponent(url); } return url; }; const imageData = receipt?.extractedData?.imageData || getImageUrl(receipt?.imageURL || receipt?.imageUrl) || null;
+    const getImageUrl = (url?: string) => {
+        if (!url) return '';
+        if (url.includes('storage.googleapis.com')) return '/api/gcs-image?url=' + encodeURIComponent(url);
+        return url;
+    };
+    const imageData = getImageUrl(currentReceipt?.extractedData?.imageData) || getImageUrl(currentReceipt?.imageURL || currentReceipt?.imageUrl) || null;
+
+    const total = allReceipts?.length ?? 1;
+    const hasNext = isQueueMode && currentIdx < total - 1;
+    const hasPrev = isQueueMode && currentIdx > 0;
 
     return (
         <>
@@ -209,189 +221,407 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
             fontFamily: '"Inter","Sarabun",sans-serif',
             boxShadow: '-20px 0 60px rgba(0,0,0,0.15)'
         }}>
-            <style dangerouslySetInnerHTML={{ __html: shimmer }} />
+            <style dangerouslySetInnerHTML={{ __html: css }} />
 
-            {/* Dark header */}
-            <div style={{ padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', flexShrink: 0 }}>
-                <div>
-                    <h2 style={{ color: 'white', fontWeight: '900', fontSize: '1.15rem', margin: 0 }}>ตรวจสอบและยืนยันข้อมูลใบเสร็จ</h2>
-                    <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: '4px 0 0' }}>แก้ไขข้อมูลที่ต้องการแล้วกดบันทึก</p>
+            {/* ── Header ── */}
+            <div style={{ padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', flexShrink: 0, minHeight: '60px', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                    {isQueueMode && (
+                        <button
+                            onClick={() => hasPrev && setCurrentIdx(i => i - 1)}
+                            disabled={!hasPrev}
+                            style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)', background: hasPrev ? 'rgba(255,255,255,0.08)' : 'transparent', color: hasPrev ? '#cbd5e1' : '#475569', cursor: hasPrev ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                        </button>
+                    )}
+                    <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <h2 style={{ color: 'white', fontWeight: '900', fontSize: '1rem', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>ตรวจสอบและยืนยันข้อมูลใบเสร็จ</h2>
+                            {isQueueMode && (
+                                <span style={{ padding: '2px 10px', borderRadius: '20px', background: '#1e3a5f', border: '1px solid #2563eb', color: '#60a5fa', fontSize: '0.78rem', fontWeight: '800', flexShrink: 0 }}>
+                                    {currentIdx + 1} / {total}
+                                </span>
+                            )}
+                        </div>
+                        <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: '2px 0 0', fontWeight: '500' }}>แก้ไขข้อมูลที่ต้องการแล้วกดบันทึก</p>
+                    </div>
                 </div>
-                <button onClick={onClose} style={{ color: '#94a3b8', background: 'none', border: 'none', fontSize: '0.9rem', cursor: 'pointer', fontWeight: '700' }}>ปิด ✕</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    {isQueueMode && (
+                        <button
+                            onClick={() => hasNext && setCurrentIdx(i => i + 1)}
+                            disabled={!hasNext}
+                            style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)', background: hasNext ? 'rgba(255,255,255,0.08)' : 'transparent', color: hasNext ? '#cbd5e1' : '#475569', cursor: hasNext ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
+                    )}
+                    <button onClick={onClose} style={{ color: '#94a3b8', background: 'none', border: 'none', fontSize: '0.9rem', cursor: 'pointer', fontWeight: '700', padding: '4px 8px' }}>ปิด ✕</button>
+                </div>
             </div>
 
+            {/* Queue thumbnail strip */}
+            {isQueueMode && (
+                <div style={{ background: '#0f172a', borderBottom: '1px solid #1e293b', padding: '8px 24px', display: 'flex', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
+                    {allReceipts!.map((r, idx) => {
+                        const img = getImageUrl(r.extractedData?.imageData) || getImageUrl(r.imageURL || r.imageUrl) || null;
+                        const isActive = idx === currentIdx;
+                        return (
+                            <div
+                                key={idx}
+                                onClick={() => setCurrentIdx(idx)}
+                                style={{ flexShrink: 0, width: '48px', height: '36px', borderRadius: '6px', overflow: 'hidden', border: `2px solid ${isActive ? '#2563eb' : '#334155'}`, cursor: 'pointer', opacity: isActive ? 1 : 0.55, transition: 'all 0.15s', position: 'relative' }}
+                            >
+                                {img ? (
+                                    <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                    <div style={{ width: '100%', height: '100%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
             {errorMsg && (
-                <div style={{ padding: '10px 32px', backgroundColor: '#fef2f2', borderBottom: '1px solid #fee2e2', color: '#991b1b', fontSize: '0.85rem', fontWeight: '600', flexShrink: 0 }}>
+                <div style={{ padding: '10px 24px', backgroundColor: '#fef2f2', borderBottom: '1px solid #fee2e2', color: '#991b1b', fontSize: '0.85rem', fontWeight: '600', flexShrink: 0 }}>
                     {errorMsg}
                 </div>
             )}
 
-            {/* Two-column body */}
+            {/* ── Two-column body ── */}
             <div style={{ display: 'flex', flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflow: isMobile ? 'auto' : 'hidden', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
-                {/* Top (mobile) / Left (desktop): Image */}
-                <div style={{ flexGrow: 0, flexShrink: 0, flexBasis: isMobile ? 'auto' : '38%', width: isMobile ? '100%' : undefined, height: isMobile ? '240px' : undefined, borderRight: isMobile ? 'none' : '1px solid #e2e8f0', borderBottom: isMobile ? '1px solid #e2e8f0' : 'none', backgroundColor: '#f8fafc', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
-                    <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: '0%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                        {imageData ? (
-                            <img src={imageData} alt="Receipt" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }} />
-                        ) : (
-                            <div style={{ color: '#94a3b8', textAlign: 'center', fontSize: '0.9rem' }}>
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" style={{ display: 'block', margin: '0 auto 12px' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                                ไม่มีรูปภาพ
-                            </div>
-                        )}
+
+                {/* LEFT: Image viewer with zoom/pan */}
+                <div style={{ flexGrow: 0, flexShrink: 0, flexBasis: isMobile ? 'auto' : '42%', width: isMobile ? '100%' : undefined, height: isMobile ? '260px' : undefined, borderRight: isMobile ? 'none' : '1px solid #1e293b', borderBottom: isMobile ? '1px solid #1e293b' : 'none', backgroundColor: '#0f172a', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div
+                        style={{ flex: 1, position: 'relative', overflow: 'hidden', cursor: isDragging ? 'grabbing' : 'grab', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        onWheel={handleWheel}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onMouseLeave={handleMouseUp}
+                    >
+                        <div style={{ transition: isDragging ? 'none' : 'transform 0.2s', transform: `translate(${position.x}px,${position.y}px) scale(${zoom}) rotate(${rotation}deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {imageData ? (
+                                <img src={imageData} alt="Receipt" style={{ maxWidth: '90%', maxHeight: '85vh', borderRadius: '6px', boxShadow: '0 4px 24px rgba(0,0,0,0.4)', pointerEvents: 'none' }} />
+                            ) : (
+                                <div style={{ color: '#475569', textAlign: 'center', fontSize: '0.9rem' }}>
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="1.5" style={{ display: 'block', margin: '0 auto 12px' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                    ไม่มีรูปภาพ
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Zoom / Rotate toolbar */}
+                        <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', display: 'flex', background: 'rgba(15,23,42,0.85)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', padding: '6px 14px', gap: '14px', alignItems: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.3)', zIndex: 10, backdropFilter: 'blur(8px)' }}>
+                            <button onClick={() => setZoom(z => Math.max(0.1, z - 0.1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                            <span style={{ fontSize: '0.85rem', fontWeight: '600', width: '42px', textAlign: 'center', color: '#e2e8f0' }}>{Math.round(zoom * 100)}%</span>
+                            <button onClick={() => setZoom(z => Math.min(5, z + 0.1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                            <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.12)' }} />
+                            <button onClick={() => setRotation(r => r - 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2.5 2v6h6"/><path d="M2.66 15.57a10 10 0 1 0 .57-8.38"/></svg></button>
+                            <button onClick={() => setRotation(r => r + 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg></button>
+                            <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.12)' }} />
+                            <button onClick={resetView} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '5px', padding: 0, fontSize: '0.82rem', fontWeight: '600' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>รีเซ็ต</button>
+                        </div>
                     </div>
                 </div>
 
-                {/* Right: Editable form */}
-                <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflowY: 'auto', padding: '28px 32px', backgroundColor: '#ffffff' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                        <div>
-                            <label style={labelStyle}>ร้านค้า / ผู้ให้บริการ</label>
-                            <div style={{ position: 'relative' }}>
-                                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>🏪</span>
-                                <input value={store} onChange={e => setStore(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} placeholder="ชื่อร้านค้า" />
-                            </div>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>หมวดหมู่ค่าใช้จ่าย</label>
-                            <div style={{ position: 'relative' }}>
-                                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>🏷️</span>
-                                <input value={category} onChange={e => setCategory(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} placeholder="เช่น Food, Shopping" />
-                            </div>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>วันที่ในใบเสร็จ</label>
-                            <div style={{ position: 'relative' }}>
-                                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>📅</span>
-                                <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} />
-                            </div>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>เวลาในใบเสร็จ</label>
-                            <div style={{ position: 'relative' }}>
-                                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>🕐</span>
-                                <input type="time" value={time} onChange={e => setTime(e.target.value)} style={{ ...inputStyle, paddingLeft: '32px' }} />
-                            </div>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>สกุลเงิน</label>
-                            <div style={{ position: 'relative' }}>
-                                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem' }}>$</span>
-                                <input value={currency} onChange={e => setCurrency(e.target.value)} style={{ ...inputStyle, paddingLeft: '28px' }} />
-                            </div>
-                        </div>
+                {/* RIGHT: Editable form */}
+                <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflowY: 'auto', padding: '16px 20px', backgroundColor: 'var(--main-bg)' }}>
+
+                    {/* AI Success Banner */}
+                    <div style={{ background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.25)', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span style={{ fontSize: '0.82rem', fontWeight: '700', color: '#22c55e' }}>AI วิเคราะห์สำเร็จ ตรวจสอบและแก้ไขข้อมูลด้านล่างได้เลย</span>
                     </div>
 
-                    {/* Line items */}
-                    <div style={{ marginBottom: '20px', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-                        <div style={{ padding: '14px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h4 style={{ fontWeight: '900', fontSize: '0.95rem', margin: 0 }}>รายการสินค้าและบริการ ({items.length})</h4>
+                    {/* Store + category */}
+                    <div style={{ background: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '18px', height: '18px', borderRadius: '5px', background: 'var(--surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                            </div>
+                            <span style={{ fontWeight: '800', fontSize: '0.8rem', color: 'var(--text-main)' }}>ข้อมูลร้านค้า / ผู้ให้บริการ</span>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 54px 90px 32px' : '1fr 80px 130px 36px', gap: '8px', padding: '8px 16px', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                            {['รายการ', 'จำนวน', 'ราคา', ''].map((h, i) => (
-                                <div key={i} style={{ fontSize: '0.78rem', fontWeight: '700', color: '#64748b', textAlign: i >= 2 ? 'right' : 'left' }}>{h}</div>
-                            ))}
-                        </div>
-                        {items.map(item => (
-                            <div key={item.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 54px 90px 32px' : '1fr 80px 130px 36px', gap: '8px', padding: '8px 16px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
-                                {isMobile ? (
-                                    <div
-                                        onClick={() => openDescModal(item)}
-                                        style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: item.description ? '#1e293b' : '#94a3b8' }}
-                                    >
-                                        {item.description || 'ชื่อสินค้า/บริการ'}
-                                    </div>
-                                ) : (
-                                    <input value={item.description} onChange={e => updateItem(item.id, { description: e.target.value })} placeholder="ชื่อสินค้า/บริการ" style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.88rem' }} />
-                                )}
-                                <input type="number" value={item.quantity} onChange={e => updateItem(item.id, { quantity: parseInt(e.target.value) || 1 })} style={{ ...inputStyle, padding: '7px 8px', fontSize: '0.88rem', textAlign: 'center' }} />
-                                <div style={{ padding: '7px 10px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.88rem', fontWeight: '700', textAlign: 'right', color: '#1e293b' }}>
-                                    {(item.quantity * item.unitPrice).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                        <div style={{ padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                                <label style={darkLabelStyle}>ชื่อร้านค้า / ผู้ให้บริการ <span style={{ color: '#ef4444' }}>*</span></label>
+                                <div style={{ position: 'relative' }}>
+                                    <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem' }}>🏪</span>
+                                    <input value={store} onChange={e => setStore(e.target.value)} style={{ ...darkInputStyle, paddingLeft: '32px', border: `1px solid ${store ? 'var(--border-color)' : '#ef4444'}` }} placeholder="ชื่อร้านค้า" />
                                 </div>
-                                <button onClick={() => removeItem(item.id)} style={{ background: '#fff1f2', border: 'none', borderRadius: '6px', cursor: 'pointer', padding: '6px', color: '#e11d48', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                </button>
                             </div>
-                        ))}
-                        <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'flex-end' }}>
-                            <button onClick={addItem} style={{ padding: '7px 16px', backgroundColor: '#7c3aed', border: 'none', borderRadius: '6px', color: 'white', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span>+</span> เพิ่มสินค้า
-                            </button>
+                            <div>
+                                <label style={darkLabelStyle}>หมวดหมู่</label>
+                                <div style={{ position: 'relative' }}>
+                                    <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem' }}>🏷️</span>
+                                    <input value={category} onChange={e => setCategory(e.target.value)} style={{ ...darkInputStyle, paddingLeft: '32px' }} placeholder="เช่น อาหาร" />
+                                </div>
+                            </div>
+                            <div>
+                                <label style={darkLabelStyle}>สกุลเงิน</label>
+                                <select value={currency} onChange={e => setCurrency(e.target.value)} style={{ ...darkInputStyle, cursor: 'pointer' }}>
+                                    {['THB', 'USD', 'EUR', 'JPY', 'CNY', 'SGD'].map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Discount & VAT */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                        <div>
-                            <label style={labelStyle}>ส่วนลดท้ายบิล</label>
-                            <input type="number" value={discount} onChange={e => setDiscount(parseFloat(e.target.value) || 0)} style={inputStyle} />
+                    {/* Date / time */}
+                    <div style={{ background: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-color)' }}>
+                            <span style={{ fontWeight: '800', fontSize: '0.8rem', color: 'var(--text-main)' }}>วันเวลา</span>
                         </div>
-                        <div>
-                            <label style={labelStyle}>ภาษีมูลค่าเพิ่ม (VAT)</label>
-                            <input type="number" value={vat} onChange={e => setVat(parseFloat(e.target.value) || 0)} style={inputStyle} />
+                        <div style={{ padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <div>
+                                <label style={darkLabelStyle}>วันที่ <span style={{ color: '#ef4444' }}>*</span></label>
+                                <div style={{ position: 'relative' }}>
+                                    <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem' }}>📅</span>
+                                    <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ ...darkInputStyle, paddingLeft: '32px', border: `1px solid ${date ? 'var(--border-color)' : '#ef4444'}` }} />
+                                </div>
+                            </div>
+                            <div>
+                                <label style={darkLabelStyle}>เวลา</label>
+                                <div style={{ position: 'relative' }}>
+                                    <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem' }}>🕐</span>
+                                    <input type="time" value={time} onChange={e => setTime(e.target.value)} style={{ ...darkInputStyle, paddingLeft: '32px' }} />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Totals */}
-                    <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', padding: '20px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#64748b', fontSize: '0.9rem' }}>
-                            <span>ยอดรวมก่อนหักรายการ:</span>
-                            <span style={{ fontWeight: '700', color: '#1e293b' }}>{calcSubtotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })} THB</span>
+                    {/* Line items / Queue list */}
+                    <div style={{ background: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontWeight: '800', fontSize: '0.8rem', color: '#1e293b' }}>
+                                    {isQueueMode ? 'รายการใบเสร็จทั้งหมด' : 'รายการสินค้าและบริการ'}
+                                </span>
+                                <span style={{ padding: '1px 7px', borderRadius: '20px', background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', fontSize: '0.7rem', fontWeight: '800' }}>
+                                    {isQueueMode ? `${allReceipts!.length} ใบ` : `${items.length} รายการ`}
+                                </span>
+                            </div>
+                            {!isQueueMode && (
+                                <button onClick={addItem} style={{ padding: '5px 12px', background: '#7c3aed', border: 'none', borderRadius: '6px', color: 'white', fontWeight: '700', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> เพิ่มรายการ
+                                </button>
+                            )}
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '14px', borderTop: '2px solid #e2e8f0', alignItems: 'center' }}>
-                            <span style={{ fontWeight: '900', fontSize: isMobile ? '0.95rem' : '1.05rem', color: '#1e293b' }}>{isMobile ? 'ยอดรวม:' : 'ยอดสุทธิทั้งหมด:'}</span>
-                            <span style={{ fontWeight: '900', fontSize: '1.4rem', color: '#7c3aed' }}>
-                                {calcTotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })} THB
-                            </span>
+
+                        {isQueueMode ? (
+                            <>
+                                {/* Queue mode: one row per receipt */}
+                                {!isMobile && (
+                                    <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 110px 80px', gap: '6px', padding: '7px 16px', background: 'var(--surface-hover)', borderBottom: '1px solid var(--border-color)' }}>
+                                        {['#', 'ร้าน / ผู้รับเงิน', 'ยอดเงิน (฿)', 'สถานะ'].map((h, i) => (
+                                            <div key={i} style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', textAlign: i >= 2 ? 'right' : 'left' }}>{h}</div>
+                                        ))}
+                                    </div>
+                                )}
+                                {allReceipts!.map((r, idx) => {
+                                    const rAmt = (r.amount !== undefined ? r.amount : r.totalAmount) || 0;
+                                    const isSelected = idx === currentIdx;
+                                    return (
+                                        <div
+                                            key={idx}
+                                            onClick={() => setCurrentIdx(idx)}
+                                            style={{
+                                                display: 'grid', gridTemplateColumns: isMobile ? '1fr 100px' : '28px 1fr 110px 80px',
+                                                gap: '6px', padding: '10px 16px', borderBottom: '1px solid #f1f5f9',
+                                                alignItems: 'center', cursor: 'pointer',
+                                                background: isSelected ? 'rgba(124,58,237,0.06)' : 'transparent',
+                                                borderLeft: isSelected ? '3px solid #7c3aed' : '3px solid transparent',
+                                                transition: 'all 0.15s',
+                                            }}
+                                        >
+                                            {!isMobile && (
+                                                <span style={{ fontSize: '0.78rem', color: isSelected ? '#7c3aed' : '#94a3b8', fontWeight: '700', textAlign: 'center' }}>{idx + 1}</span>
+                                            )}
+                                            <div style={{ overflow: 'hidden' }}>
+                                                <div style={{ fontSize: '0.88rem', fontWeight: '700', color: isSelected ? '#1e293b' : '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                    {r.storeName || 'ไม่ระบุร้านค้า'}
+                                                </div>
+                                                {isMobile && (
+                                                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+                                                        {new Date(r.extractedData?.date || r.createdAt).toLocaleDateString('th-TH')}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div style={{ textAlign: 'right', fontSize: '0.9rem', fontWeight: '800', color: isSelected ? '#7c3aed' : '#64748b' }}>
+                                                ฿{rAmt.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                                            </div>
+                                            {!isMobile && (
+                                                <div style={{ textAlign: 'right' }}>
+                                                    {isSelected ? (
+                                                        <span style={{ padding: '2px 8px', borderRadius: '999px', background: 'rgba(124,58,237,0.12)', color: '#7c3aed', fontSize: '0.68rem', fontWeight: '800' }}>● แก้ไข</span>
+                                                    ) : (
+                                                        <span style={{ padding: '2px 8px', borderRadius: '999px', background: 'rgba(22,163,74,0.08)', color: '#16a34a', fontSize: '0.68rem', fontWeight: '800' }}>✓ บันทึก</span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </>
+                        ) : (
+                            <>
+                                {/* Single mode: show items of current receipt */}
+                                {!isMobile && (
+                                    <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 64px 96px 96px 34px', gap: '6px', padding: '7px 16px', background: 'var(--surface-hover)', borderBottom: '1px solid var(--border-color)' }}>
+                                        {['#', 'ชื่อสินค้า / บริการ', 'จำนวน', 'ราคา/หน่วย', 'รวม (฿)', ''].map((h, i) => (
+                                            <div key={i} style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', textAlign: i >= 2 ? 'center' : 'left' }}>{h}</div>
+                                        ))}
+                                    </div>
+                                )}
+                                {items.map((item, idx) => (
+                                    <div key={item.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 56px 34px' : '28px 1fr 64px 96px 96px 34px', gap: '6px', padding: '8px 16px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
+                                        {!isMobile && (
+                                            <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '600', textAlign: 'center' }}>{idx + 1}</span>
+                                        )}
+                                        {isMobile ? (
+                                            <div onClick={() => openDescModal(item)} style={{ ...darkInputStyle, padding: '7px 10px', fontSize: '0.88rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: item.description ? '#1e293b' : '#94a3b8' }}>
+                                                {item.description || 'ชื่อสินค้า/บริการ'}
+                                            </div>
+                                        ) : (
+                                            <input value={item.description} onChange={e => updateItem(item.id, { description: e.target.value })} placeholder="ชื่อสินค้า/บริการ" style={{ ...darkInputStyle, padding: '7px 10px', fontSize: '0.88rem' }} />
+                                        )}
+                                        <input type="number" value={item.quantity} min={1} onChange={e => updateItem(item.id, { quantity: parseInt(e.target.value) || 1 })} style={{ ...darkInputStyle, padding: '7px 6px', fontSize: '0.88rem', textAlign: 'center' }} />
+                                        {!isMobile && (
+                                            <input type="number" value={item.unitPrice} onChange={e => updateItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })} style={{ ...darkInputStyle, padding: '7px 8px', fontSize: '0.88rem', textAlign: 'right' }} />
+                                        )}
+                                        <div style={{ padding: '7px 8px', background: 'var(--surface-hover)', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.88rem', fontWeight: '800', textAlign: 'right', color: 'var(--text-main)' }}>
+                                            {(item.quantity * item.unitPrice).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                                        </div>
+                                        <button onClick={() => removeItem(item.id)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px', cursor: 'pointer', padding: '6px', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px' }}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                        </button>
+                                    </div>
+                                ))}
+                            </>
+                        )}
+                    </div>
+
+                    {/* Summary */}
+                    <div style={{ background: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '18px', height: '18px', borderRadius: '5px', background: 'linear-gradient(135deg,#7c3aed,#4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', color: 'white', fontWeight: '900' }}>฿</div>
+                            <span style={{ fontWeight: '800', fontSize: '0.8rem', color: 'var(--text-main)' }}>สรุปยอดเงิน</span>
+                        </div>
+                        <div style={{ padding: '14px 16px' }}>
+                            {!isQueueMode && (
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                                    <div>
+                                        <label style={darkLabelStyle}>ส่วนลดท้ายบิล (฿)</label>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <input type="number" value={discount} onChange={e => setDiscount(parseFloat(e.target.value) || 0)} style={{ ...darkInputStyle, color: '#dc2626', fontWeight: '700' }} placeholder="0" />
+                                            <button onClick={() => setDiscount(d => Math.max(0, d - 1))} style={{ flexShrink: 0, width: '30px', height: '30px', borderRadius: '50%', border: '1px solid var(--border-color)', background: 'var(--surface-hover)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label style={darkLabelStyle}>ภาษีมูลค่าเพิ่ม VAT (฿)</label>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <input type="number" value={vat} onChange={e => setVat(parseFloat(e.target.value) || 0)} style={{ ...darkInputStyle, color: '#16a34a', fontWeight: '700' }} placeholder="0" />
+                                            <button onClick={() => setVat(v => v + 1)} style={{ flexShrink: 0, width: '30px', height: '30px', borderRadius: '50%', border: '1px solid var(--border-color)', background: 'var(--surface-hover)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            <div style={{ background: 'var(--surface-hover)', borderRadius: '10px', padding: '14px 16px', border: '1px solid var(--border-color)' }}>
+                                {isQueueMode && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '10px' }}>
+                                        <span style={{ color: '#64748b' }}>ยอดรวมทุกใบ ({allReceipts!.length} ใบ)</span>
+                                        <span style={{ fontWeight: '700', color: '#475569' }}>
+                                            ฿{allReceipts!.reduce((s, r) => s + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                                        </span>
+                                    </div>
+                                )}
+                                {!isQueueMode && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '10px' }}>
+                                        <span style={{ color: '#64748b' }}>ยอดรวมรายการ</span>
+                                        <span style={{ fontWeight: '700', color: '#475569' }}>฿{calcSubtotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                )}
+                                <div style={{ height: '1px', background: 'var(--border-color)', margin: '10px 0' }} />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                                    <div>
+                                        <div style={{ fontWeight: '900', fontSize: '0.9rem', color: 'var(--text-main)' }}>ยอดสุทธิทั้งหมด</div>
+                                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>{currency}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <div style={{ fontWeight: '900', fontSize: '1.6rem', color: '#7c3aed', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                                            ฿{isQueueMode
+                                                ? allReceipts!.reduce((s, r) => s + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })
+                                                : calcTotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                                        </div>
+                                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>{currency}</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    <div style={{ height: '8px' }} />
                 </div>
             </div>
 
-            {/* Bottom action bar */}
-            <div style={{ padding: '16px 32px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', flexShrink: 0 }}>
-                <button onClick={onClose} style={{ padding: '10px 24px', border: '1.5px solid #e2e8f0', borderRadius: '8px', background: 'white', fontWeight: '700', cursor: 'pointer', color: '#64748b' }}>
+            {/* ── Footer ── */}
+            <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--card-bg)', flexShrink: 0, gap: '12px' }}>
+                <button onClick={onClose} style={{ padding: '10px 22px', border: '1.5px solid var(--border-color)', borderRadius: '8px', background: 'var(--surface-hover)', fontWeight: '700', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
                     ยกเลิก
                 </button>
-                <button onClick={handleSave} disabled={isSaving} style={{ padding: '12px 32px', borderRadius: '10px', backgroundColor: isSaving ? '#a78bfa' : '#7c3aed', color: 'white', fontWeight: '800', border: 'none', cursor: isSaving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95rem' }}>
-                    {isSaving ? (
-                        <><SpinIcon /> กำลังบันทึก...</>
-                    ) : (
-                        <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>บันทึกการแก้ไข</>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ padding: '6px 14px', background: 'rgba(124,58,237,0.12)', borderRadius: '8px', border: '1px solid rgba(124,58,237,0.25)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#a78bfa', fontWeight: '700' }}>ยอดสุทธิ</span>
+                        <span style={{ fontSize: '1rem', fontWeight: '900', color: '#7c3aed' }}>฿{calcTotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
+                    </div>
+
+                    {isQueueMode && hasNext && (
+                        <button
+                            onClick={() => setCurrentIdx(i => i + 1)}
+                            style={{ padding: '10px 18px', border: '1.5px solid var(--border-color)', borderRadius: '8px', background: 'var(--surface-hover)', fontWeight: '700', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                            ข้าม
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
                     )}
-                </button>
+
+                    <button onClick={handleSave} disabled={isSaving || !store || !date} style={{
+                        padding: '11px 24px', borderRadius: '10px',
+                        background: isSaving || !store || !date ? '#6d28d9' : 'linear-gradient(135deg,#7c3aed,#5b21b6)',
+                        color: 'white', fontWeight: '800', border: 'none',
+                        cursor: isSaving || !store || !date ? 'not-allowed' : 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem',
+                        boxShadow: isSaving ? 'none' : '0 4px 12px rgba(124,58,237,0.4)',
+                        opacity: isSaving || !store || !date ? 0.7 : 1,
+                    }}>
+                        {isSaving ? (
+                            <><SpinIcon /> กำลังบันทึก...</>
+                        ) : isQueueMode && hasNext ? (
+                            <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>บันทึก และถัดไป ({currentIdx + 1}/{total})</>
+                        ) : (
+                            <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>บันทึกการแก้ไข</>
+                        )}
+                    </button>
+                </div>
             </div>
         </div>
 
         {/* Mobile description edit modal */}
         {isMobile && editingDescId && (
-            <div
-                onClick={closeDescModal}
-                style={{
-                    position: 'fixed', inset: 0, zIndex: 2000,
-                    backgroundColor: 'rgba(15,23,42,0.6)',
-                    backdropFilter: 'blur(6px)',
-                    WebkitBackdropFilter: 'blur(6px)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '24px',
-                }}
-            >
+            <div onClick={closeDescModal} style={{ position: 'fixed', inset: 0, zIndex: 2000, backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
                 <div onClick={e => e.stopPropagation()} style={{ width: '100%', background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
                     <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748b', margin: '0 0 10px' }}>ชื่อสินค้า / บริการ</p>
-                    <input
-                        autoFocus
-                        value={editingDescValue}
-                        onChange={e => setEditingDescValue(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && closeDescModal()}
-                        placeholder="ชื่อสินค้า/บริการ"
-                        style={{ ...inputStyle, fontSize: '1rem', padding: '12px 14px', width: '100%', boxSizing: 'border-box' }}
-                    />
-                    <button
-                        onClick={closeDescModal}
-                        style={{ marginTop: '14px', width: '100%', padding: '12px', borderRadius: '10px', background: '#7c3aed', color: 'white', fontWeight: '800', border: 'none', fontSize: '0.95rem', cursor: 'pointer' }}
-                    >
-                        ยืนยัน
-                    </button>
+                    <input autoFocus value={editingDescValue} onChange={e => setEditingDescValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && closeDescModal()} placeholder="ชื่อสินค้า/บริการ" style={{ ...inputStyle, fontSize: '1rem', padding: '12px 14px' }} />
+                    <button onClick={closeDescModal} style={{ marginTop: '14px', width: '100%', padding: '12px', borderRadius: '10px', background: '#7c3aed', color: 'white', fontWeight: '800', border: 'none', fontSize: '0.95rem', cursor: 'pointer' }}>ยืนยัน</button>
                 </div>
             </div>
         )}
@@ -400,7 +630,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
 };
 
 const SpinIcon = () => (
-    <div style={{ width: '18px', height: '18px', border: '2.5px solid rgba(255,255,255,0.3)', borderTop: '2.5px solid white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    <div style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
 );
 
 export default ReceiptDetailSheet;
