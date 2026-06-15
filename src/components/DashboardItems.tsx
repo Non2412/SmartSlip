@@ -887,7 +887,7 @@ export const RecentUploads = ({
                                             alt="slip"
                                             width={44}
                                             height={44}
-                                            unoptimized={imageData.startsWith('data:')}
+                                            unoptimized
                                             style={{ objectFit: 'cover', width: '100%', height: '100%' }}
                                         />
                                     ) : (
