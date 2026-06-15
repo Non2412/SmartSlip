@@ -165,6 +165,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
         try {
             const grandTotal = calcTotal();
             const result = await updateReceipt(receipt._id || receipt.id || '', {
+                ...receipt,
                 storeName: store,
                 totalAmount: grandTotal,
                 extractedData: {
