@@ -6,6 +6,19 @@ const options = {};
 let client;
 let clientPromise: Promise<MongoClient>;
 
+async function ensureIndexes(conn: MongoClient) {
+  try {
+    const db = conn.db('smartslip_api');
+    await db.collection('receipts').createIndex(
+      { userId: 1, createdAt: -1 },
+      { background: true }
+    );
+    console.log('✅ [MongoDB] Index { userId: 1, createdAt: -1 } verified/created');
+  } catch (err) {
+    console.error('❌ [MongoDB] Failed to create index:', err);
+  }
+}
+
 if (!process.env.MONGODB_URI) {
   // During build phase on Vercel, MONGODB_URI might be missing.
   // Instead of throwing an error at the top level, we return a rejected promise
@@ -25,6 +38,7 @@ if (!process.env.MONGODB_URI) {
       globalWithMongo._mongoClientPromise = client.connect()
         .then(conn => {
           console.log('✅ [MongoDB] Connected successfully in development');
+          ensureIndexes(conn);
           return conn;
         })
         .catch(err => {
@@ -40,6 +54,7 @@ if (!process.env.MONGODB_URI) {
     clientPromise = client.connect()
       .then(conn => {
         console.log('✅ [MongoDB] Connected successfully in production');
+        ensureIndexes(conn);
         return conn;
       })
       .catch(err => {

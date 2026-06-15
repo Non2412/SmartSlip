@@ -163,6 +163,71 @@ interface VerificationLineItem {
     unitPrice: number;
 }
 
+const compressImageFile = (file: File, maxWidth = 1200, quality = 0.7): Promise<{ file: File; base64: string }> => {
+    return new Promise((resolve, reject) => {
+        if (!file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                resolve({ file, base64: e.target?.result as string });
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    resolve({ file, base64: img.src });
+                    return;
+                }
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        resolve({ file, base64: img.src });
+                        return;
+                    }
+                    const compressedFile = new File([blob], file.name, {
+                        type: 'image/jpeg',
+                        lastModified: Date.now(),
+                    });
+                    
+                    const compressedReader = new FileReader();
+                    compressedReader.onload = (ce) => {
+                        resolve({
+                            file: compressedFile,
+                            base64: ce.target?.result as string
+                        });
+                    };
+                    compressedReader.onerror = reject;
+                    compressedReader.readAsDataURL(compressedFile);
+                }, 'image/jpeg', quality);
+            };
+            img.onerror = () => {
+                resolve({ file, base64: reader.result as string });
+            };
+            img.src = e.target?.result as string;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+};
+
 const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceiptSheetProps) => {
     const { data: session } = useSession();
     const user = session?.user;
@@ -356,17 +421,27 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
     const handleMouseUp = () => setIsDraggingImage(false);
 
-    const handleFile = (file: File) => {
+    const handleFile = async (file: File) => {
         if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
             setErrorMsg('กรุณาอัพโหลดไฟล์รูปภาพหรือ PDF เท่านั้น');
             return;
         }
-        setSelectedFile(file);
-        const reader = new FileReader();
-        reader.onload = (e) => setImage(e.target?.result as string);
-        reader.readAsDataURL(file);
         setErrorMsg(null);
-        setTimeout(() => runOCR(file), 500);
+        try {
+            const { file: compressedFile, base64 } = await compressImageFile(file);
+            setSelectedFile(compressedFile);
+            setImage(base64);
+            runOCR(compressedFile);
+        } catch (err) {
+            console.error('Compression failed', err);
+            setSelectedFile(file);
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setImage(e.target?.result as string);
+                runOCR(file);
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -374,16 +449,23 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         if (file) handleFile(file);
     };
 
-    const handleManualImageFile = (file: File) => {
+    const handleManualImageFile = async (file: File) => {
         if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
             setErrorMsg('กรุณาอัพโหลดไฟล์รูปภาพหรือ PDF เท่านั้น');
             return;
         }
-        setSelectedFile(file);
-        const reader = new FileReader();
-        reader.onload = (e) => setImage(e.target?.result as string);
-        reader.readAsDataURL(file);
         setErrorMsg(null);
+        try {
+            const { file: compressedFile, base64 } = await compressImageFile(file);
+            setSelectedFile(compressedFile);
+            setImage(base64);
+        } catch (err) {
+            console.error('Compression failed', err);
+            setSelectedFile(file);
+            const reader = new FileReader();
+            reader.onload = (e) => setImage(e.target?.result as string);
+            reader.readAsDataURL(file);
+        }
     };
 
     const runOCR = async (file?: File) => {
