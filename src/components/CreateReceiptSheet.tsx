@@ -202,13 +202,13 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [queueIndex, setQueueIndex] = useState(0);
     const [queueThumbnails, setQueueThumbnails] = useState<string[]>([]);
     const [queueSummaries, setQueueSummaries] = useState<{shopName: string, amount: string, date: string, thumb: string}[]>([]);
+    const savedQueueStatesRef = useRef<Map<number, any>>(new Map());
     const ocrGenerationRef = useRef(0);
     const ocrTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const { createReceipt, updateReceipt, extractFromImage } = useReceipts();
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [isSuccess, setIsSuccess] = useState(false);
     const [extractedReceiptId, setExtractedReceiptId] = useState<string | null>(null);
 
     // Simple form states (manual entry)
@@ -252,14 +252,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         return 'Mobile Banking';
     };
 
-    const detectCategoryFromText = (text?: string) => {
-        if (!text) return 'อื่นๆ';
-        const lower = text.toLowerCase();
-        if (/อาหาร|restaurant|cafe|coffee|food|delivery|foodpanda|grab/i.test(lower)) return 'อาหาร';
-        if (/เดินทาง|travel|taxi|grab|uber|bus|train|flight|airline|hotel/i.test(lower)) return 'เดินทาง';
-        if (/shopping|ช้อปปิ้ง|mall|department|shopee|lazada/i.test(lower)) return 'ช้อปปิ้ง';
-        return 'อื่นๆ';
-    };
 
     const formatInputDate = (dateText?: string) => {
         if (!dateText) return '';
@@ -309,7 +301,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 setSelectedFile(null);
                 setIsProcessing(false);
                 setIsSaving(false);
-                setIsSuccess(false);
                 setShopName('');
                 setAmount('');
                 setDate(new Date().toISOString().split('T')[0]);
@@ -330,6 +321,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 setQueueIndex(0);
                 setQueueThumbnails([]);
                 setQueueSummaries([]);
+                savedQueueStatesRef.current.clear();
                 setZoom(1);
                 setRotation(0);
                 setPosition({ x: 0, y: 0 });
@@ -400,6 +392,41 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         setShowVerification(false); setVerStore(''); setVerCategory(''); setVerDate(''); setVerTime('');
         setVerPaymentMethod(''); setVerCurrency('THB'); setVerTaxId(''); setVerItems([]); setVerDiscount(0); setVerVat(0);
         setExtractedReceiptId(null); setExtraFiles([]); setActiveDocIndex(-1);
+    };
+
+    const navigateToQueueIndex = (fromIdx: number, targetIdx: number, snapshot: any) => {
+        // Save current form state for fromIdx so we can restore it later
+        savedQueueStatesRef.current.set(fromIdx, snapshot);
+        const saved = savedQueueStatesRef.current.get(targetIdx);
+        if (saved) {
+            // Restore previously saved state — no need to re-run OCR
+            setImage(saved.image); setShopName(saved.shopName); setAmount(saved.amount);
+            setDate(saved.date); setPaymentMethod(saved.paymentMethod); setMainCategory(saved.mainCategory);
+            setNotes(saved.notes); setManualTime(saved.manualTime || '');
+            setManualDiscount(saved.manualDiscount || 0); setVendorTaxId(saved.vendorTaxId || '');
+            setVendorAddress(saved.vendorAddress || ''); setCurrency(saved.currency || 'THB');
+            setReceiptNo(saved.receiptNo || ''); setTaxInvoiceNo(saved.taxInvoiceNo || '');
+            setIsTaxInvoice(saved.isTaxInvoice || false); setPaymentStatus(saved.paymentStatus || 'paid');
+            setVerStore(saved.verStore); setVerCategory(saved.verCategory);
+            setVerDate(saved.verDate); setVerTime(saved.verTime);
+            setVerPaymentMethod(saved.verPaymentMethod); setVerCurrency(saved.verCurrency || 'THB');
+            setVerTaxId(saved.verTaxId || ''); setVerItems(saved.verItems || []);
+            setVerDiscount(saved.verDiscount || 0); setVerVat(saved.verVat || 0);
+            setExtractedReceiptId(saved.extractedReceiptId || null);
+            setSuccessMsg(saved.successMsg || null); setShowVerification(saved.showVerification || false);
+            // Restore selectedFile with a dummy to preserve full-width layout (image is restored as base64)
+            const mime = (saved.image || '').startsWith('data:application/pdf') ? 'application/pdf' : 'image/jpeg';
+            setSelectedFile(saved.image ? new File([], 'restored', { type: mime }) : null);
+            setIsProcessing(false); setIsSaving(false);
+            setErrorMsg(null); setFormTab('info');
+            setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 });
+            setQueueIndex(targetIdx);
+        } else {
+            // First time visiting this receipt — reset and run OCR
+            resetForNextReceipt();
+            setQueueIndex(targetIdx);
+            handleFile(fileQueue[targetIdx]);
+        }
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -644,10 +671,13 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 if (onSuccess) onSuccess();
                 const nextIdx = queueIndex + 1;
                 if (nextIdx < fileQueue.length) {
-                    setQueueSummaries(prev => [...prev, { shopName: verStore, amount: String(grandTotal), date, thumb: queueThumbnails[queueIndex] || '' }]);
-                    resetForNextReceipt();
-                    setQueueIndex(nextIdx);
-                    handleFile(fileQueue[nextIdx]);
+                    setQueueSummaries(prev => {
+                        const updated = [...prev];
+                        updated[queueIndex] = { shopName: verStore, amount: String(grandTotal), date: verDate, thumb: queueThumbnails[queueIndex] || '' };
+                        return updated;
+                    });
+                    const snapshot = { image, shopName: verStore, amount: String(grandTotal), date: verDate, paymentMethod: verPaymentMethod, mainCategory: verCategory, notes: '', manualTime: verTime, manualDiscount: verDiscount, vendorTaxId: verTaxId, vendorAddress: '', currency: verCurrency, receiptNo: '', taxInvoiceNo: '', isTaxInvoice: false, paymentStatus: 'paid' as const, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification: true };
+                    navigateToQueueIndex(queueIndex, nextIdx, snapshot);
                 } else {
                     onClose();
                 }
@@ -725,10 +755,13 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 if (onSuccess) onSuccess();
                 const nextIdx = queueIndex + 1;
                 if (nextIdx < fileQueue.length) {
-                    setQueueSummaries(prev => [...prev, { shopName, amount: String(finalTotal), date, thumb: queueThumbnails[queueIndex] || '' }]);
-                    resetForNextReceipt();
-                    setQueueIndex(nextIdx);
-                    handleFile(fileQueue[nextIdx]);
+                    setQueueSummaries(prev => {
+                        const updated = [...prev];
+                        updated[queueIndex] = { shopName, amount: String(finalTotal), date, thumb: queueThumbnails[queueIndex] || '' };
+                        return updated;
+                    });
+                    const snapshot = { image, shopName, amount: String(finalTotal), date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+                    navigateToQueueIndex(queueIndex, nextIdx, snapshot);
                 } else {
                     onClose();
                 }
@@ -1391,7 +1424,12 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                         return (
                                             <div
                                                 key={idx}
-                                                onClick={() => { setActiveDocIndex(-1); setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); }}
+                                                onClick={() => {
+                                                if (idx === queueIndex) { setActiveDocIndex(-1); setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); return; }
+                                                const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+                                                setActiveDocIndex(-1);
+                                                navigateToQueueIndex(queueIndex, idx, snapshot);
+                                            }}
                                                 style={{ width: '80px', flexShrink: 0, cursor: 'pointer', borderRadius: '8px', overflow: 'hidden', border: `2px solid ${isCurrent ? '#0052cc' : bdColor}`, boxShadow: isCurrent ? '0 0 0 3px rgba(0,82,204,0.15)' : 'none', transition: 'all 0.15s', position: 'relative', opacity: isCurrent ? 1 : 0.55 }}
                                             >
                                                 <div style={{ width: '80px', height: '60px', overflow: 'hidden', background: bgMuted }}>
@@ -1484,18 +1522,32 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                             )}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {fileQueue.length > 1 && queueIndex < fileQueue.length - 1 && (
+                            {fileQueue.length > 1 && queueIndex > 0 && (
                                 <button
                                     onClick={() => {
-                                        const nextIdx = queueIndex + 1;
-                                        setQueueSummaries(prev => [...prev, { shopName, amount, date, thumb: queueThumbnails[queueIndex] || '' }]);
-                                        resetForNextReceipt();
-                                        setQueueIndex(nextIdx);
-                                        handleFile(fileQueue[nextIdx]);
+                                        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+                                        navigateToQueueIndex(queueIndex, queueIndex - 1, snapshot);
                                     }}
                                     style={{ padding: '6px 14px', borderRadius: '8px', border: `1px solid ${bdColor}`, background: bgCard, color: txMuted, fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
                                 >
-                                    ข้าม
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                                    ก่อนหน้า
+                                </button>
+                            )}
+                            {fileQueue.length > 1 && queueIndex < fileQueue.length - 1 && (
+                                <button
+                                    onClick={() => {
+                                        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+                                        setQueueSummaries(prev => {
+                                            const updated = [...prev];
+                                            updated[queueIndex] = { shopName, amount, date, thumb: queueThumbnails[queueIndex] || '' };
+                                            return updated;
+                                        });
+                                        navigateToQueueIndex(queueIndex, queueIndex + 1, snapshot);
+                                    }}
+                                    style={{ padding: '6px 14px', borderRadius: '8px', border: `1px solid ${bdColor}`, background: bgCard, color: txMuted, fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                    ถัดไป
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
                                 </button>
                             )}

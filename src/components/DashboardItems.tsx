@@ -127,15 +127,12 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                         fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)',
                                     }}>
-                                        {receipt.extractedData?.imageData ? (
-                                            <img
-                                                src={receipt.extractedData.imageData}
-                                                alt={receipt.storeName}
-                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                            />
-                                        ) : (
-                                            receipt.storeName?.charAt(0) || 'R'
-                                        )}
+                                        {(() => {
+                                            const raw = receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl;
+                                            if (!raw) return receipt.storeName?.charAt(0) || 'R';
+                                            const src = raw.includes('storage.googleapis.com') ? '/api/gcs-image?url=' + encodeURIComponent(raw) : raw;
+                                            return <img src={src} alt={receipt.storeName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
+                                        })()}
                                     </div>
                                     <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>
                                         {receipt.storeName || 'ไม่ระบุ'}

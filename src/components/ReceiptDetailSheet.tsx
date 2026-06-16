@@ -215,7 +215,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
         <>
         <div style={{
             position: 'fixed', top: 0, right: isOpen ? 0 : '-100vw',
-            width: '100vw', height: '100vh', backgroundColor: '#ffffff',
+            width: '100vw', height: '100vh', backgroundColor: 'var(--card-bg)',
             zIndex: 1000, transition: 'right 0.5s cubic-bezier(0.4,0,0.2,1)',
             display: 'flex', flexDirection: 'column',
             fontFamily: '"Inter","Sarabun",sans-serif',
@@ -224,27 +224,27 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
             <style dangerouslySetInnerHTML={{ __html: css }} />
 
             {/* ── Header ── */}
-            <div style={{ padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0f172a', flexShrink: 0, minHeight: '60px', gap: '12px' }}>
+            <div style={{ padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--card-bg)', borderBottom: '1px solid var(--border-color)', flexShrink: 0, minHeight: '60px', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
                     {isQueueMode && (
                         <button
                             onClick={() => hasPrev && setCurrentIdx(i => i - 1)}
                             disabled={!hasPrev}
-                            style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)', background: hasPrev ? 'rgba(255,255,255,0.08)' : 'transparent', color: hasPrev ? '#cbd5e1' : '#475569', cursor: hasPrev ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                            style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid var(--border-color)', background: hasPrev ? 'var(--surface-hover)' : 'transparent', color: hasPrev ? 'var(--text-main)' : 'var(--text-muted)', cursor: hasPrev ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
                         >
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
                         </button>
                     )}
                     <div style={{ minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <h2 style={{ color: 'white', fontWeight: '900', fontSize: '1rem', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>ตรวจสอบและยืนยันข้อมูลใบเสร็จ</h2>
+                            <h2 style={{ color: 'var(--text-main)', fontWeight: '900', fontSize: '1rem', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>ตรวจสอบและยืนยันข้อมูลใบเสร็จ</h2>
                             {isQueueMode && (
-                                <span style={{ padding: '2px 10px', borderRadius: '20px', background: '#1e3a5f', border: '1px solid #2563eb', color: '#60a5fa', fontSize: '0.78rem', fontWeight: '800', flexShrink: 0 }}>
+                                <span style={{ padding: '2px 10px', borderRadius: '20px', background: 'rgba(37,99,235,0.1)', border: '1px solid rgba(37,99,235,0.35)', color: '#2563eb', fontSize: '0.78rem', fontWeight: '800', flexShrink: 0 }}>
                                     {currentIdx + 1} / {total}
                                 </span>
                             )}
                         </div>
-                        <p style={{ color: '#94a3b8', fontSize: '0.75rem', margin: '2px 0 0', fontWeight: '500' }}>แก้ไขข้อมูลที่ต้องการแล้วกดบันทึก</p>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: '2px 0 0', fontWeight: '500' }}>แก้ไขข้อมูลที่ต้องการแล้วกดบันทึก</p>
                     </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
@@ -252,18 +252,18 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                         <button
                             onClick={() => hasNext && setCurrentIdx(i => i + 1)}
                             disabled={!hasNext}
-                            style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)', background: hasNext ? 'rgba(255,255,255,0.08)' : 'transparent', color: hasNext ? '#cbd5e1' : '#475569', cursor: hasNext ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid var(--border-color)', background: hasNext ? 'var(--surface-hover)' : 'transparent', color: hasNext ? 'var(--text-main)' : 'var(--text-muted)', cursor: hasNext ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         >
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
                         </button>
                     )}
-                    <button onClick={onClose} style={{ color: '#94a3b8', background: 'none', border: 'none', fontSize: '0.9rem', cursor: 'pointer', fontWeight: '700', padding: '4px 8px' }}>ปิด ✕</button>
+                    <button onClick={onClose} style={{ color: 'var(--text-muted)', background: 'none', border: 'none', fontSize: '0.9rem', cursor: 'pointer', fontWeight: '700', padding: '4px 8px' }}>ปิด ✕</button>
                 </div>
             </div>
 
             {/* Queue thumbnail strip */}
             {isQueueMode && (
-                <div style={{ background: '#0f172a', borderBottom: '1px solid #1e293b', padding: '8px 24px', display: 'flex', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
+                <div style={{ background: 'var(--main-bg)', borderBottom: '1px solid var(--border-color)', padding: '8px 24px', display: 'flex', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
                     {allReceipts!.map((r, idx) => {
                         const img = getImageUrl(r.extractedData?.imageData) || getImageUrl(r.imageURL || r.imageUrl) || null;
                         const isActive = idx === currentIdx;
@@ -271,13 +271,13 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                             <div
                                 key={idx}
                                 onClick={() => setCurrentIdx(idx)}
-                                style={{ flexShrink: 0, width: '48px', height: '36px', borderRadius: '6px', overflow: 'hidden', border: `2px solid ${isActive ? '#2563eb' : '#334155'}`, cursor: 'pointer', opacity: isActive ? 1 : 0.55, transition: 'all 0.15s', position: 'relative' }}
+                                style={{ flexShrink: 0, width: '48px', height: '36px', borderRadius: '6px', overflow: 'hidden', border: `2px solid ${isActive ? '#2563eb' : 'var(--border-color)'}`, cursor: 'pointer', opacity: isActive ? 1 : 0.55, transition: 'all 0.15s', position: 'relative' }}
                             >
                                 {img ? (
                                     <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 ) : (
-                                    <div style={{ width: '100%', height: '100%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                    <div style={{ width: '100%', height: '100%', background: 'var(--surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                                     </div>
                                 )}
                             </div>
@@ -296,7 +296,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
             <div style={{ display: 'flex', flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflow: isMobile ? 'auto' : 'hidden', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
 
                 {/* LEFT: Image viewer with zoom/pan */}
-                <div style={{ flexGrow: 0, flexShrink: 0, flexBasis: isMobile ? 'auto' : '42%', width: isMobile ? '100%' : undefined, height: isMobile ? '260px' : undefined, borderRight: isMobile ? 'none' : '1px solid #1e293b', borderBottom: isMobile ? '1px solid #1e293b' : 'none', backgroundColor: '#0f172a', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ flexGrow: 0, flexShrink: 0, flexBasis: isMobile ? 'auto' : '42%', width: isMobile ? '100%' : undefined, height: isMobile ? '260px' : undefined, borderRight: isMobile ? 'none' : '1px solid var(--border-color)', borderBottom: isMobile ? '1px solid var(--border-color)' : 'none', backgroundColor: 'var(--main-bg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                     <div
                         style={{ flex: 1, position: 'relative', overflow: 'hidden', cursor: isDragging ? 'grabbing' : 'grab', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         onWheel={handleWheel}
@@ -309,23 +309,23 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                             {imageData ? (
                                 <img src={imageData} alt="Receipt" style={{ maxWidth: '90%', maxHeight: '85vh', borderRadius: '6px', boxShadow: '0 4px 24px rgba(0,0,0,0.4)', pointerEvents: 'none' }} />
                             ) : (
-                                <div style={{ color: '#475569', textAlign: 'center', fontSize: '0.9rem' }}>
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="1.5" style={{ display: 'block', margin: '0 auto 12px' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                <div style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '0.9rem' }}>
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--border-color)" strokeWidth="1.5" style={{ display: 'block', margin: '0 auto 12px' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                                     ไม่มีรูปภาพ
                                 </div>
                             )}
                         </div>
 
                         {/* Zoom / Rotate toolbar */}
-                        <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', display: 'flex', background: 'rgba(15,23,42,0.85)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', padding: '6px 14px', gap: '14px', alignItems: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.3)', zIndex: 10, backdropFilter: 'blur(8px)' }}>
-                            <button onClick={() => setZoom(z => Math.max(0.1, z - 0.1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
-                            <span style={{ fontSize: '0.85rem', fontWeight: '600', width: '42px', textAlign: 'center', color: '#e2e8f0' }}>{Math.round(zoom * 100)}%</span>
-                            <button onClick={() => setZoom(z => Math.min(5, z + 0.1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
-                            <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.12)' }} />
-                            <button onClick={() => setRotation(r => r - 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2.5 2v6h6"/><path d="M2.66 15.57a10 10 0 1 0 .57-8.38"/></svg></button>
-                            <button onClick={() => setRotation(r => r + 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg></button>
-                            <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.12)' }} />
-                            <button onClick={resetView} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '5px', padding: 0, fontSize: '0.82rem', fontWeight: '600' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>รีเซ็ต</button>
+                        <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', display: 'flex', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '6px 14px', gap: '14px', alignItems: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.15)', zIndex: 10, backdropFilter: 'blur(8px)' }}>
+                            <button onClick={() => setZoom(z => Math.max(0.1, z - 0.1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                            <span style={{ fontSize: '0.85rem', fontWeight: '600', width: '42px', textAlign: 'center', color: 'var(--text-main)' }}>{Math.round(zoom * 100)}%</span>
+                            <button onClick={() => setZoom(z => Math.min(5, z + 0.1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+                            <div style={{ width: '1px', height: '20px', background: 'var(--border-color)' }} />
+                            <button onClick={() => setRotation(r => r - 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2.5 2v6h6"/><path d="M2.66 15.57a10 10 0 1 0 .57-8.38"/></svg></button>
+                            <button onClick={() => setRotation(r => r + 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg></button>
+                            <div style={{ width: '1px', height: '20px', background: 'var(--border-color)' }} />
+                            <button onClick={resetView} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', padding: 0, fontSize: '0.82rem', fontWeight: '600' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>รีเซ็ต</button>
                         </div>
                     </div>
                 </div>
@@ -398,7 +398,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                     <div style={{ background: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
                         <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontWeight: '800', fontSize: '0.8rem', color: '#1e293b' }}>
+                                <span style={{ fontWeight: '800', fontSize: '0.8rem', color: 'var(--text-main)' }}>
                                     {isQueueMode ? 'รายการใบเสร็จทั้งหมด' : 'รายการสินค้าและบริการ'}
                                 </span>
                                 <span style={{ padding: '1px 7px', borderRadius: '20px', background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', fontSize: '0.7rem', fontWeight: '800' }}>
@@ -418,7 +418,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                                 {!isMobile && (
                                     <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 110px 80px', gap: '6px', padding: '7px 16px', background: 'var(--surface-hover)', borderBottom: '1px solid var(--border-color)' }}>
                                         {['#', 'ร้าน / ผู้รับเงิน', 'ยอดเงิน (฿)', 'สถานะ'].map((h, i) => (
-                                            <div key={i} style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', textAlign: i >= 2 ? 'right' : 'left' }}>{h}</div>
+                                            <div key={i} style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', textAlign: i >= 2 ? 'right' : 'left' }}>{h}</div>
                                         ))}
                                     </div>
                                 )}
@@ -431,7 +431,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                                             onClick={() => setCurrentIdx(idx)}
                                             style={{
                                                 display: 'grid', gridTemplateColumns: isMobile ? '1fr 100px' : '28px 1fr 110px 80px',
-                                                gap: '6px', padding: '10px 16px', borderBottom: '1px solid #f1f5f9',
+                                                gap: '6px', padding: '10px 16px', borderBottom: '1px solid var(--border-color)',
                                                 alignItems: 'center', cursor: 'pointer',
                                                 background: isSelected ? 'rgba(124,58,237,0.06)' : 'transparent',
                                                 borderLeft: isSelected ? '3px solid #7c3aed' : '3px solid transparent',
@@ -442,7 +442,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                                                 <span style={{ fontSize: '0.78rem', color: isSelected ? '#7c3aed' : '#94a3b8', fontWeight: '700', textAlign: 'center' }}>{idx + 1}</span>
                                             )}
                                             <div style={{ overflow: 'hidden' }}>
-                                                <div style={{ fontSize: '0.88rem', fontWeight: '700', color: isSelected ? '#1e293b' : '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                <div style={{ fontSize: '0.88rem', fontWeight: '700', color: isSelected ? 'var(--text-main)' : 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                     {r.storeName || 'ไม่ระบุร้านค้า'}
                                                 </div>
                                                 {isMobile && (
@@ -473,17 +473,17 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                                 {!isMobile && (
                                     <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 64px 96px 96px 34px', gap: '6px', padding: '7px 16px', background: 'var(--surface-hover)', borderBottom: '1px solid var(--border-color)' }}>
                                         {['#', 'ชื่อสินค้า / บริการ', 'จำนวน', 'ราคา/หน่วย', 'รวม (฿)', ''].map((h, i) => (
-                                            <div key={i} style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', textAlign: i >= 2 ? 'center' : 'left' }}>{h}</div>
+                                            <div key={i} style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', textAlign: i >= 2 ? 'center' : 'left' }}>{h}</div>
                                         ))}
                                     </div>
                                 )}
                                 {items.map((item, idx) => (
-                                    <div key={item.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 56px 34px' : '28px 1fr 64px 96px 96px 34px', gap: '6px', padding: '8px 16px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' }}>
+                                    <div key={item.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 56px 34px' : '28px 1fr 64px 96px 96px 34px', gap: '6px', padding: '8px 16px', borderBottom: '1px solid var(--border-color)', alignItems: 'center' }}>
                                         {!isMobile && (
-                                            <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '600', textAlign: 'center' }}>{idx + 1}</span>
+                                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textAlign: 'center' }}>{idx + 1}</span>
                                         )}
                                         {isMobile ? (
-                                            <div onClick={() => openDescModal(item)} style={{ ...darkInputStyle, padding: '7px 10px', fontSize: '0.88rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: item.description ? '#1e293b' : '#94a3b8' }}>
+                                            <div onClick={() => openDescModal(item)} style={{ ...darkInputStyle, padding: '7px 10px', fontSize: '0.88rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: item.description ? 'var(--text-main)' : 'var(--text-muted)' }}>
                                                 {item.description || 'ชื่อสินค้า/บริการ'}
                                             </div>
                                         ) : (
@@ -537,16 +537,16 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                             <div style={{ background: 'var(--surface-hover)', borderRadius: '10px', padding: '14px 16px', border: '1px solid var(--border-color)' }}>
                                 {isQueueMode && (
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '10px' }}>
-                                        <span style={{ color: '#64748b' }}>ยอดรวมทุกใบ ({allReceipts!.length} ใบ)</span>
-                                        <span style={{ fontWeight: '700', color: '#475569' }}>
+                                        <span style={{ color: 'var(--text-muted)' }}>ยอดรวมทุกใบ ({allReceipts!.length} ใบ)</span>
+                                        <span style={{ fontWeight: '700', color: 'var(--text-muted)' }}>
                                             ฿{allReceipts!.reduce((s, r) => s + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                                         </span>
                                     </div>
                                 )}
                                 {!isQueueMode && (
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '10px' }}>
-                                        <span style={{ color: '#64748b' }}>ยอดรวมรายการ</span>
-                                        <span style={{ fontWeight: '700', color: '#475569' }}>฿{calcSubtotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
+                                        <span style={{ color: 'var(--text-muted)' }}>ยอดรวมรายการ</span>
+                                        <span style={{ fontWeight: '700', color: 'var(--text-muted)' }}>฿{calcSubtotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
                                     </div>
                                 )}
                                 <div style={{ height: '1px', background: 'var(--border-color)', margin: '10px 0' }} />

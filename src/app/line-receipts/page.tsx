@@ -23,10 +23,6 @@ function getViewedIds(): Set<string> {
   } catch { return new Set(); }
 }
 
-function saveViewedIds(ids: Set<string>) {
-  localStorage.setItem(VIEWED_KEY, JSON.stringify([...ids]));
-  window.dispatchEvent(new Event(UNREAD_EVENT));
-}
 
 function LineReceiptsContent() {
   const { data: session } = useSession();
@@ -34,7 +30,6 @@ function LineReceiptsContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
-  const [selectedReceiptIndex, setSelectedReceiptIndex] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState<Receipt | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
   const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'duplicate'>(() => {
@@ -155,17 +150,22 @@ function LineReceiptsContent() {
 
   const markAsViewed = useCallback((id: string) => {
     setViewedIds(prev => {
+      if (prev.has(id)) return prev;
       const next = new Set(prev);
       next.add(id);
-      saveViewedIds(next);
       return next;
     });
   }, []);
 
+  // Sync viewedIds to localStorage after state update (not inside updater)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && viewedIds.size > 0) {
+      localStorage.setItem(VIEWED_KEY, JSON.stringify([...viewedIds]));
+    }
+  }, [viewedIds]);
+
   const handleReceiptClick = (receipt: Receipt) => {
     markAsViewed(receipt._id || receipt.id || '');
-    const idx = filteredReceipts.indexOf(receipt);
-    setSelectedReceiptIndex(idx >= 0 ? idx : 0);
     setSelectedReceipt(receipt);
   };
 
@@ -483,7 +483,34 @@ function LineReceiptsContent() {
               <p>ลองปรับเปลี่ยนคำค้นหา หรือตัวกรองหมวดหมู่/ช่วงเวลาอื่นดูนะ</p>
             </div>
           ) : (
-            <div className={styles.galleryGrid}>
+            <>
+              {filterTab !== 'duplicate' && duplicateIds.size > 0 && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '10px 16px', borderRadius: '10px', marginBottom: '12px',
+                  background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" style={{ flexShrink: 0 }}>
+                    <path d="M17 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/>
+                    <line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="13" y2="13"/>
+                  </svg>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: '600' }}>
+                    <strong style={{ color: '#ef4444' }}>{duplicateIds.size} รายการ</strong>
+                    {' '}ถูกซ่อนเนื่องจากซ้ำกับรายการที่มีอยู่แล้ว (เช่น ใบเสร็จที่ส่งผ่าน LINE แล้วอัปโหลดซ้ำ)
+                  </span>
+                  <button
+                    onClick={() => setFilterTab('duplicate')}
+                    style={{
+                      marginLeft: 'auto', padding: '5px 14px', borderRadius: '8px', cursor: 'pointer',
+                      border: '1px solid rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.1)',
+                      color: '#ef4444', fontSize: '0.8rem', fontWeight: '700', flexShrink: 0,
+                    }}
+                  >
+                    ดูรายการซ้ำ →
+                  </button>
+                </div>
+              )}
+              <div className={styles.galleryGrid}>
               {filteredReceipts.map((receipt, index) => {
                 const isNew = !viewedIds.has(receipt._id || receipt.id || '');
                 return (
@@ -558,7 +585,7 @@ function LineReceiptsContent() {
                     </div>
                     <div className={styles.imageContainer}>
                       {receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl ? (
-                        <img src={receipt.extractedData?.imageData || getImageUrl(receipt.imageURL || receipt.imageUrl) || undefined} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
+                        <img src={getImageUrl(receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl) || undefined} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
                       ) : (
                         <div className={styles.noImage}>
                           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -590,7 +617,8 @@ function LineReceiptsContent() {
                   </div>
                 );
               })}
-            </div>
+              </div>
+            </>
           )}
         </div>
       </main>
