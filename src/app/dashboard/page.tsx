@@ -5,7 +5,7 @@ import TopBar from '@/components/TopBar';
 import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
 
-import { StatCard, ReceiptTable, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
+import { StatCard, ReceiptTable, FilterBar, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -20,15 +20,12 @@ export default function DashboardPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
-  const [selectedReceiptIndex, setSelectedReceiptIndex] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState<any | null>(null);
+  const [activeCategory, setActiveCategory] = useState('ทั้งหมด');
+  const [searchText, setSearchText] = useState('');
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
 
-  const handleReceiptClick = (r: any) => {
-    const idx = receipts.indexOf(r);
-    setSelectedReceiptIndex(idx >= 0 ? idx : 0);
-    setSelectedReceipt(r);
-  };
+  const handleReceiptClick = (r: any) => setSelectedReceipt(r);
 
 
 
@@ -79,6 +76,15 @@ export default function DashboardPage() {
   const totalAmount = uniqueReceipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0);
   const pendingCount = uniqueReceipts.filter(r => !r.extractedData).length;
   const approvedCount = uniqueReceipts.filter(r => r.extractedData).length;
+
+  const filteredReceipts = uniqueReceipts.filter(r => {
+    const cat = r.extractedData?.category || 'อื่นๆ';
+    const matchCat = activeCategory === 'ทั้งหมด' || cat === activeCategory;
+    const q = searchText.trim().toLowerCase();
+    const matchSearch = !q || (r.storeName || '').toLowerCase().includes(q) ||
+      String((r.amount ?? r.totalAmount) || '').includes(q) || cat.toLowerCase().includes(q);
+    return matchCat && matchSearch;
+  });
 
   return (
     <div className="dashboard-layout">
@@ -173,7 +179,13 @@ export default function DashboardPage() {
               </>
             )}
           </div>
-          <ReceiptTable loading={loading} receipts={uniqueReceipts} />
+          <FilterBar
+            searchText={searchText}
+            onSearchChange={setSearchText}
+            activeCategory={activeCategory}
+            onCategoryChange={setActiveCategory}
+          />
+          <ReceiptTable loading={loading} receipts={filteredReceipts} onRowClick={handleReceiptClick} />
         </div>
       </main>
 

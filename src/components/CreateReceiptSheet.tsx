@@ -203,6 +203,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [queueThumbnails, setQueueThumbnails] = useState<string[]>([]);
     const [queueSummaries, setQueueSummaries] = useState<{shopName: string, amount: string, date: string, thumb: string}[]>([]);
     const savedQueueStatesRef = useRef<Map<number, any>>(new Map());
+    const [batchCategory, setBatchCategory] = useState('');
     const ocrGenerationRef = useRef(0);
     const ocrTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -321,6 +322,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 setQueueIndex(0);
                 setQueueThumbnails([]);
                 setQueueSummaries([]);
+                setBatchCategory('');
                 savedQueueStatesRef.current.clear();
                 setZoom(1);
                 setRotation(0);
@@ -538,7 +540,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 const ocrStore    = result.store || result.vendor || '';
                 const ocrDate     = formatInputDate(result.date) || new Date().toISOString().split('T')[0];
                 const ocrTime     = result.time || '';
-                const ocrCategory = result.category || 'อื่นๆ';
+                const ocrCategory = batchCategory || result.category || 'อื่นๆ';
                 const ocrPayment  = detectPaymentMethodFromText(result.method || result.paymentMethod);
                 const ocrDiscount = typeof result.discount === 'number' ? result.discount : 0;
                 const ocrVat      = typeof result.vat === 'number' ? result.vat : 0;
@@ -1860,6 +1862,65 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
                         {formTab === 'items' && fileQueue.length > 1 && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+                                {/* ── Batch category selector ── */}
+                                <div style={{ background: bgCard, borderRadius: '12px', border: `1px solid ${bdColor}`, overflow: 'hidden' }}>
+                                    <div style={{ padding: '12px 18px', borderBottom: `1px solid ${bdLight}`, display: 'flex', alignItems: 'center', gap: '8px', background: bgSect }}>
+                                        <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                                        </div>
+                                        <span style={{ fontWeight: '800', fontSize: '0.82rem', color: txMain }}>หมวดหมู่สำหรับทุกใบเสร็จ</span>
+                                        {batchCategory && (
+                                            <span style={{ padding: '2px 8px', borderRadius: '20px', background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', fontSize: '0.72rem', fontWeight: '800' }}>
+                                                ใช้งาน: {batchCategory}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div style={{ padding: '14px 18px' }}>
+                                        <p style={{ fontSize: '0.78rem', color: txMuted, marginBottom: '12px', fontWeight: '500' }}>
+                                            เลือกหมวดหมู่เพื่อใช้กับใบเสร็จทุกใบในชุดนี้โดยอัตโนมัติ
+                                        </p>
+                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            {[
+                                                { id: 'อาหาร',    icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
+                                                { id: 'เดินทาง',  icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
+                                                { id: 'ช้อปปิ้ง', icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
+                                                { id: 'อื่นๆ',    icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
+                                            ].map(cat => {
+                                                const active = batchCategory === cat.id;
+                                                return (
+                                                    <button
+                                                        key={cat.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const newCat = active ? '' : cat.id;
+                                                            setBatchCategory(newCat);
+                                                            setVerCategory(newCat);
+                                                            setMainCategory(newCat || 'อื่นๆ');
+                                                            savedQueueStatesRef.current.forEach((state, idx) => {
+                                                                savedQueueStatesRef.current.set(idx, { ...state, verCategory: newCat, mainCategory: newCat || 'อื่นๆ' });
+                                                            });
+                                                        }}
+                                                        style={{
+                                                            padding: '7px 16px', borderRadius: '20px',
+                                                            border: `1.5px solid ${active ? cat.border : bdColor}`,
+                                                            background: active ? cat.color : bgCard,
+                                                            color: active ? cat.text : txMuted,
+                                                            fontWeight: active ? '800' : '600',
+                                                            fontSize: '0.82rem', cursor: 'pointer',
+                                                            display: 'flex', alignItems: 'center', gap: '5px',
+                                                            boxShadow: active ? `0 0 0 3px ${cat.border}22` : 'none',
+                                                            transition: 'all 0.15s',
+                                                        }}
+                                                    >
+                                                        {cat.icon} {cat.id}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div style={{ background: bgCard, borderRadius: '12px', border: `1px solid ${bdColor}`, overflow: 'hidden' }}>
                                     <div style={{ padding: '12px 18px', borderBottom: `1px solid ${bdLight}`, display: 'flex', alignItems: 'center', gap: '8px', background: bgSect }}>
                                         <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

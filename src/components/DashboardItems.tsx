@@ -46,7 +46,16 @@ export const StatCard = ({ title, value, trend, status, icon, iconBg = 'green' }
     </div>
 );
 
-export const FilterBar = () => (
+const CATEGORIES = ['ทั้งหมด', 'อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'];
+
+interface FilterBarProps {
+    searchText: string;
+    onSearchChange: (v: string) => void;
+    activeCategory: string;
+    onCategoryChange: (cat: string) => void;
+}
+
+export const FilterBar = ({ searchText, onSearchChange, activeCategory, onCategoryChange }: FilterBarProps) => (
     <div className={styles.filterBar}>
         <div className={styles.searchWrapper}>
             <span className={styles.searchIcon}>
@@ -54,46 +63,46 @@ export const FilterBar = () => (
             </span>
             <input
                 type="text"
-                placeholder="ค้นหาร้านค้า, วันที่, ยอดเงิน..."
+                placeholder="ค้นหาร้านค้า, ยอดเงิน..."
                 className={styles.searchInput}
+                value={searchText}
+                onChange={e => onSearchChange(e.target.value)}
             />
         </div>
 
-        {/* Desktop: chips (hidden on mobile) */}
+        {/* Desktop: chips */}
         <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
             <span className={styles.filterLabel}>หมวดหมู่:</span>
             <div className={styles.filterChips}>
-                <div className={`${styles.filterChip} ${styles.filterChipActive}`}>ทั้งหมด</div>
-                <div className={styles.filterChip}>อาหาร</div>
-                <div className={styles.filterChip}>ของใช้</div>
-            </div>
-        </div>
-        <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
-            <span className={styles.filterLabel}>ช่วงเวลา:</span>
-            <div className={styles.filterChips}>
-                <div className={`${styles.filterChip} ${styles.filterChipActive}`}>30 วัน</div>
-                <div className={styles.filterChip}>รายเดือน</div>
-                <div className={styles.filterChip}>รายปี</div>
+                {CATEGORIES.map(cat => (
+                    <div
+                        key={cat}
+                        className={`${styles.filterChip} ${activeCategory === cat ? styles.filterChipActive : ''}`}
+                        onClick={() => onCategoryChange(cat)}
+                        style={{ cursor: 'pointer' }}
+                    >
+                        {cat}
+                    </div>
+                ))}
             </div>
         </div>
 
-        {/* Mobile: dropdowns (hidden on desktop) */}
+        {/* Mobile: dropdown */}
         <div className={styles.mobileDropdowns}>
-            <select className={styles.mobileSelect} defaultValue="all">
-                <option value="all">หมวดหมู่: ทั้งหมด</option>
-                <option value="food">อาหาร</option>
-                <option value="item">ของใช้</option>
-            </select>
-            <select className={styles.mobileSelect} defaultValue="30d">
-                <option value="30d">ช่วงเวลา: 30 วัน</option>
-                <option value="month">รายเดือน</option>
-                <option value="year">รายปี</option>
+            <select
+                className={styles.mobileSelect}
+                value={activeCategory}
+                onChange={e => onCategoryChange(e.target.value)}
+            >
+                {CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>หมวดหมู่: {cat}</option>
+                ))}
             </select>
         </div>
     </div>
 );
 
-export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, receipts?: any[] }) => (
+export const ReceiptTable = ({ loading, receipts = [], onRowClick }: { loading?: boolean, receipts?: any[], onRowClick?: (r: any) => void }) => (
     <div className={styles.tableContainer}>
         <table className={styles.receiptTable}>
             <thead>
@@ -116,7 +125,11 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                     ))
                 ) : (
                     receipts.map((receipt, index) => (
-                        <tr key={receipt._id || receipt.id || index}>
+                        <tr
+                            key={receipt._id || receipt.id || index}
+                            onClick={() => onRowClick?.(receipt)}
+                            style={{ cursor: onRowClick ? 'pointer' : undefined }}
+                        >
                             <td className={styles.storeCell}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <div style={{
