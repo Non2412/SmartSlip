@@ -64,6 +64,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 24px;
+  align-items: start;
 }
 
 .galleryCard {
@@ -73,6 +74,7 @@
   border: 1px solid var(--border-color);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   transition: transform 0.2s, box-shadow 0.2s;
+  min-width: 0;
 }
 
 .galleryCard:hover {
@@ -83,12 +85,15 @@
 .imageContainer {
   width: 100%;
   height: 200px;
+  min-height: 200px;
+  max-height: 200px;
   background: var(--input-bg);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 .imageContainer img {
@@ -132,10 +137,69 @@
   .galleryGrid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
+    align-items: start;
+  }
+
+  .galleryCard {
+    overflow: hidden;
+    min-width: 0;
+    width: 100%;
   }
 
   .imageContainer {
-    height: 130px;
+    height: 120px !important;
+    min-height: 120px !important;
+    max-height: 120px !important;
+  }
+
+  .imageContainer img {
+    width: 100%;
+    height: 120px;
+    min-height: 120px;
+    max-height: 120px;
+    object-fit: cover;
+    object-position: center top;
+    display: block;
+  }
+
+  .cardDetails {
+    padding: 8px 10px;
+  }
+
+  .storeName {
+    font-size: 0.78rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .amount {
+    font-size: 0.85rem;
+    margin-bottom: 2px;
+  }
+
+  .date {
+    font-size: 0.68rem;
+  }
+}
+
+/* Very small phones — single column */
+@media (max-width: 360px) {
+  .galleryGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .imageContainer {
+    height: 150px !important;
+    min-height: 150px !important;
+    max-height: 150px !important;
+  }
+
+  .imageContainer img {
+    height: 150px;
+    min-height: 150px;
+    max-height: 150px;
   }
 
   .cardDetails {
@@ -143,16 +207,11 @@
   }
 
   .storeName {
-    font-size: 0.8rem;
+    font-size: 0.875rem;
   }
 
   .amount {
-    font-size: 0.9rem;
-    margin-bottom: 4px;
-  }
-
-  .date {
-    font-size: 0.7rem;
+    font-size: 1rem;
   }
 }
 
@@ -319,7 +378,7 @@
 
 .searchWrapper {
   flex: 1;
-  min-width: 300px;
+  min-width: 0;
   position: relative;
 }
 
@@ -387,8 +446,12 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
 
-/* Mobile dropdowns — hidden on desktop */
+/* Mobile dropdowns — hidden on desktop by default */
 .mobileDropdowns {
+  display: none;
+}
+
+.mobileDropdownsContainer {
   display: none;
 }
 
@@ -428,42 +491,29 @@
   display: flex;
 }
 
-@media (max-width: 768px) {
-  .filterBar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    padding: 16px;
-  }
+/* Tab row for source filter (ทั้งหมด / LINE / เว็บ / ซ้ำกัน) */
+.tabsRow {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
 
-  .searchWrapper {
-    min-width: 100%;
-  }
+/* Individual tab button */
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
 
-  /* Hide chip groups on mobile */
-  .desktopOnly {
-    display: none !important;
-  }
-
-  /* Show dropdown container on mobile */
-  .mobileDropdownsContainer {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .mobileDropdowns {
-    display: flex;
-    gap: 10px;
-    width: 100%;
-  }
-
-  .mobileSecondaryFilters {
-    display: flex;
-    gap: 8px;
-    width: 100%;
-  }
+/* Page header: title on top, tabs below on mobile */
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
 }
 
 .secondaryFilters {
@@ -505,6 +555,81 @@
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
-.mobileDropdownsContainer {
-  display: none;
+@media (max-width: 768px) {
+  .filterBar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .searchWrapper {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Hide chip groups on mobile */
+  .desktopOnly {
+    display: none !important;
+  }
+
+  /* Show dropdown container on mobile */
+  .mobileDropdownsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .mobileDropdowns {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .mobileSecondaryFilters {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  /* Tab row: 2×2 grid so all 4 tabs are visible at once */
+  .tabsRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .tabBtn {
+    justify-content: center;
+    width: 100%;
+    font-size: 0.8rem !important;
+    padding: 9px 10px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Header: title full width, tabs below */
+  .pageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+}
+
+/* Very small phones: tighter tab padding */
+@media (max-width: 360px) {
+  .tabBtn {
+    font-size: 0.75rem !important;
+    padding: 8px 8px !important;
+    gap: 5px !important;
+  }
+}
+
+@media (max-width: 500px) {
+  .filterBar {
+    padding: 10px 12px;
+    gap: 10px;
+  }
 }

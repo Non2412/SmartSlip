@@ -22,7 +22,7 @@
   flex: 1;
   display: flex;
   justify-content: center;
-  min-width: 300px;
+  min-width: 0;
 }
 
 .title {
@@ -298,6 +298,9 @@
     flex-wrap: nowrap;
     gap: 8px;
     padding: 8px 12px;
+    /* Safe area สำหรับ notch */
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
   }
 
   /* ให้ฝั่งซ้าย (title) หดได้ แต่ฝั่งขวา (actions) ไม่หด */
@@ -363,5 +366,35 @@
   /* Search row — padding แคบลงบนมือถือ */
   .mobileSearchRow {
     padding: 8px 12px 10px;
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* Very small phones (360px) — ลด gap เพิ่มเติม */
+@media (max-width: 360px) {
+  .header {
+    gap: 6px;
+    padding: 6px 10px;
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
+  }
+
+  .actions {
+    gap: 6px;
+  }
+
+  .primaryButton,
+  .exportButton,
+  .iconButton,
+  .mobileSearchBtn,
+  .darkModeButton,
+  .menuButton {
+    width: 36px;
+    height: 36px;
+  }
+
+  .title {
+    font-size: 0.875rem;
   }
 }

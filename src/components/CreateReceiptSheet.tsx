@@ -1102,23 +1102,34 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
                             {/* ── Card 3: รายการสินค้า ── */}
                             <div style={{ background: bgCard, borderRadius: '12px', border: `1px solid ${bdColor}`, marginBottom: '16px', overflow: 'hidden' }}>
-                                <div style={{ padding: '12px 18px', borderBottom: `1px solid ${bdLight}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: bgSect }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ padding: isMobile ? '10px 14px' : '12px 18px', borderBottom: `1px solid ${bdLight}`, background: bgSect, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? '8px' : '0' }}>
+                                    {/* แถวบน: icon + ชื่อ */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                                        <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#fff7ed', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
                                         </div>
                                         <span style={{ fontWeight: '800', fontSize: '0.82rem', color: txMain }}>รายการสินค้าและบริการ</span>
-                                        <span style={{ padding: '2px 8px', borderRadius: '20px', background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', fontSize: '0.72rem', fontWeight: '800' }}>
-                                            {verItems.length} รายการ
-                                        </span>
+                                        {!isMobile && (
+                                            <span style={{ padding: '2px 8px', borderRadius: '20px', background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', fontSize: '0.72rem', fontWeight: '800' }}>
+                                                {verItems.length} รายการ
+                                            </span>
+                                        )}
                                     </div>
-                                    <button
-                                        onClick={addVerItem}
-                                        style={{ padding: '6px 14px', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '700', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 8px rgba(124,58,237,0.35)' }}
-                                    >
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                                        เพิ่มรายการ
-                                    </button>
+                                    {/* แถวล่าง (mobile) / ขวา (desktop): badge + ปุ่ม */}
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                        {isMobile && (
+                                            <span style={{ padding: '4px 10px', borderRadius: '20px', background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', fontSize: '0.75rem', fontWeight: '800' }}>
+                                                {verItems.length} รายการ
+                                            </span>
+                                        )}
+                                        <button
+                                            onClick={addVerItem}
+                                            style={{ padding: '7px 14px', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 8px rgba(124,58,237,0.35)', marginLeft: isMobile ? 'auto' : undefined }}
+                                        >
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                            เพิ่มรายการ
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* Table header */}
@@ -1969,23 +1980,34 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
                                 {/* ── Card: รายการสินค้าและบริการ ── */}
                                 <div style={{ background: bgCard, borderRadius: '12px', border: `1px solid ${bdColor}`, overflow: 'hidden' }}>
-                                    <div style={{ padding: '12px 18px', borderBottom: `1px solid ${bdLight}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: bgSect }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <div style={{ padding: isMobile ? '10px 14px' : '12px 18px', borderBottom: `1px solid ${bdLight}`, background: bgSect, display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? '8px' : '0' }}>
+                                        {/* แถวบน: icon + ชื่อ */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                                            <div style={{ width: '26px', height: '26px', borderRadius: '8px', background: '#fff7ed', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
                                             </div>
                                             <span style={{ fontWeight: '800', fontSize: '0.82rem', color: txMain }}>รายการสินค้าและบริการ</span>
-                                            <span style={{ padding: '2px 8px', borderRadius: '20px', background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', fontSize: '0.72rem', fontWeight: '800' }}>
-                                                {expenseItems.length} รายการ
-                                            </span>
+                                            {!isMobile && (
+                                                <span style={{ padding: '2px 8px', borderRadius: '20px', background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', fontSize: '0.72rem', fontWeight: '800' }}>
+                                                    {expenseItems.length} รายการ
+                                                </span>
+                                            )}
                                         </div>
-                                        <button
-                                            onClick={addItem}
-                                            style={{ padding: '6px 14px', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '700', fontSize: '0.78rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 8px rgba(124,58,237,0.35)' }}
-                                        >
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                                            เพิ่มรายการ
-                                        </button>
+                                        {/* แถวล่าง (mobile) / ขวา (desktop): badge + ปุ่ม */}
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                            {isMobile && (
+                                                <span style={{ padding: '4px 10px', borderRadius: '20px', background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', fontSize: '0.75rem', fontWeight: '800' }}>
+                                                    {expenseItems.length} รายการ
+                                                </span>
+                                            )}
+                                            <button
+                                                onClick={addItem}
+                                                style={{ padding: '7px 14px', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', borderRadius: '8px', color: 'white', fontWeight: '700', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 8px rgba(124,58,237,0.35)', marginLeft: isMobile ? 'auto' : undefined }}
+                                            >
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                                เพิ่มรายการ
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {/* Table header */}

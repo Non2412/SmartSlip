@@ -202,12 +202,12 @@ function LineReceiptsContent() {
         />
 
         <div className="page-container">
-          <div className={styles.header} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
+          <div className={styles.pageHeader}>
+            <div className={styles.header}>
               <h2>รูปใบเสร็จที่ส่งผ่าน LINE</h2>
               <p>รวมรูปภาพทั้งหมดที่คุณส่งเข้ามาผ่านบอท LINE</p>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className={styles.tabsRow}>
               {([
                 {
                   key: 'all',
@@ -272,10 +272,10 @@ function LineReceiptsContent() {
                   <button
                     key={tab.key}
                     onClick={() => setFilterTab(tab.key)}
+                    className={styles.tabBtn}
                     style={{
                       padding: '8px 16px', borderRadius: '10px', cursor: 'pointer',
                       fontSize: '0.875rem', fontWeight: '700', transition: 'all 0.2s',
-                      display: 'flex', alignItems: 'center', gap: '7px',
                       border: isActive ? 'none' : '1.5px solid var(--border-color)',
                       background: isActive ? tab.activeBg : 'var(--surface-color)',
                       color: isActive ? 'white' : 'var(--text-muted)',
