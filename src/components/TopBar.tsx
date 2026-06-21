@@ -128,22 +128,19 @@ const TopBar = ({
                 </div>
             </header>
 
-            {/* Search bar แบบ expand — mobile only */}
-            {isSearchOpen && (
-                <div className={styles.mobileSearchRow}>
-                    <div className={styles.mobileSearchInner}>
-                        <div className={styles.mobileSearchIconWrap}>
-                            <SearchIcon />
-                        </div>
-                        <input
-                            type="text"
-                            placeholder="ค้นหา..."
-                            className={styles.mobileSearchInput}
-                            autoFocus
-                        />
+            {/* Search bar — always visible on mobile */}
+            <div className={styles.mobileSearchRow}>
+                <div className={styles.mobileSearchInner}>
+                    <div className={styles.mobileSearchIconWrap}>
+                        <SearchIcon />
                     </div>
+                    <input
+                        type="text"
+                        placeholder="ค้นหา..."
+                        className={styles.mobileSearchInput}
+                    />
                 </div>
-            )}
+            </div>
         </>
     );
 };

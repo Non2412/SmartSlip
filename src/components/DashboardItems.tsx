@@ -619,9 +619,9 @@ export const RecentUploads = ({
                                 style={{ cursor: onReceiptClick ? 'pointer' : 'default', transition: 'background 0.15s', position: 'relative' }}
                             >
                                 {/* Thumbnail */}
-                                <div style={{ width: '44px', height: '44px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, border: '1px solid #e5e7eb' }}>
+                                <div className={styles.uploadThumbnail}>
                                     {imageData ? (
-                                        <img src={imageData} alt="slip" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        <img src={imageData} alt="slip" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }} />
                                     ) : (
                                         <div style={{ width: '100%', height: '100%', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -638,7 +638,7 @@ export const RecentUploads = ({
                                 </div>
 
                                 {/* Three-dot menu button */}
-                                <div style={{ position: 'relative', flexShrink: 0 }}>
+                                <div className={styles.uploadMenuWrapper}>
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();

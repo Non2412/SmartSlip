@@ -324,20 +324,21 @@
     flex-shrink: 0;
   }
 
+  /* ซ่อน search และ export บน mobile — เข้าถึงได้ผ่าน sidebar และ filter bar แต่ละหน้า */
+  .mobileSearchBtn {
+    display: none !important;
+  }
+
+  .exportButton {
+    display: none !important;
+  }
+
   /* ซ่อน text ปุ่ม สร้างใบเสร็จ → เหลือแค่ไอคอน */
-  .primaryButton span, .exportButton span {
+  .primaryButton span {
     display: none;
   }
 
   .primaryButton {
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    justify-content: center;
-    border-radius: 10px;
-  }
-
-  .exportButton {
     width: 40px;
     height: 40px;
     padding: 0;
@@ -363,9 +364,10 @@
     border-radius: 10px;
   }
 
-  /* Search row — padding แคบลงบนมือถือ */
+  /* Search row — แสดงเสมอบนมือถือ ไม่ต้อง toggle */
   .mobileSearchRow {
-    padding: 8px 12px 10px;
+    display: block !important;
+    padding: 0 12px 10px;
     padding-left: max(12px, env(safe-area-inset-left, 0px));
     padding-right: max(12px, env(safe-area-inset-right, 0px));
   }

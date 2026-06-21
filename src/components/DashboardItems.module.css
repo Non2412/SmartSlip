@@ -169,13 +169,31 @@
   background: var(--input-bg);
 }
 
+.uploadThumbnail {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid #e5e7eb;
+}
+
+.uploadMenuWrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .uploadInfo {
   flex: 1;
+  min-width: 0;
 }
 
 .uploadName {
   font-weight: 600;
   font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .uploadDate {
@@ -358,6 +376,51 @@
 }
 
 @media (max-width: 768px) {
+    /* RecentUploads — 2-column grid on mobile */
+    .uploadList {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .uploadItem {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 0;
+        gap: 0;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .uploadThumbnail {
+        width: 100% !important;
+        height: 110px !important;
+        border-radius: 0 !important;
+        flex-shrink: 0;
+    }
+
+    .uploadMenuWrapper {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+    }
+
+    .uploadInfo {
+        padding: 8px 10px;
+    }
+
+    .uploadName {
+        font-size: 0.78rem;
+    }
+
+    .uploadDate {
+        font-size: 0.68rem;
+        white-space: normal;
+        line-height: 1.3;
+    }
+
+    /* FilterBar */
     .filterBar {
         flex-direction: column;
         align-items: stretch;

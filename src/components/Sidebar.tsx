@@ -81,11 +81,9 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<PlusIcon />} onClick={onAddReceipt} />
         </ul>
 
-        <div className={styles.navSpacer} />
-
         <div className={styles.navSection}>
           ช่วยเหลือ
-        </div>  
+        </div>
         <ul className={styles.navListNoMargin}>
           <SidebarItem
             href="/how-to-use"
@@ -93,10 +91,9 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
             label="วิธีการใช้งาน"
             icon={<HelpIcon />}
           />
-
-
-
         </ul>
+
+        <div className={styles.navSpacer} />
       </nav>
 
       <div className={styles.userCard}>
