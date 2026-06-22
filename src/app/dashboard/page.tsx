@@ -188,7 +188,6 @@ export default function DashboardPage() {
             activeCategory={activeCategory}
             onCategoryChange={setActiveCategory}
           />
-          <ReceiptTable loading={loading} receipts={filteredReceipts} onRowClick={handleReceiptClick} />
           <ReceiptTable loading={loading} receipts={uniqueReceipts} recentlyEditedId={recentlyEditedId} />
         </div>
       </main>
@@ -248,8 +247,6 @@ export default function DashboardPage() {
         isOpen={!!selectedReceipt}
         receipt={selectedReceipt ?? undefined}
         onClose={() => setSelectedReceipt(null)}
-        onSuccess={() => {
-          if (session?.user?.id) fetchReceipts(session.user.id);
         onSuccess={(id) => {
           if (session?.user?.id) {
             const lineUserId = (session as any)?.lineUserId as string | undefined;

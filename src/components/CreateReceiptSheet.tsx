@@ -479,6 +479,126 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         }
     };
 
+    const readFileAsDataUrl = (file: File): Promise<string> => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+
+    const handleExtraFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        const validFiles = files.filter(file => file.type.startsWith('image/') || file.type === 'application/pdf');
+        if (!validFiles.length) {
+            setErrorMsg('กรุณาอัพโหลดไฟล์รูปภาพหรือ PDF เท่านั้น');
+            e.target.value = '';
+            return;
+        }
+        setErrorMsg(null);
+
+        const newFiles = await Promise.all(validFiles.map(async (file) => ({
+            name: file.name,
+            type: file.type,
+            data: await readFileAsDataUrl(file),
+        })));
+
+        setExtraFiles(prev => [...prev, ...newFiles]);
+        e.target.value = '';
+    };
+
+    const navigateToQueueIndex = (currentIdx: number, nextIdx: number, snapshot: any) => {
+        if (currentIdx === nextIdx) return;
+        savedQueueStatesRef.current.set(currentIdx, snapshot);
+        const nextState = savedQueueStatesRef.current.get(nextIdx);
+        const nextFile = fileQueue[nextIdx];
+
+        if (nextState) {
+            setImage(nextState.image ?? null);
+            setSelectedFile(nextFile ?? selectedFile);
+            setShopName(nextState.shopName ?? '');
+            setAmount(nextState.amount ?? '');
+            setDate(nextState.date ?? new Date().toISOString().split('T')[0]);
+            setPaymentMethod(nextState.paymentMethod ?? 'Mobile Banking');
+            setMainCategory(nextState.mainCategory ?? 'อื่นๆ');
+            setNotes(nextState.notes ?? '');
+            setManualTime(nextState.manualTime ?? '');
+            setManualDiscount(nextState.manualDiscount ?? 0);
+            setVendorTaxId(nextState.vendorTaxId ?? '');
+            setVendorAddress(nextState.vendorAddress ?? '');
+            setCurrency(nextState.currency ?? 'THB');
+            setReceiptNo(nextState.receiptNo ?? '');
+            setTaxInvoiceNo(nextState.taxInvoiceNo ?? '');
+            setIsTaxInvoice(nextState.isTaxInvoice ?? false);
+            setPaymentStatus(nextState.paymentStatus ?? 'paid');
+            setVerStore(nextState.verStore ?? '');
+            setVerCategory(nextState.verCategory ?? '');
+            setVerDate(nextState.verDate ?? '');
+            setVerTime(nextState.verTime ?? '');
+            setVerPaymentMethod(nextState.verPaymentMethod ?? '');
+            setVerCurrency(nextState.verCurrency ?? 'THB');
+            setVerTaxId(nextState.verTaxId ?? '');
+            setVerItems(nextState.verItems ?? []);
+            setVerDiscount(nextState.verDiscount ?? 0);
+            setVerVat(nextState.verVat ?? 0);
+            setExtractedReceiptId(nextState.extractedReceiptId ?? null);
+            setSuccessMsg(nextState.successMsg ?? null);
+            setShowVerification(!!nextState.showVerification);
+        } else {
+            setSelectedFile(nextFile ?? selectedFile);
+            setImage(null);
+            setShopName('');
+            setAmount('');
+            setDate(new Date().toISOString().split('T')[0]);
+            setPaymentMethod('Mobile Banking');
+            setMainCategory('อื่นๆ');
+            setNotes('');
+            setManualTime('');
+            setManualDiscount(0);
+            setVendorTaxId('');
+            setVendorAddress('');
+            setCurrency('THB');
+            setReceiptNo('');
+            setTaxInvoiceNo('');
+            setIsTaxInvoice(false);
+            setPaymentStatus('paid');
+            setVerStore('');
+            setVerCategory('');
+            setVerDate('');
+            setVerTime('');
+            setVerPaymentMethod('');
+            setVerCurrency('THB');
+            setVerTaxId('');
+            setVerItems([]);
+            setVerDiscount(0);
+            setVerVat(0);
+            setExtractedReceiptId(null);
+            setSuccessMsg(null);
+            setShowVerification(false);
+        }
+
+        setActiveDocIndex(-1);
+        setQueueIndex(nextIdx);
+    };
+
+    const deleteFromQueue = (idx: number) => {
+        setFileQueue(prev => prev.filter((_, i) => i !== idx));
+        setQueueThumbnails(prev => prev.filter((_, i) => i !== idx));
+        setQueueSummaries(prev => prev.filter((_, i) => i !== idx));
+        setQueueIndex(prev => {
+            if (idx < prev) return prev - 1;
+            if (idx === prev) return Math.max(0, prev - 1);
+            return prev;
+        });
+
+        const updatedStates = new Map<number, any>();
+        Array.from(savedQueueStatesRef.current.entries()).forEach(([key, value]) => {
+            if (key === idx) return;
+            updatedStates.set(key > idx ? key - 1 : key, value);
+        });
+        savedQueueStatesRef.current = updatedStates;
+    };
+
     const runOCR = async (file?: File, generation?: number) => {
         const fileToProcess = file || selectedFile;
         if (!fileToProcess) return;
@@ -1096,9 +1216,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                 </div>
 
                                 {/* Table header */}
-                                <div className="sr-tbl-header" style={{ display: 'grid', gridTemplateColumns: '24px 1fr 64px 108px 92px 36px', gap: '8px', padding: '8px 16px', background: bgMuted, borderBottom: `1px solid ${bdLight}` }}>
-                                    {['#', 'ชื่อสินค้า / บริการ', 'จำนวน', 'ราคา/หน่วย', 'รวม (฿)', ''].map((h, i) => (
-                                        <div key={i} style={{ fontSize: '0.72rem', fontWeight: '800', color: '#94a3b8', textAlign: i >= 4 ? 'right' : i === 2 ? 'center' : 'left', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</div>
+                                <div className="sr-tbl-header" style={{ display: 'grid', gridTemplateColumns: '24px 1fr 64px 108px 36px', gap: '8px', padding: '8px 16px', background: bgMuted, borderBottom: `1px solid ${bdLight}` }}>
+                                    {['#', 'ชื่อสินค้า / บริการ', 'จำนวน', 'ราคา', ''].map((h, i) => (
+                                        <div key={i} style={{ fontSize: '0.72rem', fontWeight: '800', color: '#94a3b8', textAlign: i >= 4 ? 'right' : i >= 2 ? 'center' : 'left', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</div>
                                     ))}
                                 </div>
 
@@ -1112,7 +1232,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                     <div
                                         key={item.id}
                                         className="sr-tbl-row"
-                                        style={{ display: 'grid', gridTemplateColumns: '24px 1fr 64px 108px 92px 36px', gap: '8px', padding: '8px 16px', borderBottom: `1px solid ${bdLight}`, alignItems: 'center', transition: 'background 0.1s' }}
+                                        style={{ display: 'grid', gridTemplateColumns: '24px 1fr 64px 108px 36px', gap: '8px', padding: '8px 16px', borderBottom: `1px solid ${bdLight}`, alignItems: 'center', transition: 'background 0.1s' }}
                                         onMouseEnter={e => (e.currentTarget.style.background = bgSect)}
                                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                                     >
@@ -1134,11 +1254,8 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                             type="number"
                                             value={item.unitPrice}
                                             onChange={e => updateVerItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })}
-                                            style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.85rem', textAlign: 'right' }}
+                                            style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.85rem', textAlign: 'center' }}
                                         />
-                                        <div style={{ padding: '7px 10px', background: bgMuted, border: `1px solid ${bdColor}`, borderRadius: '6px', fontSize: '0.85rem', fontWeight: '800', textAlign: 'right', color: txMain, letterSpacing: '-0.02em' }}>
-                                            {(item.quantity * item.unitPrice).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                                        </div>
                                         <button
                                             onClick={() => removeVerItem(item.id)}
                                             style={{ background: 'transparent', border: '1px solid transparent', borderRadius: '6px', cursor: 'pointer', padding: '6px', color: '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
@@ -1974,9 +2091,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                     </div>
 
                                     {/* Table header */}
-                                    <div className="sr-tbl-header" style={{ display: 'grid', gridTemplateColumns: '24px 1fr 64px 108px 92px 36px', gap: '8px', padding: '8px 16px', background: bgMuted, borderBottom: `1px solid ${bdLight}` }}>
-                                        {['#', 'ชื่อสินค้า / บริการ', 'จำนวน', 'ราคา/หน่วย', 'รวม (฿)', ''].map((h, i) => (
-                                            <div key={i} style={{ fontSize: '0.72rem', fontWeight: '800', color: '#94a3b8', textAlign: i >= 4 ? 'right' : i === 2 ? 'center' : 'left', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</div>
+                                    <div className="sr-tbl-header" style={{ display: 'grid', gridTemplateColumns: '24px 1fr 64px 108px 36px', gap: '8px', padding: '8px 16px', background: bgMuted, borderBottom: `1px solid ${bdLight}` }}>
+                                        {['#', 'ชื่อสินค้า / บริการ', 'จำนวน', 'ราคา', ''].map((h, i) => (
+                                            <div key={i} style={{ fontSize: '0.72rem', fontWeight: '800', color: '#94a3b8', textAlign: i >= 4 ? 'right' : i >= 2 ? 'center' : 'left', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</div>
                                         ))}
                                     </div>
 
@@ -1989,7 +2106,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                         <div
                                             key={item.id}
                                             className="sr-tbl-row"
-                                            style={{ display: 'grid', gridTemplateColumns: '24px 1fr 64px 108px 92px 36px', gap: '8px', padding: '8px 16px', borderBottom: `1px solid ${bdLight}`, alignItems: 'center', transition: 'background 0.1s' }}
+                                            style={{ display: 'grid', gridTemplateColumns: '24px 1fr 64px 108px 36px', gap: '8px', padding: '8px 16px', borderBottom: `1px solid ${bdLight}`, alignItems: 'center', transition: 'background 0.1s' }}
                                             onMouseEnter={e => (e.currentTarget.style.background = bgSect)}
                                             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                                         >
@@ -2011,11 +2128,8 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                 type="number"
                                                 value={item.amount}
                                                 onChange={e => updateItem(item.id, { amount: parseFloat(e.target.value) || 0 })}
-                                                style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.85rem', textAlign: 'right' }}
+                                                style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.85rem', textAlign: 'center' }}
                                             />
-                                            <div style={{ padding: '7px 10px', background: bgMuted, border: `1px solid ${bdColor}`, borderRadius: '6px', fontSize: '0.85rem', fontWeight: '800', textAlign: 'right', color: txMain }}>
-                                                {(item.amount * item.quantity).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                                            </div>
                                             <button
                                                 onClick={() => removeItem(item.id)}
                                                 style={{ background: 'transparent', border: '1px solid transparent', borderRadius: '6px', cursor: 'pointer', padding: '6px', color: '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}

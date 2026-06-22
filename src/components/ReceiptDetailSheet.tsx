@@ -33,12 +33,10 @@ input[type=number] { -moz-appearance: textfield; }
 interface ReceiptDetailSheetProps {
     isOpen: boolean;
     onClose: () => void;
-    onSuccess?: () => void;
-    receipt?: any | null;
-    allReceipts?: any[];
-    initialIndex?: number;
     onSuccess?: (id?: string) => void;
     receipt: any | null;
+    allReceipts?: any[];
+    initialIndex?: number;
 }
 
 interface LineItem {
@@ -189,14 +187,12 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
             }) as any;
 
             if (result?.success) {
-                if (onSuccess) onSuccess();
+                if (onSuccess) onSuccess(receipt._id || receipt.id || '');
                 if (isQueueMode && currentIdx < allReceipts!.length - 1) {
                     setCurrentIdx(i => i + 1);
                 } else {
                     onClose();
                 }
-                if (onSuccess) onSuccess(receipt._id || receipt.id || '');
-                onClose();
             } else {
                 setErrorMsg(result?.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
             }
@@ -217,7 +213,6 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
     const total = allReceipts?.length ?? 1;
     const hasNext = isQueueMode && currentIdx < total - 1;
     const hasPrev = isQueueMode && currentIdx > 0;
-    const imageData = cleanAndProxyImageUrl(receipt?.extractedData?.imageData || receipt?.imageURL || receipt?.imageUrl || undefined) || null;
 
     return (
         <>
@@ -498,14 +493,14 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                             <>
                                 {/* Single mode: show items of current receipt */}
                                 {!isMobile && (
-                                    <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 64px 96px 96px 34px', gap: '6px', padding: '7px 16px', background: 'var(--surface-hover)', borderBottom: '1px solid var(--border-color)' }}>
-                                        {['#', 'ชื่อสินค้า / บริการ', 'จำนวน', 'ราคา/หน่วย', 'รวม (฿)', ''].map((h, i) => (
+                                    <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 64px 96px 34px', gap: '6px', padding: '7px 16px', background: 'var(--surface-hover)', borderBottom: '1px solid var(--border-color)' }}>
+                                        {['#', 'ชื่อสินค้า / บริการ', 'จำนวน', 'ราคา', ''].map((h, i) => (
                                             <div key={i} style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', textAlign: i >= 2 ? 'center' : 'left' }}>{h}</div>
                                         ))}
                                     </div>
                                 )}
                                 {items.map((item, idx) => (
-                                    <div key={item.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 56px 34px' : '28px 1fr 64px 96px 96px 34px', gap: '6px', padding: '8px 16px', borderBottom: '1px solid var(--border-color)', alignItems: 'center' }}>
+                                    <div key={item.id} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 56px 34px' : '28px 1fr 64px 96px 34px', gap: '6px', padding: '8px 16px', borderBottom: '1px solid var(--border-color)', alignItems: 'center' }}>
                                         {!isMobile && (
                                             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: '600', textAlign: 'center' }}>{idx + 1}</span>
                                         )}
@@ -520,9 +515,6 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                                         {!isMobile && (
                                             <input type="number" value={item.unitPrice} onChange={e => updateItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })} style={{ ...darkInputStyle, padding: '7px 8px', fontSize: '0.88rem', textAlign: 'right' }} />
                                         )}
-                                        <div style={{ padding: '7px 8px', background: 'var(--surface-hover)', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.88rem', fontWeight: '800', textAlign: 'right', color: 'var(--text-main)' }}>
-                                            {(item.quantity * item.unitPrice).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                                        </div>
                                         <button onClick={() => removeItem(item.id)} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px', cursor: 'pointer', padding: '6px', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '34px', height: '34px' }}>
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                         </button>
