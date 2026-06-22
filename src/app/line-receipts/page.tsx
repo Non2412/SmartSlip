@@ -598,7 +598,6 @@ function LineReceiptsContent() {
                     <div className={styles.imageContainer}>
                       {receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl ? (
                         <img src={getImageUrl(receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl) || undefined} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
-                        <img src={getImageUrl(receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl || undefined) || undefined} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
                       ) : (
                         <div className={styles.noImage}>
                           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -631,6 +630,7 @@ function LineReceiptsContent() {
                 );
               })}
               </div>
+
             </>
           )}
         </div>
@@ -680,8 +680,6 @@ function LineReceiptsContent() {
         isOpen={!!selectedReceipt}
         receipt={selectedReceipt ?? undefined}
         onClose={() => setSelectedReceipt(null)}
-        onSuccess={() => {
-          if (session?.user?.id) fetchReceipts(session.user.id);
         onSuccess={(id) => {
           if (session?.user?.id) {
             const lineUserId = (session as any)?.lineUserId as string | undefined;

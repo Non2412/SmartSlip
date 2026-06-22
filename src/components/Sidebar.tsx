@@ -18,8 +18,6 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
   const { data: session } = useSession();
   const user = session?.user;
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isDark, setIsDark] = useState(false);
-
   useEffect(() => {
     const update = () => {
       try {
@@ -36,21 +34,6 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
     };
   }, []);
 
-  useEffect(() => {
-    const checkTheme = () => {
-      setIsDark(document.documentElement.getAttribute('data-theme') === 'dark');
-    };
-    checkTheme();
-    // Re-check when localStorage changes (TopBar toggle fires storage event)
-    window.addEventListener('storage', checkTheme);
-    // Also observe attribute changes on <html>
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    return () => {
-      window.removeEventListener('storage', checkTheme);
-      observer.disconnect();
-    };
-  }, []);
   const userId = user?.id || 'guest';
   
   // Show LINE user info as primary account, fallback to current user
@@ -126,7 +109,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
       <div className={styles.logoContainer}>
         <Link href="/">
           <img
-            src={isDark ? '/logo-dark.png' : '/logo.png'}
+            src="/logo-dark.png"
             alt="SmartSlip AI"
             className={styles.logo}
           />
