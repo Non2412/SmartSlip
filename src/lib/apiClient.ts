@@ -165,3 +165,48 @@ export const receiptApi = {
       });
   },
 };
+
+/**
+ * ทำความสะอาดลิงก์รูปภาพและตรวจสอบการส่งต่อรูปผ่าน GCS Proxy
+ */
+export const cleanAndProxyImageUrl = (url?: string): string => {
+  if (!url) return '';
+  
+  let targetUrl = url;
+  
+  // 1. ตรวจสอบว่าในลิงก์มี query parameter ของ GCS proxy อยู่แล้วหรือไม่ ถ้ามีให้แกะ GCS URL จริงออกมา
+  if (url.includes('gcs-image?url=')) {
+    try {
+      const parts = url.split('gcs-image?url=');
+      const encodedPart = parts[1];
+      if (encodedPart) {
+        // หากมีเครื่องหมาย & ให้แยกออกเพื่อเอาเฉพาะ URL ของรูปภาพ
+        const cleanEncodedPart = encodedPart.split('&')[0];
+        const decoded = decodeURIComponent(cleanEncodedPart);
+        if (decoded.startsWith('http')) {
+          targetUrl = decoded;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse gcs-image url:', e);
+    }
+  }
+  
+  // 2. หากชี้ไปยัง Google Cloud Storage ให้สวมผ่าน Endpoint Proxy
+  if (targetUrl.includes('storage.googleapis.com')) {
+    return '/api/gcs-image?url=' + encodeURIComponent(targetUrl);
+  }
+  
+  // 3. ป้องกันการแสดงลิงก์ localhost บนโดเมนจริง
+  if (targetUrl.startsWith('http://localhost') || targetUrl.startsWith('https://localhost')) {
+    try {
+      const urlObj = new URL(targetUrl);
+      return urlObj.pathname + urlObj.search;
+    } catch {
+      // ignore
+    }
+  }
+  
+  return targetUrl;
+};
+

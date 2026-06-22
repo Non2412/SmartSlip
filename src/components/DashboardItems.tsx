@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import styles from './DashboardItems.module.css';
 import { TableRowSkeleton } from './Skeleton';
+import { cleanAndProxyImageUrl } from '@/lib/apiClient';
 
 interface StatCardProps {
     title: string;
@@ -99,7 +100,7 @@ export const FilterBar = () => (
     </div>
 );
 
-export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, receipts?: any[] }) => {
+export const ReceiptTable = ({ loading, receipts = [], recentlyEditedId }: { loading?: boolean, receipts?: any[], recentlyEditedId?: string | null }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(5);
 
@@ -193,19 +194,40 @@ export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, re
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                             fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)',
                                         }}>
-                                            {receipt.extractedData?.imageData ? (
-                                                <img
-                                                    src={receipt.extractedData.imageData}
-                                                    alt={receipt.storeName}
-                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                />
-                                            ) : (
-                                                receipt.storeName?.charAt(0) || 'R'
-                                            )}
+                                            {(() => {
+                                                const imgUrl = receipt.extractedData?.imageData || receipt.imageUrl || receipt.imageURL;
+                                                const cleanedImg = cleanAndProxyImageUrl(imgUrl);
+                                                return cleanedImg ? (
+                                                    <img
+                                                        src={cleanedImg}
+                                                        alt={receipt.storeName}
+                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                    />
+                                                ) : (
+                                                    receipt.storeName?.charAt(0) || 'R'
+                                                );
+                                            })()}
                                         </div>
                                         <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>
                                             {receipt.storeName || 'ไม่ระบุ'}
                                         </span>
+                                        {(receipt._id === recentlyEditedId || receipt.id === recentlyEditedId) && (
+                                            <span style={{
+                                                fontSize: '0.7rem',
+                                                padding: '2px 6px',
+                                                borderRadius: '12px',
+                                                backgroundColor: '#dbeafe',
+                                                color: '#1e40af',
+                                                fontWeight: '800',
+                                                marginLeft: '8px',
+                                                border: '1px solid #bfdbfe',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '3px'
+                                            }}>
+                                                ✏️ เพิ่งแก้ไข
+                                            </span>
+                                        )}
                                     </div>
                                 </td>
                                 <td>{receipt.extractedData?.category || 'ไม่ระบุ'}</td>
@@ -356,22 +378,6 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
     endOfWeek.setDate(startOfWeek.getDate() + 6);
     endOfWeek.setHours(23, 59, 59, 999);
 
-    // Check if there is any data in the current week to decide if we fall back to general weekday trends
-    let hasDataInCurrentWeek = false;
-    receipts.forEach(receipt => {
-        const amountVal = receipt.amount !== undefined ? receipt.amount : receipt.totalAmount;
-        if (amountVal) {
-            const dateStr = receipt.extractedData?.date || receipt.createdAt;
-            let date = new Date(dateStr);
-            if (isNaN(date.getTime())) {
-                date = new Date(receipt.createdAt);
-            }
-            if (date >= startOfWeek && date <= endOfWeek) {
-                hasDataInCurrentWeek = true;
-            }
-        }
-    });
-
     // Define labels and compute amounts based on selected viewType
     let labels: string[] = [];
     let amounts: number[] = [];
@@ -389,7 +395,7 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
                     date = new Date(receipt.createdAt);
                 }
 
-                if (!hasDataInCurrentWeek || (date >= startOfWeek && date <= endOfWeek)) {
+                if (date >= startOfWeek && date <= endOfWeek) {
                     let dayIndex = date.getDay() - 1;
                     if (dayIndex === -1) dayIndex = 6;
 
@@ -500,7 +506,7 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
         // Determine if receipt falls into the selected period
         let isInPeriod = false;
         if (viewType === 'week') {
-            if (!hasDataInCurrentWeek || (date >= startOfWeek && date <= endOfWeek)) {
+            if (date >= startOfWeek && date <= endOfWeek) {
                 isInPeriod = true;
             }
         } else if (viewType === 'month') {
@@ -836,11 +842,13 @@ export const RecentUploads = ({
     onReceiptClick,
     onEdit,
     onDelete,
+    recentlyEditedId,
 }: {
     receipts?: any[];
     onReceiptClick?: (receipt: any) => void;
     onEdit?: (receipt: any) => void;
     onDelete?: (receipt: any) => void;
+    recentlyEditedId?: string | null;
 }) => {
     const recentReceipts = [...receipts]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -870,7 +878,7 @@ export const RecentUploads = ({
                     </div>
                 ) : (
                     recentReceipts.map((receipt, index) => {
-                        const imageData = receipt.extractedData?.imageData || ((receipt.imageURL || receipt.imageUrl) ? ((receipt.imageURL || receipt.imageUrl).includes('storage.googleapis.com') ? '/api/gcs-image?url=' + encodeURIComponent((receipt.imageURL || receipt.imageUrl)) : (receipt.imageURL || receipt.imageUrl)) : null);
+                        const imageData = cleanAndProxyImageUrl(receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl || undefined) || null;
                         const isMenuOpen = openMenuId === (receipt._id || receipt.id || '');
                         return (
                             <div
@@ -899,7 +907,24 @@ export const RecentUploads = ({
 
                                 {/* Info */}
                                 <div className={styles.uploadInfo}>
-                                    <div className={styles.uploadName}>{receipt.storeName || 'ไม่ระบุร้านค้า'}</div>
+                                    <div className={styles.uploadName} style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                        {receipt.storeName || 'ไม่ระบุร้านค้า'}
+                                        {(receipt._id === recentlyEditedId || receipt.id === recentlyEditedId) && (
+                                            <span style={{
+                                                fontSize: '0.65rem',
+                                                padding: '1px 5px',
+                                                borderRadius: '10px',
+                                                backgroundColor: '#dbeafe',
+                                                color: '#1e40af',
+                                                fontWeight: '800',
+                                                border: '1px solid #bfdbfe',
+                                                display: 'inline-flex',
+                                                alignItems: 'center'
+                                            }}>
+                                                ✏️ เพิ่งแก้ไข
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className={styles.uploadDate}>
                                         {new Date(receipt.createdAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })} • {(receipt.amount !== undefined ? receipt.amount : receipt.totalAmount) ? `฿${(receipt.amount !== undefined ? receipt.amount : receipt.totalAmount).toLocaleString('th-TH', { minimumFractionDigits: 2 })}` : '—'}
                                     </div>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useReceipts } from '@/hooks/useReceipts';
 import Image from 'next/image';
+import { cleanAndProxyImageUrl } from '@/lib/apiClient';
 
 const formatToInputDate = (dateStr: string): string => {
     if (!dateStr) return '';
@@ -47,7 +48,7 @@ input[type=number] { -moz-appearance: textfield; }
 interface ReceiptDetailSheetProps {
     isOpen: boolean;
     onClose: () => void;
-    onSuccess?: () => void;
+    onSuccess?: (id?: string) => void;
     receipt: any | null;
 }
 
@@ -115,7 +116,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
             setPaymentMethod(ed.paymentMethod || ed.method || '');
             setCurrency(ed.currency || 'THB');
             setTaxId(ed.vendorTaxId || '');
-            setDiscount(ed.summary?.discount ?? 0);
+            setDiscount(ed.summary?.discount ?? ed.discount ?? 0);
             setVat(ed.summary?.vat ?? ed.vat ?? 0);
             setErrorMsg(null);
 
@@ -187,7 +188,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
             }) as any;
 
             if (result?.success) {
-                if (onSuccess) onSuccess();
+                if (onSuccess) onSuccess(receipt._id || receipt.id || '');
                 onClose();
             } else {
                 setErrorMsg(result?.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
@@ -199,7 +200,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
         }
     };
 
-    const getImageUrl = (url?: string) => { if (!url) return ''; if (url.includes('storage.googleapis.com')) { return '/api/gcs-image?url=' + encodeURIComponent(url); } return url; }; const imageData = receipt?.extractedData?.imageData || getImageUrl(receipt?.imageURL || receipt?.imageUrl) || null;
+    const imageData = cleanAndProxyImageUrl(receipt?.extractedData?.imageData || receipt?.imageURL || receipt?.imageUrl || undefined) || null;
 
     return (
         <>

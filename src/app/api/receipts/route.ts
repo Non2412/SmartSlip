@@ -120,7 +120,7 @@ export async function PATCH(request: Request) {
     if (!id) return NextResponse.json({ success: false, error: 'ID required' }, { status: 400 });
 
     const body = await request.json();
-    const { storeName, totalAmount, extractedData } = body;
+    const { storeName, totalAmount, extractedData, imageUrl, imageURL } = body;
 
     const client = await clientPromise;
     const db = client.db('smartslip_api');
@@ -129,6 +129,8 @@ export async function PATCH(request: Request) {
     if (storeName !== undefined) updateFields.storeName = storeName;
     if (totalAmount !== undefined) updateFields.totalAmount = parseFloat(totalAmount.toString());
     if (extractedData !== undefined) updateFields.extractedData = extractedData;
+    if (imageUrl !== undefined) updateFields.imageUrl = imageUrl;
+    if (imageURL !== undefined) updateFields.imageURL = imageURL;
 
     const result = await db.collection('receipts').findOneAndUpdate(
       { _id: new ObjectId(id) },
