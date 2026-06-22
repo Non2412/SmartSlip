@@ -378,22 +378,6 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
     endOfWeek.setDate(startOfWeek.getDate() + 6);
     endOfWeek.setHours(23, 59, 59, 999);
 
-    // Check if there is any data in the current week to decide if we fall back to general weekday trends
-    let hasDataInCurrentWeek = false;
-    receipts.forEach(receipt => {
-        const amountVal = receipt.amount !== undefined ? receipt.amount : receipt.totalAmount;
-        if (amountVal) {
-            const dateStr = receipt.extractedData?.date || receipt.createdAt;
-            let date = new Date(dateStr);
-            if (isNaN(date.getTime())) {
-                date = new Date(receipt.createdAt);
-            }
-            if (date >= startOfWeek && date <= endOfWeek) {
-                hasDataInCurrentWeek = true;
-            }
-        }
-    });
-
     // Define labels and compute amounts based on selected viewType
     let labels: string[] = [];
     let amounts: number[] = [];
@@ -411,7 +395,7 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
                     date = new Date(receipt.createdAt);
                 }
 
-                if (!hasDataInCurrentWeek || (date >= startOfWeek && date <= endOfWeek)) {
+                if (date >= startOfWeek && date <= endOfWeek) {
                     let dayIndex = date.getDay() - 1;
                     if (dayIndex === -1) dayIndex = 6;
 
@@ -522,7 +506,7 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
         // Determine if receipt falls into the selected period
         let isInPeriod = false;
         if (viewType === 'week') {
-            if (!hasDataInCurrentWeek || (date >= startOfWeek && date <= endOfWeek)) {
+            if (date >= startOfWeek && date <= endOfWeek) {
                 isInPeriod = true;
             }
         } else if (viewType === 'month') {

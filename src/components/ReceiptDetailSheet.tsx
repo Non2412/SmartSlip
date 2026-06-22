@@ -116,7 +116,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt }: ReceiptDeta
             setPaymentMethod(ed.paymentMethod || ed.method || '');
             setCurrency(ed.currency || 'THB');
             setTaxId(ed.vendorTaxId || '');
-            setDiscount(ed.summary?.discount ?? 0);
+            setDiscount(ed.summary?.discount ?? ed.discount ?? 0);
             setVat(ed.summary?.vat ?? ed.vat ?? 0);
             setErrorMsg(null);
 
