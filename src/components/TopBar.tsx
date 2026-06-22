@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
@@ -29,6 +29,14 @@ function useDarkMode() {
     return { isDark, toggle };
 }
 
+const DotsIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="5" r="2" />
+        <circle cx="12" cy="12" r="2" />
+        <circle cx="12" cy="19" r="2" />
+    </svg>
+);
+
 const TopBar = ({
     title,
     mobileTitle,
@@ -41,9 +49,21 @@ const TopBar = ({
     onToggleSidebar?: () => void
 }) => {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const mobileMenuRef = useRef<HTMLDivElement>(null);
     const { data: session } = useSession();
     const { receipts, fetchReceipts } = useReceipts();
     const { isDark, toggle: toggleDark } = useDarkMode();
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+                setMobileMenuOpen(false);
+            }
+        };
+        if (mobileMenuOpen) document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [mobileMenuOpen]);
 
     useEffect(() => {
         if (session?.user?.id) {
@@ -125,6 +145,54 @@ const TopBar = ({
                         <PlusIcon />
                         <span>สร้างใบเสร็จ</span>
                     </button>
+
+                    {/* 3-dot menu — mobile only */}
+                    <div className={styles.mobileMenuWrap} ref={mobileMenuRef}>
+                        <button
+                            className={styles.mobileMenuBtn}
+                            onClick={() => setMobileMenuOpen(v => !v)}
+                            aria-label="เมนูเพิ่มเติม"
+                        >
+                            <DotsIcon />
+                        </button>
+                        {mobileMenuOpen && (
+                            <div className={styles.mobileDropdown}>
+                                <button
+                                    className={styles.mobileDropdownItem}
+                                    onClick={() => { onCreateNew?.(); setMobileMenuOpen(false); }}
+                                >
+                                    <PlusIcon />
+                                    <span>สร้างใบเสร็จ</span>
+                                </button>
+                                <button
+                                    className={styles.mobileDropdownItem}
+                                    onClick={() => { toggleDark(); setMobileMenuOpen(false); }}
+                                >
+                                    {isDark ? <SunIcon /> : <MoonIcon />}
+                                    <span>{isDark ? 'โหมดสว่าง' : 'โหมดมืด'}</span>
+                                </button>
+                                <Link
+                                    href="/notification"
+                                    className={styles.mobileDropdownItem}
+                                    onClick={() => setMobileMenuOpen(false)}
+                                >
+                                    <BellIcon />
+                                    <span>การแจ้งเตือน</span>
+                                    {pendingCount > 0 && (
+                                        <span className={styles.dropdownBadge}>{pendingCount}</span>
+                                    )}
+                                </Link>
+                                <Link
+                                    href="/export"
+                                    className={styles.mobileDropdownItem}
+                                    onClick={() => setMobileMenuOpen(false)}
+                                >
+                                    <ExportIcon />
+                                    <span>ส่งออกข้อมูล</span>
+                                </Link>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </header>
 
