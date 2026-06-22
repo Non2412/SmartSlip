@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import styles from './DashboardItems.module.css';
 import { TableRowSkeleton } from './Skeleton';
 
@@ -74,113 +75,254 @@ export const FilterBar = ({ searchText, onSearchChange, activeCategory, onCatego
         <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
             <span className={styles.filterLabel}>หมวดหมู่:</span>
             <div className={styles.filterChips}>
-                {CATEGORIES.map(cat => (
-                    <div
-                        key={cat}
-                        className={`${styles.filterChip} ${activeCategory === cat ? styles.filterChipActive : ''}`}
-                        onClick={() => onCategoryChange(cat)}
-                        style={{ cursor: 'pointer' }}
-                    >
-                        {cat}
-                    </div>
-                ))}
+                <div className={`${styles.filterChip} ${styles.filterChipActive}`}>ทั้งหมด</div>
+                <div className={styles.filterChip}>อาหาร</div>
+                <div className={styles.filterChip}>เดินทาง</div>
+                <div className={styles.filterChip}>ช้อปปิ้ง</div>
+                <div className={styles.filterChip}>อื่นๆ</div>
+            </div>
+        </div>
+        <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
+            <span className={styles.filterLabel}>ช่วงเวลา:</span>
+            <div className={styles.filterChips}>
+                <div className={styles.filterChip}>7 วัน</div>
+                <div className={styles.filterChip}>รายเดือน</div>
+                <div className={styles.filterChip}>รายปี</div>
             </div>
         </div>
 
         {/* Mobile: dropdown */}
         <div className={styles.mobileDropdowns}>
-            <select
-                className={styles.mobileSelect}
-                value={activeCategory}
-                onChange={e => onCategoryChange(e.target.value)}
-            >
-                {CATEGORIES.map(cat => (
-                    <option key={cat} value={cat}>หมวดหมู่: {cat}</option>
-                ))}
+            <select className={styles.mobileSelect} defaultValue="all">
+                <option value="all">หมวดหมู่: ทั้งหมด</option>
+                <option value="food">อาหาร</option>
+                <option value="travel">เดินทาง</option>
+                <option value="shopping">ช้อปปิ้ง</option>
+                <option value="other">อื่นๆ</option>
+            </select>
+            <select className={styles.mobileSelect} defaultValue="">
+                <option value="">ช่วงเวลา</option>
+                <option value="7d">7 วัน</option>
+                <option value="month">รายเดือน</option>
+                <option value="year">รายปี</option>
             </select>
         </div>
     </div>
 );
 
-export const ReceiptTable = ({ loading, receipts = [], onRowClick }: { loading?: boolean, receipts?: any[], onRowClick?: (r: any) => void }) => (
-    <div className={styles.tableContainer}>
-        <table className={styles.receiptTable}>
-            <thead>
-                <tr>
-                    <th>ร้านค้า</th>
-                    <th>หมวดหมู่</th>
-                    <th>ยอดสุทธิ</th>
-                    <th>สถานะ</th>
-                    <th>วันที่</th>
-                </tr>
-            </thead>
-            <tbody>
-                {loading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                        <tr key={i}>
-                            <td colSpan={6} style={{ padding: '12px 0' }}>
-                                <TableRowSkeleton />
-                            </td>
-                        </tr>
-                    ))
-                ) : (
-                    receipts.map((receipt, index) => (
-                        <tr
-                            key={receipt._id || receipt.id || index}
-                            onClick={() => onRowClick?.(receipt)}
-                            style={{ cursor: onRowClick ? 'pointer' : undefined }}
-                        >
-                            <td className={styles.storeCell}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <div style={{
-                                        width: '36px', height: '36px', borderRadius: '8px',
-                                        overflow: 'hidden', flexShrink: 0,
-                                        border: '1px solid var(--border-color)',
-                                        background: 'var(--input-bg)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)',
-                                    }}>
-                                        {(() => {
-                                            const raw = receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl;
-                                            if (!raw) return receipt.storeName?.charAt(0) || 'R';
-                                            const src = raw.includes('storage.googleapis.com') ? '/api/gcs-image?url=' + encodeURIComponent(raw) : raw;
-                                            return <img src={src} alt={receipt.storeName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />;
-                                        })()}
+export const ReceiptTable = ({ loading, receipts = [] }: { loading?: boolean, receipts?: any[] }) => {
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(5);
+
+    const totalItems = receipts.length;
+    const totalPages = Math.ceil(totalItems / pageSize) || 1;
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(1);
+        }
+    }, [totalItems, pageSize, totalPages, currentPage]);
+
+    const handlePageChange = (page: number) => {
+        if (page >= 1 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
+
+    const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setPageSize(Number(e.target.value));
+        setCurrentPage(1);
+    };
+
+    const paginatedReceipts = receipts.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
+
+    const getPageNumbers = () => {
+        const pages = [];
+        const maxVisiblePages = 5;
+        
+        if (totalPages <= maxVisiblePages) {
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            let start = Math.max(1, currentPage - 2);
+            let end = Math.min(totalPages, currentPage + 2);
+            
+            if (currentPage <= 3) {
+                start = 1;
+                end = maxVisiblePages;
+            } else if (currentPage >= totalPages - 2) {
+                start = totalPages - maxVisiblePages + 1;
+                end = totalPages;
+            }
+            
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+        }
+        return pages;
+    };
+
+    const pageNumbers = getPageNumbers();
+    const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const endIndex = Math.min(currentPage * pageSize, totalItems);
+
+    return (
+        <div className={styles.tableContainer}>
+            <table className={styles.receiptTable}>
+                <thead>
+                    <tr>
+                        <th>ร้านค้า</th>
+                        <th>หมวดหมู่</th>
+                        <th>ยอดสุทธิ</th>
+                        <th>สถานะ</th>
+                        <th>วันที่</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {loading ? (
+                        Array.from({ length: 5 }).map((_, i) => (
+                            <tr key={i}>
+                                <td colSpan={6} style={{ padding: '12px 0' }}>
+                                    <TableRowSkeleton />
+                                </td>
+                            </tr>
+                        ))
+                    ) : (
+                        paginatedReceipts.map((receipt, index) => (
+                            <tr key={receipt._id || receipt.id || index}>
+                                <td className={styles.storeCell}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <div style={{
+                                            width: '36px', height: '36px', borderRadius: '8px',
+                                            overflow: 'hidden', flexShrink: 0,
+                                            border: '1px solid var(--border-color)',
+                                            background: 'var(--input-bg)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)',
+                                        }}>
+                                            {receipt.extractedData?.imageData ? (
+                                                <img
+                                                    src={receipt.extractedData.imageData}
+                                                    alt={receipt.storeName}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                />
+                                            ) : (
+                                                receipt.storeName?.charAt(0) || 'R'
+                                            )}
+                                        </div>
+                                        <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>
+                                            {receipt.storeName || 'ไม่ระบุ'}
+                                        </span>
                                     </div>
-                                    <span style={{ fontWeight: '600', color: 'var(--text-main)' }}>
-                                        {receipt.storeName || 'ไม่ระบุ'}
+                                </td>
+                                <td>{receipt.extractedData?.category || 'ไม่ระบุ'}</td>
+                                <td className={styles.amountCell}>฿ {(receipt.amount !== undefined ? receipt.amount : receipt.totalAmount)?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</td>
+                                <td>
+                                    <span className={!receipt.extractedData ? styles.statusWarning : styles.statusSuccess}>
+                                        {!receipt.extractedData ? 'รอตรวจสอบ' : 'สำเร็จ'}
                                     </span>
-                                </div>
-                            </td>
-                            <td>{receipt.extractedData?.category || 'ไม่ระบุ'}</td>
-                            <td className={styles.amountCell}>฿ {(receipt.amount !== undefined ? receipt.amount : receipt.totalAmount)?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}</td>
-                            <td>
-                                <span className={!receipt.extractedData ? styles.statusWarning : styles.statusSuccess}>
-                                    {!receipt.extractedData ? 'รอตรวจสอบ' : 'สำเร็จ'}
-                                </span>
-                            </td>
-                            <td>
-                                {receipt.extractedData?.date ? 
-                                    new Date(receipt.extractedData.date).toLocaleDateString('th-TH') : 
-                                    new Date(receipt.createdAt).toLocaleDateString('th-TH')}
-                            </td>
-                        </tr>
-                    ))
-                )}
-            </tbody>
-        </table>
-        {!loading && receipts.length === 0 && (
-            <div className={styles.emptyState}>
-                ไม่พบรายการใบเสร็จในขณะนี้
-            </div>
-        )}
-        {loading && (
-            <div className={styles.emptyState}>
-                กำลังโหลด...
-            </div>
-        )}
-    </div>
-);
+                                </td>
+                                <td>
+                                    {receipt.extractedData?.date ? 
+                                        new Date(receipt.extractedData.date).toLocaleDateString('th-TH') : 
+                                        new Date(receipt.createdAt).toLocaleDateString('th-TH')}
+                                </td>
+                            </tr>
+                        ))
+                    )}
+                </tbody>
+            </table>
+            {!loading && receipts.length === 0 && (
+                <div className={styles.emptyState}>
+                    ไม่พบรายการใบเสร็จในขณะนี้
+                </div>
+            )}
+            {loading && (
+                <div className={styles.emptyState}>
+                    กำลังโหลด...
+                </div>
+            )}
+            
+            {/* Pagination Controls */}
+            {!loading && totalItems > 0 && (
+                <div className={styles.paginationContainer}>
+                    <div className={styles.paginationInfo}>
+                        แสดง {startIndex} ถึง {endIndex} จากทั้งหมด {totalItems} รายการ
+                    </div>
+                    <div className={styles.paginationControls}>
+                        <div className={styles.pageSizeSelector}>
+                            <span>แสดงหน้าละ:</span>
+                            <select 
+                                value={pageSize} 
+                                onChange={handlePageSizeChange}
+                                className={styles.pageSizeSelect}
+                            >
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                            </select>
+                            <span>รายการ</span>
+                        </div>
+                        <div className={styles.paginationButtons}>
+                            <button 
+                                onClick={() => handlePageChange(1)}
+                                disabled={currentPage === 1}
+                                className={`${styles.pageBtn} ${currentPage === 1 ? styles.pageBtnDisabled : ''}`}
+                                title="หน้าแรก"
+                                aria-label="First page"
+                            >
+                                &lt;&lt;
+                            </button>
+                            <button 
+                                onClick={() => handlePageChange(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className={`${styles.pageBtn} ${currentPage === 1 ? styles.pageBtnDisabled : ''}`}
+                                title="หน้าก่อนหน้า"
+                                aria-label="Previous page"
+                            >
+                                &lt;
+                            </button>
+                            
+                            {pageNumbers.map(page => (
+                                <button
+                                    key={page}
+                                    onClick={() => handlePageChange(page)}
+                                    className={`${styles.pageBtn} ${currentPage === page ? styles.pageBtnActive : ''}`}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+                            
+                            <button 
+                                onClick={() => handlePageChange(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className={`${styles.pageBtn} ${currentPage === totalPages ? styles.pageBtnDisabled : ''}`}
+                                title="หน้าถัดไป"
+                                aria-label="Next page"
+                            >
+                                &gt;
+                            </button>
+                            <button 
+                                onClick={() => handlePageChange(totalPages)}
+                                disabled={currentPage === totalPages}
+                                className={`${styles.pageBtn} ${currentPage === totalPages ? styles.pageBtnDisabled : ''}`}
+                                title="หน้าสุดท้าย"
+                                aria-label="Last page"
+                            >
+                                &gt;&gt;
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
     const [viewType, setViewType] = useState<'week' | 'month' | 'year'>('week');
@@ -210,6 +352,37 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
         'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
     ];
 
+    // Define helper variables for week calculations (needed by both trend and category charts)
+    const nowVal = new Date();
+    const getStartOfWeek = (d: Date) => {
+        const date = new Date(d);
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        const start = new Date(date.setDate(diff));
+        start.setHours(0, 0, 0, 0);
+        return start;
+    };
+    const startOfWeek = getStartOfWeek(nowVal);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    // Check if there is any data in the current week to decide if we fall back to general weekday trends
+    let hasDataInCurrentWeek = false;
+    receipts.forEach(receipt => {
+        const amountVal = receipt.amount !== undefined ? receipt.amount : receipt.totalAmount;
+        if (amountVal) {
+            const dateStr = receipt.extractedData?.date || receipt.createdAt;
+            let date = new Date(dateStr);
+            if (isNaN(date.getTime())) {
+                date = new Date(receipt.createdAt);
+            }
+            if (date >= startOfWeek && date <= endOfWeek) {
+                hasDataInCurrentWeek = true;
+            }
+        }
+    });
+
     // Define labels and compute amounts based on selected viewType
     let labels: string[] = [];
     let amounts: number[] = [];
@@ -217,37 +390,6 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
     if (viewType === 'week') {
         labels = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'];
         amounts = [0, 0, 0, 0, 0, 0, 0];
-        
-        // Filter for current week (Mon-Sun)
-        const now = new Date();
-        const getStartOfWeek = (d: Date) => {
-            const date = new Date(d);
-            const day = date.getDay();
-            const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-            const start = new Date(date.setDate(diff));
-            start.setHours(0, 0, 0, 0);
-            return start;
-        };
-        const startOfWeek = getStartOfWeek(now);
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        endOfWeek.setHours(23, 59, 59, 999);
-
-        // Check if there is any data in the current week to decide if we fall back to general weekday trends
-        let hasDataInCurrentWeek = false;
-        receipts.forEach(receipt => {
-            const amountVal = receipt.amount !== undefined ? receipt.amount : receipt.totalAmount;
-            if (amountVal) {
-                const dateStr = receipt.extractedData?.date || receipt.createdAt;
-                let date = new Date(dateStr);
-                if (isNaN(date.getTime())) {
-                    date = new Date(receipt.createdAt);
-                }
-                if (date >= startOfWeek && date <= endOfWeek) {
-                    hasDataInCurrentWeek = true;
-                }
-            }
-        });
 
         receipts.forEach(receipt => {
             const amountVal = receipt.amount !== undefined ? receipt.amount : receipt.totalAmount;
@@ -257,11 +399,11 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
                 if (isNaN(date.getTime())) {
                     date = new Date(receipt.createdAt);
                 }
-                
+
                 if (!hasDataInCurrentWeek || (date >= startOfWeek && date <= endOfWeek)) {
                     let dayIndex = date.getDay() - 1;
                     if (dayIndex === -1) dayIndex = 6;
-                    
+
                     if (dayIndex >= 0 && dayIndex < 7) {
                         amounts[dayIndex] += amountVal;
                     }
@@ -348,10 +490,80 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
     // Grid lines Y coordinates (0%, 25%, 50%, 75%, 100%)
     const gridLines = [0, 0.25, 0.5, 0.75, 1];
 
+    // Compute category breakdown for the selected period
+    const categoryAmounts: Record<string, number> = {
+        'อาหาร': 0,
+        'เดินทาง': 0,
+        'ช้อปปิ้ง': 0,
+        'อื่นๆ': 0
+    };
+
+    receipts.forEach(receipt => {
+        const amountVal = receipt.amount !== undefined ? receipt.amount : receipt.totalAmount;
+        if (!amountVal) return;
+
+        const dateStr = receipt.extractedData?.date || receipt.createdAt;
+        let date = new Date(dateStr);
+        if (isNaN(date.getTime())) {
+            date = new Date(receipt.createdAt);
+        }
+
+        // Determine if receipt falls into the selected period
+        let isInPeriod = false;
+        if (viewType === 'week') {
+            if (!hasDataInCurrentWeek || (date >= startOfWeek && date <= endOfWeek)) {
+                isInPeriod = true;
+            }
+        } else if (viewType === 'month') {
+            const currentYear = new Date().getFullYear();
+            if (date.getMonth() === selectedMonth && date.getFullYear() === currentYear) {
+                isInPeriod = true;
+            }
+        } else if (viewType === 'year') {
+            if (date.getFullYear() === selectedYear) {
+                isInPeriod = true;
+            }
+        }
+
+        if (isInPeriod) {
+            const rawCat = receipt.extractedData?.category || 'อื่นๆ';
+            const category = ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง'].includes(rawCat) ? rawCat : 'อื่นๆ';
+            categoryAmounts[category] += amountVal;
+        }
+    });
+
+    const totalCategoryAmount = Object.values(categoryAmounts).reduce((sum, val) => sum + val, 0);
+    const circumference = 2 * Math.PI * 50; // ≈ 314.159
+
+    const categoriesList = ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'];
+    const sliceColors = {
+        'อาหาร': '#f59e0b',    // Amber
+        'เดินทาง': '#3b82f6',   // Blue
+        'ช้อปปิ้ง': '#ec4899',   // Pink
+        'อื่นๆ': '#10b981'      // Emerald green
+    };
+
+    let accumulatedPercentage = 0;
+    const slices = categoriesList.map(cat => {
+        const value = categoryAmounts[cat] || 0;
+        const percentage = totalCategoryAmount > 0 ? (value / totalCategoryAmount) : 0;
+        const strokeLength = percentage * circumference;
+        const strokeOffset = circumference - (accumulatedPercentage * circumference);
+        accumulatedPercentage += percentage;
+        return {
+            category: cat,
+            value,
+            percentage: Math.round(percentage * 100),
+            strokeLength,
+            strokeOffset,
+            color: sliceColors[cat as keyof typeof sliceColors]
+        };
+    });
+
     return (
         <div className={styles.chartCard}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                <div className={styles.chartTitle}>แนวโน้มรายจ่าย ({viewType === 'week' ? 'รายสัปดาห์' : viewType === 'month' ? 'รายเดือน' : 'รายปี'})</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '8px' }}>
+                <div className={styles.chartTitle}>แนวโน้มและสัดส่วนรายจ่าย ({viewType === 'week' ? 'รายสัปดาห์' : viewType === 'month' ? 'รายเดือน' : 'รายปี'})</div>
                 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     {/* Segmented Chips */}
@@ -406,165 +618,225 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
                     )}
                 </div>
             </div>
-            <div style={{ position: 'relative', width: '100%', height: '250px' }}>
-                <svg viewBox="0 0 500 220" width="100%" height="100%" style={{ overflow: 'visible' }}>
-                    <defs>
-                        {/* Fill Gradient under line */}
-                        <linearGradient id="chartFillGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#6366f1" stopOpacity="0.35" />
-                            <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
-                        </linearGradient>
-                        {/* Stroke Gradient for the line */}
-                        <linearGradient id="chartStrokeGradient" x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor="#4f46e5" />
-                            <stop offset="50%" stopColor="#6366f1" />
-                            <stop offset="100%" stopColor="#818cf8" />
-                        </linearGradient>
-                        {/* Glow Filter */}
-                        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                            <feGaussianBlur stdDeviation="4" result="blur" />
-                            <feMerge>
-                                <feMergeNode in="blur" />
-                                <feMergeNode in="SourceGraphic" />
-                            </feMerge>
-                        </filter>
-                    </defs>
 
-                    {/* Horizontal Grid lines with dynamic labels */}
-                    {gridLines.map((ratio, idx) => {
-                        const y = 30 + chartHeight - ratio * chartHeight;
-                        const labelValue = maxAmount > 0 ? Math.round(ratio * maxAmount) : 0;
-                        return (
-                            <g key={idx}>
-                                <line 
-                                    x1={paddingLeft} 
-                                    y1={y} 
-                                    x2={500 - paddingRight} 
-                                    y2={y} 
-                                    stroke="#f1f5f9" 
-                                    strokeWidth="1.5" 
-                                    strokeDasharray="4 4" 
-                                />
+            <div className={styles.chartContainerLayout}>
+                {/* Left: Trend Line Chart */}
+                <div className={styles.trendChartSection}>
+                    <div style={{ position: 'relative', width: '100%', height: '220px' }}>
+                        <svg viewBox="0 0 500 220" width="100%" height="100%" style={{ overflow: 'visible' }}>
+                            <defs>
+                                {/* Fill Gradient under line */}
+                                <linearGradient id="chartFillGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#6366f1" stopOpacity="0.35" />
+                                    <stop offset="100%" stopColor="#6366f1" stopOpacity="0.0" />
+                                </linearGradient>
+                                {/* Stroke Gradient for the line */}
+                                <linearGradient id="chartStrokeGradient" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0%" stopColor="#4f46e5" />
+                                    <stop offset="50%" stopColor="#6366f1" />
+                                    <stop offset="100%" stopColor="#818cf8" />
+                                </linearGradient>
+                                {/* Glow Filter */}
+                                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="4" result="blur" />
+                                    <feMerge>
+                                        <feMergeNode in="blur" />
+                                        <feMergeNode in="SourceGraphic" />
+                                    </feMerge>
+                                </filter>
+                            </defs>
+
+                            {/* Horizontal Grid lines with dynamic labels */}
+                            {gridLines.map((ratio, idx) => {
+                                const y = 30 + chartHeight - ratio * chartHeight;
+                                const labelValue = maxAmount > 0 ? Math.round(ratio * maxAmount) : 0;
+                                return (
+                                    <g key={idx}>
+                                        <line 
+                                            x1={paddingLeft} 
+                                            y1={y} 
+                                            x2={500 - paddingRight} 
+                                            y2={y} 
+                                            stroke="#f1f5f9" 
+                                            strokeWidth="1.5" 
+                                            strokeDasharray="4 4" 
+                                        />
+                                        <text 
+                                            x={paddingLeft - 10} 
+                                            y={y + 4} 
+                                            fill="#94a3b8" 
+                                            fontSize="9.5" 
+                                            fontWeight="600"
+                                            textAnchor="end"
+                                        >
+                                            ฿{labelValue >= 1000 ? `${(labelValue / 1000).toFixed(1)}k` : labelValue}
+                                        </text>
+                                    </g>
+                                );
+                            })}
+
+                            {/* Area Fill */}
+                            {fillD && <path d={fillD} fill="url(#chartFillGradient)" />}
+
+                            {/* Line Stroke with Glow */}
+                            {pathD && (
+                                <>
+                                    <path 
+                                        d={pathD} 
+                                        fill="none" 
+                                        stroke="#6366f1" 
+                                        strokeWidth="5" 
+                                        opacity="0.15" 
+                                        filter="url(#glow)" 
+                                        strokeLinecap="round" 
+                                    />
+                                    <path 
+                                        d={pathD} 
+                                        fill="none" 
+                                        stroke="url(#chartStrokeGradient)" 
+                                        strokeWidth="3" 
+                                        strokeLinecap="round" 
+                                    />
+                                </>
+                            )}
+
+                            {/* Interactive dots and hit targets */}
+                            {xCoords.map((x, i) => {
+                                const y = yCoords[i];
+                                const isHovered = hoveredIdx === i;
+                                return (
+                                    <g key={i}>
+                                        {/* Outer hover ring */}
+                                        <circle 
+                                            cx={x} 
+                                            cy={y} 
+                                            r={isHovered ? 8 : 4} 
+                                            fill="#ffffff" 
+                                            stroke={isHovered ? "#4f46e5" : "#6366f1"} 
+                                            strokeWidth={isHovered ? 3.5 : 2.5} 
+                                            style={{ transition: 'all 0.15s ease-out' }}
+                                        />
+                                        {/* Hidden large hit target for easier mouse hover */}
+                                        <circle 
+                                            cx={x} 
+                                            cy={y} 
+                                            r={viewType === 'year' ? 16 : 24} 
+                                            fill="transparent" 
+                                            style={{ cursor: 'pointer' }}
+                                            onMouseEnter={() => setHoveredIdx(i)}
+                                            onMouseLeave={() => setHoveredIdx(null)}
+                                        />
+                                    </g>
+                                );
+                            })}
+
+                            {/* Day/Week/Month labels below the chart */}
+                            {xCoords.map((x, i) => (
                                 <text 
-                                    x={paddingLeft - 10} 
-                                    y={y + 4} 
-                                    fill="#94a3b8" 
-                                    fontSize="9.5" 
-                                    fontWeight="600"
-                                    textAnchor="end"
+                                    key={i} 
+                                    x={x} 
+                                    y={30 + chartHeight + 22} 
+                                    fill="#64748b" 
+                                    fontSize={viewType === 'year' ? "9" : "10.5"} 
+                                    fontWeight="700" 
+                                    textAnchor="middle"
                                 >
-                                    ฿{labelValue >= 1000 ? `${(labelValue / 1000).toFixed(1)}k` : labelValue}
+                                    {labels[i]}
                                 </text>
-                            </g>
-                        );
-                    })}
+                            ))}
 
-                    {/* Area Fill */}
-                    {fillD && <path d={fillD} fill="url(#chartFillGradient)" />}
+                            {/* Tooltip Overlay */}
+                            {hoveredIdx !== null && (
+                                <g style={{ transition: 'all 0.15s' }}>
+                                    {/* Glow shadow behind tooltip */}
+                                    <rect
+                                        x={Math.max(50, Math.min(450, xCoords[hoveredIdx])) - 50}
+                                        y={yCoords[hoveredIdx] - 38}
+                                        width="100"
+                                        height="26"
+                                        rx="6"
+                                        fill="#0f172a"
+                                        opacity="0.15"
+                                        filter="url(#glow)"
+                                    />
+                                    {/* Main Tooltip box */}
+                                    <rect
+                                        x={Math.max(50, Math.min(450, xCoords[hoveredIdx])) - 50}
+                                        y={yCoords[hoveredIdx] - 38}
+                                        width="100"
+                                        height="26"
+                                        rx="6"
+                                        fill="#0f172a"
+                                    />
+                                    <text
+                                        x={Math.max(50, Math.min(450, xCoords[hoveredIdx]))}
+                                        y={yCoords[hoveredIdx] - 21}
+                                        fill="#ffffff"
+                                        fontSize="10.5"
+                                        fontWeight="800"
+                                        textAnchor="middle"
+                                    >
+                                        ฿{amounts[hoveredIdx].toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                    </text>
+                                </g>
+                            )}
+                        </svg>
+                    </div>
+                </div>
 
-                    {/* Line Stroke with Glow */}
-                    {pathD && (
-                        <>
-                            <path 
-                                d={pathD} 
-                                fill="none" 
-                                stroke="#6366f1" 
-                                strokeWidth="5" 
-                                opacity="0.15" 
-                                filter="url(#glow)" 
-                                strokeLinecap="round" 
-                            />
-                            <path 
-                                d={pathD} 
-                                fill="none" 
-                                stroke="url(#chartStrokeGradient)" 
-                                strokeWidth="3" 
-                                strokeLinecap="round" 
-                            />
-                        </>
-                    )}
-
-                    {/* Interactive dots and hit targets */}
-                    {xCoords.map((x, i) => {
-                        const y = yCoords[i];
-                        const isHovered = hoveredIdx === i;
-                        return (
-                            <g key={i}>
-                                {/* Outer hover ring */}
-                                <circle 
-                                    cx={x} 
-                                    cy={y} 
-                                    r={isHovered ? 8 : 4} 
-                                    fill="#ffffff" 
-                                    stroke={isHovered ? "#4f46e5" : "#6366f1"} 
-                                    strokeWidth={isHovered ? 3.5 : 2.5} 
-                                    style={{ transition: 'all 0.15s ease-out' }}
-                                />
-                                {/* Hidden large hit target for easier mouse hover */}
-                                <circle 
-                                    cx={x} 
-                                    cy={y} 
-                                    r={viewType === 'year' ? 16 : 24} 
-                                    fill="transparent" 
-                                    style={{ cursor: 'pointer' }}
-                                    onMouseEnter={() => setHoveredIdx(i)}
-                                    onMouseLeave={() => setHoveredIdx(null)}
-                                />
-                            </g>
-                        );
-                    })}
-
-                    {/* Day/Week/Month labels below the chart */}
-                    {xCoords.map((x, i) => (
-                        <text 
-                            key={i} 
-                            x={x} 
-                            y={30 + chartHeight + 22} 
-                            fill="#64748b" 
-                            fontSize={viewType === 'year' ? "9" : "10.5"} 
-                            fontWeight="700" 
-                            textAnchor="middle"
-                        >
-                            {labels[i]}
-                        </text>
-                    ))}
-
-                    {/* Tooltip Overlay */}
-                    {hoveredIdx !== null && (
-                        <g style={{ transition: 'all 0.15s' }}>
-                            {/* Glow shadow behind tooltip */}
-                            <rect
-                                x={Math.max(50, Math.min(450, xCoords[hoveredIdx])) - 50}
-                                y={yCoords[hoveredIdx] - 38}
-                                width="100"
-                                height="26"
-                                rx="6"
-                                fill="#0f172a"
-                                opacity="0.15"
-                                filter="url(#glow)"
-                            />
-                            {/* Main Tooltip box */}
-                            <rect
-                                x={Math.max(50, Math.min(450, xCoords[hoveredIdx])) - 50}
-                                y={yCoords[hoveredIdx] - 38}
-                                width="100"
-                                height="26"
-                                rx="6"
-                                fill="#0f172a"
-                            />
-                            <text
-                                x={Math.max(50, Math.min(450, xCoords[hoveredIdx]))}
-                                y={yCoords[hoveredIdx] - 21}
-                                fill="#ffffff"
-                                fontSize="10.5"
-                                fontWeight="800"
-                                textAnchor="middle"
-                            >
-                                ฿{amounts[hoveredIdx].toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                            </text>
-                        </g>
-                    )}
-                </svg>
+                {/* Right: Pie/Donut Chart */}
+                <div className={styles.pieChartSection}>
+                    <div className={styles.pieChartTitle}>สัดส่วนรายจ่ายแยกตามหมวดหมู่</div>
+                    <div className={styles.pieChartContent}>
+                        <div className={styles.donutSvgWrapper}>
+                            <svg viewBox="0 0 150 150" width="100%" height="100%" style={{ overflow: 'visible' }}>
+                                <g transform="rotate(-90 75 75)">
+                                    {/* Background Circle */}
+                                    <circle cx="75" cy="75" r="50" fill="transparent" stroke="#1e293b" strokeWidth="12" />
+                                    
+                                    {/* Slices */}
+                                    {(() => {
+                                        let cumulativeOffset = 0;
+                                        return slices.map((slice, idx) => {
+                                            if (slice.value === 0) return null;
+                                            const offset = cumulativeOffset;
+                                            cumulativeOffset += slice.strokeLength;
+                                            return (
+                                                <circle
+                                                    key={idx}
+                                                    cx="75"
+                                                    cy="75"
+                                                    r="50"
+                                                    fill="transparent"
+                                                    stroke={slice.color}
+                                                    strokeWidth="12"
+                                                    strokeDasharray={`${slice.strokeLength} ${circumference}`}
+                                                    strokeDashoffset={-offset}
+                                                    strokeLinecap="round"
+                                                    style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+                                                />
+                                            );
+                                        });
+                                    })()}
+                                </g>
+                                <text x="75" y="70" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="600">ยอดรวม</text>
+                                <text x="75" y="88" textAnchor="middle" fill="#ffffff" fontSize="13" fontWeight="700">฿{totalCategoryAmount.toLocaleString('th-TH')}</text>
+                            </svg>
+                        </div>
+                        
+                        <div className={styles.pieLegendList}>
+                            {slices.map((slice, idx) => (
+                                <div key={idx} className={styles.pieLegendItem}>
+                                    <div className={styles.legendColorBox} style={{ backgroundColor: slice.color }} />
+                                    <span className={styles.legendCategory}>{slice.category}</span>
+                                    <span className={styles.legendAmount}>
+                                        ฿{slice.value.toLocaleString('th-TH')} ({slice.percentage}%)
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -621,7 +893,14 @@ export const RecentUploads = ({
                                 {/* Thumbnail */}
                                 <div className={styles.uploadThumbnail}>
                                     {imageData ? (
-                                        <img src={imageData} alt="slip" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }} />
+                                        <Image
+                                            src={imageData}
+                                            alt="slip"
+                                            width={44}
+                                            height={44}
+                                            unoptimized
+                                            style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                                        />
                                     ) : (
                                         <div style={{ width: '100%', height: '100%', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>

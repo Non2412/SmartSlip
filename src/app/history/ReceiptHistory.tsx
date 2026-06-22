@@ -39,13 +39,15 @@ const ReceiptHistory = ({ receipts, loading, error }: ReceiptHistoryProps) => {
                    <div className={styles.btnGroup}>
                        <div className={`${styles.filterBtn} ${styles.filterBtnActive}`}>ทั้งหมด</div>
                        <div className={styles.filterBtn}>อาหาร</div>
-                       <div className={styles.filterBtn}>ของใช้</div>
+                       <div className={styles.filterBtn}>เดินทาง</div>
+                       <div className={styles.filterBtn}>ช้อปปิ้ง</div>
+                       <div className={styles.filterBtn}>อื่นๆ</div>
                    </div>
                 </div>
                 <div className={styles.filterGroup}>
                    <div className={styles.filterLabel}>ช่วงเวลา:</div>
                    <div className={styles.btnGroup}>
-                       <div className={`${styles.filterBtn} ${styles.filterBtnActive}`}>30 วัน</div>
+                       <div className={styles.filterBtn}>7 วัน</div>
                        <div className={styles.filterBtn}>รายเดือน</div>
                        <div className={styles.filterBtn}>รายปี</div>
                    </div>

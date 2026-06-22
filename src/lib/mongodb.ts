@@ -6,6 +6,19 @@ const options = {};
 let client;
 let clientPromise: Promise<MongoClient>;
 
+async function ensureIndexes(conn: MongoClient) {
+  try {
+    const db = conn.db('smartslip_api');
+    await db.collection('receipts').createIndex(
+      { userId: 1, createdAt: -1 },
+      { background: true }
+    );
+    console.log('✅ [MongoDB] Index { userId: 1, createdAt: -1 } verified/created');
+  } catch (err) {
+    console.error('❌ [MongoDB] Failed to create index:', err);
+  }
+}
+
 if (!process.env.MONGODB_URI) {
   // During build phase on Vercel, MONGODB_URI might be missing.
   // Instead of throwing an error at the top level, we return a rejected promise
@@ -20,14 +33,34 @@ if (!process.env.MONGODB_URI) {
     };
 
     if (!globalWithMongo._mongoClientPromise) {
+      console.log('🔌 [MongoDB] Connecting in development...');
       client = new MongoClient(uri, options);
-      globalWithMongo._mongoClientPromise = client.connect();
+      globalWithMongo._mongoClientPromise = client.connect()
+        .then(conn => {
+          console.log('✅ [MongoDB] Connected successfully in development');
+          ensureIndexes(conn);
+          return conn;
+        })
+        .catch(err => {
+          console.error('❌ [MongoDB] Connection error in development:', err);
+          throw err;
+        });
     }
     clientPromise = globalWithMongo._mongoClientPromise;
   } else {
     // In production mode, it's best to not use a global variable.
+    console.log('🔌 [MongoDB] Connecting in production...');
     client = new MongoClient(uri, options);
-    clientPromise = client.connect();
+    clientPromise = client.connect()
+      .then(conn => {
+        console.log('✅ [MongoDB] Connected successfully in production');
+        ensureIndexes(conn);
+        return conn;
+      })
+      .catch(err => {
+        console.error('❌ [MongoDB] Connection error in production:', err);
+        throw err;
+      });
   }
 }
 

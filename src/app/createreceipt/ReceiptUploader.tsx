@@ -156,10 +156,9 @@ export function ReceiptUploader({ onOCRSuccess, userId }: ReceiptUploaderProps) 
                 onChange={(e) => setEditableData(prev => ({ ...prev, receiver: e.target.value }))}
                 className={styles.dataInput}
               >
-                <option value="อาหาร">อาหารและเครื่องดื่ม</option>
-                <option value="ของใช้">ของใช้ทั่วไป</option>
-                <option value="เดินทาง">การเดินทาง</option>
-
+                <option value="อาหาร">อาหาร</option>
+                <option value="เดินทาง">เดินทาง</option>
+                <option value="ช้อปปิ้ง">ช้อปปิ้ง</option>
                 <option value="อื่นๆ">อื่นๆ</option>
               </select>
             </div>

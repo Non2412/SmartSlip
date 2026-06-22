@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useReceipts } from '@/hooks/useReceipts';
+import Image from 'next/image';
 
 const formatToInputDate = (dateStr: string): string => {
     if (!dateStr) return '';
@@ -171,7 +172,8 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
         setErrorMsg(null);
         try {
             const grandTotal = calcTotal();
-            const result = await updateReceipt(currentReceipt._id || currentReceipt.id || '', {
+            const result = await updateReceipt(receipt._id || receipt.id || '', {
+                ...receipt,
                 storeName: store,
                 totalAmount: grandTotal,
                 extractedData: {
@@ -294,39 +296,24 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
 
             {/* ── Two-column body ── */}
             <div style={{ display: 'flex', flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflow: isMobile ? 'auto' : 'hidden', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
-
-                {/* LEFT: Image viewer with zoom/pan */}
-                <div style={{ flexGrow: 0, flexShrink: 0, flexBasis: isMobile ? 'auto' : '42%', width: isMobile ? '100%' : undefined, height: isMobile ? '260px' : undefined, borderRight: isMobile ? 'none' : '1px solid var(--border-color)', borderBottom: isMobile ? '1px solid var(--border-color)' : 'none', backgroundColor: 'var(--main-bg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <div
-                        style={{ flex: 1, position: 'relative', overflow: 'hidden', cursor: isDragging ? 'grabbing' : 'grab', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        onWheel={handleWheel}
-                        onMouseDown={handleMouseDown}
-                        onMouseMove={handleMouseMove}
-                        onMouseUp={handleMouseUp}
-                        onMouseLeave={handleMouseUp}
-                    >
-                        <div style={{ transition: isDragging ? 'none' : 'transform 0.2s', transform: `translate(${position.x}px,${position.y}px) scale(${zoom}) rotate(${rotation}deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            {imageData ? (
-                                <img src={imageData} alt="Receipt" style={{ maxWidth: '90%', maxHeight: '85vh', borderRadius: '6px', boxShadow: '0 4px 24px rgba(0,0,0,0.4)', pointerEvents: 'none' }} />
-                            ) : (
-                                <div style={{ color: 'var(--text-muted)', textAlign: 'center', fontSize: '0.9rem' }}>
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--border-color)" strokeWidth="1.5" style={{ display: 'block', margin: '0 auto 12px' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                                    ไม่มีรูปภาพ
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Zoom / Rotate toolbar */}
-                        <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', display: 'flex', background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '6px 14px', gap: '14px', alignItems: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.15)', zIndex: 10, backdropFilter: 'blur(8px)' }}>
-                            <button onClick={() => setZoom(z => Math.max(0.1, z - 0.1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
-                            <span style={{ fontSize: '0.85rem', fontWeight: '600', width: '42px', textAlign: 'center', color: 'var(--text-main)' }}>{Math.round(zoom * 100)}%</span>
-                            <button onClick={() => setZoom(z => Math.min(5, z + 0.1))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
-                            <div style={{ width: '1px', height: '20px', background: 'var(--border-color)' }} />
-                            <button onClick={() => setRotation(r => r - 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2.5 2v6h6"/><path d="M2.66 15.57a10 10 0 1 0 .57-8.38"/></svg></button>
-                            <button onClick={() => setRotation(r => r + 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 0 }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg></button>
-                            <div style={{ width: '1px', height: '20px', background: 'var(--border-color)' }} />
-                            <button onClick={resetView} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', padding: 0, fontSize: '0.82rem', fontWeight: '600' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>รีเซ็ต</button>
-                        </div>
+                {/* Top (mobile) / Left (desktop): Image */}
+                <div style={{ flexGrow: 0, flexShrink: 0, flexBasis: isMobile ? 'auto' : '38%', width: isMobile ? '100%' : undefined, height: isMobile ? '240px' : undefined, borderRight: isMobile ? 'none' : '1px solid #e2e8f0', borderBottom: isMobile ? '1px solid #e2e8f0' : 'none', backgroundColor: '#f8fafc', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
+                    <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: '0%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative', width: '100%', height: '100%', minHeight: isMobile ? '208px' : '300px' }}>
+                        {imageData ? (
+                            <Image
+                                src={imageData}
+                                alt="Receipt"
+                                fill
+                                unoptimized
+                                sizes="(max-width: 768px) 100vw, 38vw"
+                                style={{ objectFit: 'contain', borderRadius: '8px' }}
+                            />
+                        ) : (
+                            <div style={{ color: '#94a3b8', textAlign: 'center', fontSize: '0.9rem' }}>
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" style={{ display: 'block', margin: '0 auto 12px' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                ไม่มีรูปภาพ
+                            </div>
+                        )}
                     </div>
                 </div>
 

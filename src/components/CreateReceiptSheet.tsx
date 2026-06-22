@@ -163,6 +163,71 @@ interface VerificationLineItem {
     unitPrice: number;
 }
 
+const compressImageFile = (file: File, maxWidth = 1200, quality = 0.7): Promise<{ file: File; base64: string }> => {
+    return new Promise((resolve, reject) => {
+        if (!file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                resolve({ file, base64: e.target?.result as string });
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    resolve({ file, base64: img.src });
+                    return;
+                }
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        resolve({ file, base64: img.src });
+                        return;
+                    }
+                    const compressedFile = new File([blob], file.name, {
+                        type: 'image/jpeg',
+                        lastModified: Date.now(),
+                    });
+                    
+                    const compressedReader = new FileReader();
+                    compressedReader.onload = (ce) => {
+                        resolve({
+                            file: compressedFile,
+                            base64: ce.target?.result as string
+                        });
+                    };
+                    compressedReader.onerror = reject;
+                    compressedReader.readAsDataURL(compressedFile);
+                }, 'image/jpeg', quality);
+            };
+            img.onerror = () => {
+                resolve({ file, base64: reader.result as string });
+            };
+            img.src = e.target?.result as string;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+};
+
 const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceiptSheetProps) => {
     const { data: session } = useSession();
     const user = session?.user;
@@ -367,159 +432,51 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
     const handleMouseUp = () => setIsDraggingImage(false);
 
-    const handleFile = (file: File) => {
+    const handleFile = async (file: File) => {
         if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
             setErrorMsg('กรุณาอัพโหลดไฟล์รูปภาพหรือ PDF เท่านั้น');
             return;
         }
-        setSelectedFile(file);
-        const reader = new FileReader();
-        reader.onload = (e) => setImage(e.target?.result as string);
-        reader.readAsDataURL(file);
         setErrorMsg(null);
-        const gen = ++ocrGenerationRef.current;
-        if (ocrTimeoutRef.current) clearTimeout(ocrTimeoutRef.current);
-        ocrTimeoutRef.current = setTimeout(() => runOCR(file, gen), 500);
-    };
-
-    const resetForNextReceipt = () => {
-        setImage(null); setSelectedFile(null); setIsProcessing(false); setIsSaving(false);
-        setShopName(''); setAmount(''); setDate(new Date().toISOString().split('T')[0]);
-        setPaymentMethod('โอน'); setMainCategory('อื่นๆ'); setNotes('');
-        setErrorMsg(null); setSuccessMsg(null); setFormTab('info');
-        setReceiptNo(''); setVendorTaxId(''); setVendorAddress('');
-        setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 });
-        setExpenseItems([{ id: '1', description: '', type: 'product', category: '', quantity: 1, amount: 0, subtotal: 0, vat: 0, wht: 0, note: '' }]);
-        setSelectedItemId('1'); setPaymentStatus('paid'); setIsTaxInvoice(false); setTaxInvoiceNo('');
-        setShowVerification(false); setVerStore(''); setVerCategory(''); setVerDate(''); setVerTime('');
-        setVerPaymentMethod(''); setVerCurrency('THB'); setVerTaxId(''); setVerItems([]); setVerDiscount(0); setVerVat(0);
-        setExtractedReceiptId(null); setExtraFiles([]); setActiveDocIndex(-1);
-    };
-
-    const navigateToQueueIndex = (fromIdx: number, targetIdx: number, snapshot: any) => {
-        // Save current form state for fromIdx so we can restore it later
-        savedQueueStatesRef.current.set(fromIdx, snapshot);
-        const saved = savedQueueStatesRef.current.get(targetIdx);
-        if (saved) {
-            // Restore previously saved state — no need to re-run OCR
-            setImage(saved.image); setShopName(saved.shopName); setAmount(saved.amount);
-            setDate(saved.date); setPaymentMethod(saved.paymentMethod); setMainCategory(saved.mainCategory);
-            setNotes(saved.notes); setManualTime(saved.manualTime || '');
-            setManualDiscount(saved.manualDiscount || 0); setVendorTaxId(saved.vendorTaxId || '');
-            setVendorAddress(saved.vendorAddress || ''); setCurrency(saved.currency || 'THB');
-            setReceiptNo(saved.receiptNo || ''); setTaxInvoiceNo(saved.taxInvoiceNo || '');
-            setIsTaxInvoice(saved.isTaxInvoice || false); setPaymentStatus(saved.paymentStatus || 'paid');
-            setVerStore(saved.verStore); setVerCategory(saved.verCategory);
-            setVerDate(saved.verDate); setVerTime(saved.verTime);
-            setVerPaymentMethod(saved.verPaymentMethod); setVerCurrency(saved.verCurrency || 'THB');
-            setVerTaxId(saved.verTaxId || ''); setVerItems(saved.verItems || []);
-            setVerDiscount(saved.verDiscount || 0); setVerVat(saved.verVat || 0);
-            setExtractedReceiptId(saved.extractedReceiptId || null);
-            setSuccessMsg(saved.successMsg || null); setShowVerification(saved.showVerification || false);
-            // Restore selectedFile with a dummy to preserve full-width layout (image is restored as base64)
-            const mime = (saved.image || '').startsWith('data:application/pdf') ? 'application/pdf' : 'image/jpeg';
-            setSelectedFile(saved.image ? new File([], 'restored', { type: mime }) : null);
-            setIsProcessing(false); setIsSaving(false);
-            setErrorMsg(null); setFormTab('info');
-            setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 });
-            setQueueIndex(targetIdx);
-        } else {
-            // First time visiting this receipt — reset and run OCR
-            resetForNextReceipt();
-            setQueueIndex(targetIdx);
-            handleFile(fileQueue[targetIdx]);
+        try {
+            const { file: compressedFile, base64 } = await compressImageFile(file);
+            setSelectedFile(compressedFile);
+            setImage(base64);
+            runOCR(compressedFile);
+        } catch (err) {
+            console.error('Compression failed', err);
+            setSelectedFile(file);
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setImage(e.target?.result as string);
+                runOCR(file);
+            };
+            reader.readAsDataURL(file);
         }
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
-        if (files.length === 0) return;
-        setFileQueue(files);
-        setQueueIndex(0);
-        setQueueThumbnails(new Array(files.length).fill(''));
-        setQueueSummaries([]);
-        files.forEach((file, idx) => {
-            if (file.type === 'application/pdf') {
-                setQueueThumbnails(prev => { const t = [...prev]; t[idx] = 'pdf'; return t; });
-            } else {
-                const r = new FileReader();
-                r.onload = (ev) => setQueueThumbnails(prev => { const t = [...prev]; t[idx] = ev.target?.result as string; return t; });
-                r.readAsDataURL(file);
-            }
-        });
-        handleFile(files[0]);
-        e.target.value = '';
+        const file = e.target.files?.[0];
+        if (file) handleFile(file);
     };
 
-    const deleteFromQueue = (idx: number) => {
-        const newQueue = fileQueue.filter((_, i) => i !== idx);
-        const newThumbs = queueThumbnails.filter((_, i) => i !== idx);
-        if (newQueue.length === 0) {
-            setFileQueue([]); setQueueThumbnails([]); setQueueIndex(0);
-            resetForNextReceipt();
-            return;
-        }
-        setFileQueue(newQueue);
-        setQueueThumbnails(newThumbs);
-        if (idx === queueIndex) {
-            const nextIdx = Math.min(idx, newQueue.length - 1);
-            setQueueIndex(nextIdx);
-            resetForNextReceipt();
-            handleFile(newQueue[nextIdx]);
-        } else if (idx < queueIndex) {
-            setQueueIndex(prev => prev - 1);
-        }
-    };
-
-    const handleExtraFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newFiles = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
-        if (newFiles.length === 0) { e.target.value = ''; return; }
-
-        if (fileQueue.length === 0 && selectedFile) {
-            // Bootstrap queue: current file + new files
-            const allFiles = [selectedFile, ...newFiles];
-            setFileQueue(allFiles);
-            setQueueIndex(0);
-            setQueueSummaries([]);
-            const thumbs: string[] = [image || '', ...new Array(newFiles.length).fill('')];
-            setQueueThumbnails(thumbs);
-            newFiles.forEach((file, i) => {
-                if (file.type === 'application/pdf') {
-                    setQueueThumbnails(prev => { const t = [...prev]; t[i + 1] = 'pdf'; return t; });
-                } else {
-                    const r = new FileReader();
-                    r.onload = (ev) => setQueueThumbnails(prev => { const t = [...prev]; t[i + 1] = ev.target?.result as string; return t; });
-                    r.readAsDataURL(file);
-                }
-            });
-        } else {
-            // Append to existing queue
-            const startIdx = fileQueue.length;
-            setFileQueue(prev => [...prev, ...newFiles]);
-            setQueueThumbnails(prev => [...prev, ...new Array(newFiles.length).fill('')]);
-            newFiles.forEach((file, i) => {
-                if (file.type === 'application/pdf') {
-                    setQueueThumbnails(prev => { const t = [...prev]; t[startIdx + i] = 'pdf'; return t; });
-                } else {
-                    const r = new FileReader();
-                    r.onload = (ev) => setQueueThumbnails(prev => { const t = [...prev]; t[startIdx + i] = ev.target?.result as string; return t; });
-                    r.readAsDataURL(file);
-                }
-            });
-        }
-        e.target.value = '';
-    };
-
-    const handleManualImageFile = (file: File) => {
+    const handleManualImageFile = async (file: File) => {
         if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
             setErrorMsg('กรุณาอัพโหลดไฟล์รูปภาพหรือ PDF เท่านั้น');
             return;
         }
-        setSelectedFile(file);
-        const reader = new FileReader();
-        reader.onload = (e) => setImage(e.target?.result as string);
-        reader.readAsDataURL(file);
         setErrorMsg(null);
+        try {
+            const { file: compressedFile, base64 } = await compressImageFile(file);
+            setSelectedFile(compressedFile);
+            setImage(base64);
+        } catch (err) {
+            console.error('Compression failed', err);
+            setSelectedFile(file);
+            const reader = new FileReader();
+            reader.onload = (e) => setImage(e.target?.result as string);
+            reader.readAsDataURL(file);
+        }
     };
 
     const runOCR = async (file?: File, generation?: number) => {
@@ -646,7 +603,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 currency: verCurrency,
                 vendorTaxId: verTaxId,
                 notes: `หมวดหมู่: ${verCategory}`,
-                imageData: finalImageUrl,
+                imageData: finalImageUrl || undefined,
                 items: verItems,
                 summary: {
                     subtotal: calcVerSubtotal(),
@@ -658,6 +615,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
             const result = extractedReceiptId
                 ? await updateReceipt(extractedReceiptId, {
+                    userId: userId ?? '',
+                    imageUrl: finalImageUrl || undefined,
+                    source: 'web',
                     storeName: verStore,
                     totalAmount: grandTotal,
                     extractedData: payload
@@ -735,13 +695,16 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 vendorTaxId,
                 vendorAddress,
                 currency,
-                imageData: finalImageUrl,
+                imageData: finalImageUrl || undefined,
                 items: expenseItems,
                 summary: { subtotal: parseFloat(amount) || subtotal, vat, wht, total: finalTotal }
             };
 
             const result = extractedReceiptId
                 ? await updateReceipt(extractedReceiptId, {
+                    userId: userId ?? '',
+                    imageUrl: finalImageUrl || undefined,
+                    source: 'web',
                     storeName: shopName,
                     totalAmount: finalTotal,
                     extractedData: payload

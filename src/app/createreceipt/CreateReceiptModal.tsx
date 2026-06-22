@@ -183,10 +183,9 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                 >
-                  <option value="อาหาร">อาหารและเครื่องดื่ม</option>
-                  <option value="ของใช้">ของใช้ทั่วไป</option>
-                  <option value="เดินทาง">การเดินทาง</option>
-
+                  <option value="อาหาร">อาหาร</option>
+                  <option value="เดินทาง">เดินทาง</option>
+                  <option value="ช้อปปิ้ง">ช้อปปิ้ง</option>
                   <option value="อื่นๆ">อื่นๆ</option>
                 </select>
               </div>
