@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useReceipts } from '@/hooks/useReceipts';
 import Image from 'next/image';
+import { cleanAndProxyImageUrl } from '@/lib/apiClient';
 
 const formatToInputDate = (dateStr: string): string => {
     if (!dateStr) return '';
@@ -36,6 +37,8 @@ interface ReceiptDetailSheetProps {
     receipt?: any | null;
     allReceipts?: any[];
     initialIndex?: number;
+    onSuccess?: (id?: string) => void;
+    receipt: any | null;
 }
 
 interface LineItem {
@@ -137,7 +140,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
             setPaymentMethod(ed.paymentMethod || ed.method || '');
             setCurrency(ed.currency || 'THB');
             setTaxId(ed.vendorTaxId || '');
-            setDiscount(ed.summary?.discount ?? 0);
+            setDiscount(ed.summary?.discount ?? ed.discount ?? 0);
             setVat(ed.summary?.vat ?? ed.vat ?? 0);
             setErrorMsg(null);
             const rawItems = ed.items;
@@ -192,6 +195,8 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                 } else {
                     onClose();
                 }
+                if (onSuccess) onSuccess(receipt._id || receipt.id || '');
+                onClose();
             } else {
                 setErrorMsg(result?.error || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
             }
@@ -212,6 +217,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
     const total = allReceipts?.length ?? 1;
     const hasNext = isQueueMode && currentIdx < total - 1;
     const hasPrev = isQueueMode && currentIdx > 0;
+    const imageData = cleanAndProxyImageUrl(receipt?.extractedData?.imageData || receipt?.imageURL || receipt?.imageUrl || undefined) || null;
 
     return (
         <>

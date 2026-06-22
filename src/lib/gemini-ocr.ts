@@ -67,7 +67,7 @@ export async function processGeminiImage(image: string) {
 1. ตอบเฉพาะ JSON เท่านั้น ห้ามมีข้อความ Markdown หรืออธิบายใดๆ นำหน้าหรือตามหลัง
 2. ถ้าหาค่าไม่ได้ให้ใส่ null (ยกเว้น discount/vat ให้ใส่ 0)
 3. items ต้องเป็น array เสมอ — ถ้าไม่มีรายการย่อย ให้สร้าง 1 รายการจาก storeName และ totalAmount
-4. totalAmount คือยอดที่ลูกค้าจ่ายจริง (หลังหักส่วนลด รวม VAT แล้ว)
+4. totalAmount คือยอดที่ลูกค้าจ่ายจริง (หลังหักส่วนลด รวม VAT แล้ว) ซึ่งสอดคล้องกับสูตร: totalAmount = subtotal - discount + vat (หากมีส่วนลดแสดงในใบเสร็จ ให้ดึงค่าส่วนลดนั้นออกมาใส่ใน discount และคำนวณ subtotal เป็นยอดก่อนหักส่วนลดให้สอดคล้องกัน)
 5. สำหรับสลิปธนาคาร: storeName คือชื่อผู้รับโอน, paymentMethod คือ PromptPay หรือ Mobile Banking
 6. อ่านตัวเลขภาษาไทย (๐-๙) ได้โดยตรง อย่าแปลงเป็น 0
 `.trim();
@@ -154,9 +154,9 @@ export function parseGeminiResponse(geminiResult: any) {
       category:      mapCategory(d.category),   // ← English → Thai
       method:        d.paymentMethod || "",
       items,
-      discount:      d.discount   ?? 0,
-      vat:           d.vat        ?? 0,
-      subtotal:      d.subtotal   ?? parseFloat(amountValue) ?? 0,
+      discount:      parseFloat(d.discount?.toString() || '0') || 0,
+      vat:           parseFloat(d.vat?.toString() || '0') || 0,
+      subtotal:      d.subtotal != null ? parseFloat(d.subtotal.toString()) : (parseFloat(amountValue) || 0),
       taxId:         d.taxId      || "",
       receiptNo:     d.receiptNo  || "",
       raw:           geminiResult,
