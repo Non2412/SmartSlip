@@ -3,6 +3,7 @@ import Google from "next-auth/providers/google"
 import Line from "next-auth/providers/line"
 import { MongoDBAdapter } from "@auth/mongodb-adapter"
 import clientPromise from "./lib/mongodb"
+import { ObjectId } from "mongodb"
 
 import bcrypt from "bcryptjs"
 import Credentials from "next-auth/providers/credentials"
@@ -106,6 +107,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 token.sub = user.id
                 token.email = user.email
                 console.log("📝 บันทึก ID ผู้ใช้และอีเมล:", user.id, user.email);
+            }
+
+            // If the token has a sub (userId) but no lineUserId, query DB to see if there is a linked LINE account
+            if (token.sub && !token.lineUserId) {
+                try {
+                    const client = await clientPromise;
+                    const db = client.db();
+                    const queryUserId = ObjectId.isValid(token.sub) ? new ObjectId(token.sub) : token.sub;
+                    const lineAccount = await db.collection("accounts").findOne({
+                        userId: queryUserId,
+                        provider: "line"
+                    });
+                    if (lineAccount) {
+                        token.lineUserId = lineAccount.providerAccountId;
+                        console.log("🔍 Found linked LINE account in DB for user:", token.sub, "-> LINE:", lineAccount.providerAccountId);
+                    }
+                } catch (err) {
+                    console.error("❌ Failed to fetch linked LINE account:", err);
+                }
             }
 
             // Store LINE user info as primary account (preserve it always)

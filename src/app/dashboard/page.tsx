@@ -21,6 +21,8 @@ export default function DashboardPage() {
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<any | null>(null);
+  const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
 
 
@@ -162,11 +164,12 @@ export default function DashboardPage() {
                   onReceiptClick={setSelectedReceipt}
                   onEdit={setSelectedReceipt}
                   onDelete={setDeleteConfirm}
+                  recentlyEditedId={recentlyEditedId}
                 />
               </>
             )}
           </div>
-          <ReceiptTable loading={loading} receipts={uniqueReceipts} />
+          <ReceiptTable loading={loading} receipts={uniqueReceipts} recentlyEditedId={recentlyEditedId} />
         </div>
       </main>
 
@@ -212,7 +215,10 @@ export default function DashboardPage() {
         onClose={closeCreateSheet}
         onSuccess={() => {
           if (session?.user?.id) {
-            fetchReceipts(session.user.id);
+            const lineUserId = (session as any)?.lineUserId as string | undefined;
+            fetchReceipts(session.user.id, lineUserId);
+            setToastMsg('อัปโหลดและสร้างใบเสร็จสำเร็จ!');
+            setTimeout(() => setToastMsg(null), 6000);
           }
         }}
         userId={session?.user?.id || 'user123'}
@@ -222,13 +228,47 @@ export default function DashboardPage() {
         isOpen={!!selectedReceipt}
         receipt={selectedReceipt}
         onClose={() => setSelectedReceipt(null)}
-        onSuccess={() => {
+        onSuccess={(id) => {
           if (session?.user?.id) {
-            fetchReceipts(session.user.id);
+            const lineUserId = (session as any)?.lineUserId as string | undefined;
+            fetchReceipts(session.user.id, lineUserId);
+          }
+          if (id) {
+            setRecentlyEditedId(id);
+            setToastMsg('แก้ไขข้อมูลสำเร็จ! คุณสามารถกลับไปเช็ครูปภาพของรายการนี้ได้');
+            setTimeout(() => {
+              setRecentlyEditedId(null);
+            }, 15000);
+            setTimeout(() => setToastMsg(null), 8000);
           }
           setSelectedReceipt(null);
         }}
       />
+
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div style={{
+          position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
+          backgroundColor: '#0f172a', color: 'white', padding: '16px 20px',
+          borderRadius: '12px', boxShadow: '0 12px 32px rgba(0,0,0,0.2)',
+          display: 'flex', alignItems: 'center', gap: '12px',
+          fontFamily: 'inherit',
+          animation: 'slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}>
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes slideIn {
+              from { transform: translateY(100%); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
+            }
+          `}} />
+          <span style={{ fontSize: '1.25rem' }}>✅</span>
+          <div>
+            <div style={{ fontWeight: '700', fontSize: '0.9rem' }}>ทำรายการสำเร็จ</div>
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>{toastMsg}</div>
+          </div>
+          <button onClick={() => setToastMsg(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: 'bold', marginLeft: '12px' }}>✕</button>
+        </div>
+      )}
     </div>
   );
 }
