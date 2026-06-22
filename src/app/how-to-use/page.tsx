@@ -27,7 +27,10 @@ export default function HowToUsePage() {
     
     const handleCreateNew = () => setShowCreateModal(true);
     const handleModalClose = () => setShowCreateModal(false);
-    const handleModalSuccess = () => fetchReceipts(userId);
+    const handleModalSuccess = () => {
+        const lineUserId = (session as any)?.lineUserId as string | undefined;
+        fetchReceipts(userId, lineUserId);
+    };
 
     const steps = [
         {

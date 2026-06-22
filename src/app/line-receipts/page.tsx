@@ -8,7 +8,7 @@ import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
 import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
-import { Receipt } from '@/lib/apiClient';
+import { Receipt, cleanAndProxyImageUrl } from '@/lib/apiClient';
 import { identifyDuplicateReceipts } from '@/lib/ocr-utils';
 import styles from './LineReceipts.module.css';
 
@@ -36,6 +36,8 @@ function LineReceiptsContent() {
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Receipt | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
+  const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'duplicate'>(() => {
     const tab = searchParams.get('tab');
     if (tab === 'line' || tab === 'web' || tab === 'duplicate') return tab;
@@ -174,11 +176,7 @@ function LineReceiptsContent() {
 
   // Proxy GCS images through local API to bypass public access restrictions
   const getImageUrl = (url?: string) => {
-    if (!url) return '';
-    if (url.includes('storage.googleapis.com')) {
-      return `/api/gcs-image?url=${encodeURIComponent(url)}`;
-    }
-    return url;
+    return cleanAndProxyImageUrl(url);
   };
 
   return (
@@ -502,6 +500,17 @@ function LineReceiptsContent() {
                       }} title="ใหม่" />
                     )}
 
+                    {(receipt._id === recentlyEditedId || receipt.id === recentlyEditedId) && (
+                      <div style={{
+                        position: 'absolute', top: '8px', left: isNew ? '26px' : '8px', zIndex: 10,
+                        fontSize: '0.65rem', padding: '2.5px 7px', borderRadius: '10px',
+                        backgroundColor: '#dbeafe', color: '#1e40af', fontWeight: '800',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.15)', border: '1px solid #bfdbfe'
+                      }}>
+                        ✏️ เพิ่งแก้ไข
+                      </div>
+                    )}
+
                     <div
                       style={{ position: 'absolute', top: '8px', right: '8px', zIndex: 10 }}
                       onClick={e => e.stopPropagation()}
@@ -558,7 +567,7 @@ function LineReceiptsContent() {
                     </div>
                     <div className={styles.imageContainer}>
                       {receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl ? (
-                        <img src={receipt.extractedData?.imageData || getImageUrl(receipt.imageURL || receipt.imageUrl) || undefined} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
+                        <img src={getImageUrl(receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl || undefined) || undefined} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
                       ) : (
                         <div className={styles.noImage}>
                           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -622,7 +631,12 @@ function LineReceiptsContent() {
         isOpen={isCreateSheetOpen}
         onClose={() => setIsCreateSheetOpen(false)}
         onSuccess={() => {
-          if (session?.user?.id) fetchReceipts(session.user.id);
+          if (session?.user?.id) {
+            const lineUserId = (session as any)?.lineUserId as string | undefined;
+            fetchReceipts(session.user.id, lineUserId);
+            setToastMsg('อัปโหลดและสร้างใบเสร็จสำเร็จ!');
+            setTimeout(() => setToastMsg(null), 6000);
+          }
           setIsCreateSheetOpen(false);
         }}
         userId={session?.user?.id}
@@ -633,11 +647,47 @@ function LineReceiptsContent() {
         isOpen={!!selectedReceipt}
         receipt={selectedReceipt}
         onClose={() => setSelectedReceipt(null)}
-        onSuccess={() => {
-          if (session?.user?.id) fetchReceipts(session.user.id);
+        onSuccess={(id) => {
+          if (session?.user?.id) {
+            const lineUserId = (session as any)?.lineUserId as string | undefined;
+            fetchReceipts(session.user.id, lineUserId);
+          }
+          if (id) {
+            setRecentlyEditedId(id);
+            setToastMsg('แก้ไขข้อมูลสำเร็จ! คุณสามารถกลับไปเช็ครูปภาพของรายการนี้ได้');
+            setTimeout(() => {
+              setRecentlyEditedId(null);
+            }, 15000);
+            setTimeout(() => setToastMsg(null), 8000);
+          }
           setSelectedReceipt(null);
         }}
       />
+
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div style={{
+          position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
+          backgroundColor: '#0f172a', color: 'white', padding: '16px 20px',
+          borderRadius: '12px', boxShadow: '0 12px 32px rgba(0,0,0,0.2)',
+          display: 'flex', alignItems: 'center', gap: '12px',
+          fontFamily: 'inherit',
+          animation: 'slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}>
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes slideIn {
+              from { transform: translateY(100%); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
+            }
+          `}} />
+          <span style={{ fontSize: '1.25rem' }}>✅</span>
+          <div>
+            <div style={{ fontWeight: '700', fontSize: '0.9rem' }}>ทำรายการสำเร็จ</div>
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>{toastMsg}</div>
+          </div>
+          <button onClick={() => setToastMsg(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: 'bold', marginLeft: '12px' }}>✕</button>
+        </div>
+      )}
     </div>
   );
 }
