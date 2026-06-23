@@ -424,13 +424,24 @@
     .filterBar {
         flex-direction: column;
         align-items: stretch;
-        gap: 12px;
-        padding: 12px 16px;
+        gap: 10px;
+        padding: 14px 16px;
+        border-radius: 14px;
     }
 
     .searchWrapper {
         min-width: 0;
         width: 100%;
+    }
+
+    .searchInput {
+        padding: 14px 16px 14px 48px;
+        font-size: 0.95rem;
+        border-radius: 12px;
+    }
+
+    .searchIcon {
+        left: 14px;
     }
 
     /* Hide chip groups on mobile */
@@ -443,6 +454,12 @@
         display: flex;
         gap: 10px;
         width: 100%;
+    }
+
+    .mobileSelect {
+        padding: 12px 32px 12px 14px;
+        font-size: 0.88rem;
+        border-radius: 10px;
     }
 }
 

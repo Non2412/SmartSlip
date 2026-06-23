@@ -345,7 +345,7 @@
 
   .mobileSearchIconWrap {
     position: absolute;
-    left: 12px;
+    left: 14px;
     top: 50%;
     transform: translateY(-50%);
     color: #94a3b8;
@@ -356,10 +356,10 @@
 
   .mobileSearchInput {
     width: 100%;
-    padding: 10px 16px 10px 38px;
+    padding: 12px 16px 12px 42px;
     border-radius: 12px;
     border: 1px solid var(--border-color);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     outline: none;
     background: var(--input-bg);
     color: var(--text-main);
@@ -447,7 +447,7 @@
   /* Search row — แสดงเสมอบนมือถือ ไม่ต้อง toggle */
   .mobileSearchRow {
     display: block !important;
-    padding: 0 12px 10px;
+    padding: 8px 12px 12px;
     padding-left: max(12px, env(safe-area-inset-left, 0px));
     padding-right: max(12px, env(safe-area-inset-right, 0px));
   }

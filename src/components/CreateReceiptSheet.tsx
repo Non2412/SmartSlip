@@ -455,9 +455,26 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         }
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) handleFile(file);
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        const validFiles = files.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
+        if (!validFiles.length) return;
+
+        setFileQueue(validFiles);
+        setQueueIndex(0);
+        setQueueSummaries([]);
+        savedQueueStatesRef.current.clear();
+
+        const thumbs = await Promise.all(validFiles.map(async f => {
+            if (f.type === 'application/pdf') return 'pdf';
+            try { return (await compressImageFile(f)).base64; } catch { return readFileAsDataUrl(f); }
+        }));
+        setQueueThumbnails(thumbs);
+
+        handleFile(validFiles[0]);
+        if (validFiles.length > 1) preloadQueueOCR(validFiles);
+        e.target.value = '';
     };
 
     const handleManualImageFile = async (file: File) => {
@@ -486,6 +503,131 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         reader.readAsDataURL(file);
     });
 
+    // Background OCR for queue items 1..n — stores results in savedQueueStatesRef
+    const preloadQueueOCR = async (files: File[]) => {
+        for (let idx = 1; idx < files.length; idx++) {
+            const file = files[idx];
+            if (file.type === 'application/pdf') continue;
+            try {
+                const { file: compressedFile, base64 } = await compressImageFile(file);
+                setQueueThumbnails(prev => {
+                    const updated = [...prev];
+                    if (!updated[idx]) updated[idx] = base64;
+                    return updated;
+                });
+                const result = await extractFromImage(compressedFile, userId ?? '') as any;
+                if (!result) continue;
+                const ocrStore    = result.store || result.vendor || '';
+                const ocrDate     = formatInputDate(result.date) || new Date().toISOString().split('T')[0];
+                const ocrTime     = result.time || '';
+                const ocrCategory = batchCategory || result.category || 'อื่นๆ';
+                const ocrPayment  = detectPaymentMethodFromText(result.method || result.paymentMethod);
+                const ocrDiscount = typeof result.discount === 'number' ? result.discount : 0;
+                const ocrVat      = typeof result.vat === 'number' ? result.vat : 0;
+                const ocrTaxId    = result.taxId || result.tax_id || '';
+                const ocrAmount   = result.amount?.toString() || '';
+                const rawItems    = result.items;
+                let verItemsOcr: VerificationLineItem[] = [];
+                if (Array.isArray(rawItems) && rawItems.length > 0) {
+                    verItemsOcr = rawItems.map((it: any, i: number) => ({
+                        id: (i + 1).toString(),
+                        description: it.description || '',
+                        quantity: it.quantity || 1,
+                        unitPrice: it.unitPrice ?? it.unit_price ?? it.total ?? 0,
+                    }));
+                } else {
+                    verItemsOcr = [{ id: '1', description: ocrStore, quantity: 1, unitPrice: parseFloat(result.amount) || 0 }];
+                }
+                savedQueueStatesRef.current.set(idx, {
+                    image: base64,
+                    shopName: ocrStore, amount: ocrAmount, date: ocrDate,
+                    paymentMethod: ocrPayment, mainCategory: ocrCategory, notes: '',
+                    manualTime: ocrTime, manualDiscount: ocrDiscount, vendorTaxId: ocrTaxId,
+                    vendorAddress: '', currency: 'THB', receiptNo: '', taxInvoiceNo: '',
+                    isTaxInvoice: false, paymentStatus: 'paid',
+                    verStore: ocrStore, verCategory: ocrCategory, verDate: ocrDate, verTime: ocrTime,
+                    verPaymentMethod: ocrPayment, verCurrency: 'THB', verTaxId: ocrTaxId,
+                    verItems: verItemsOcr, verDiscount: ocrDiscount, verVat: ocrVat,
+                    extractedReceiptId: result.id || null,
+                    successMsg: 'AI วิเคราะห์สำเร็จ', showVerification: false,
+                });
+                setQueueThumbnails(prev => {
+                    const updated = [...prev];
+                    updated[idx] = base64;
+                    return updated;
+                });
+            } catch (err) {
+                console.error(`Background OCR failed for index ${idx}:`, err);
+            }
+        }
+    };
+
+    // Navigate to next queue item without saving to DB
+    const handleQueueNext = () => {
+        const nextIdx = queueIndex + 1;
+        if (nextIdx >= fileQueue.length) return;
+        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+        setQueueSummaries(prev => {
+            const updated = [...prev];
+            updated[queueIndex] = { shopName: verStore || shopName, amount: String(amount), date: verDate || date, thumb: queueThumbnails[queueIndex] || '' };
+            return updated;
+        });
+        navigateToQueueIndex(queueIndex, nextIdx, snapshot);
+    };
+
+    // Save ALL queue items to DB at once
+    const handleSaveAll = async () => {
+        const currentSnapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+        savedQueueStatesRef.current.set(queueIndex, currentSnapshot);
+
+        setIsSaving(true);
+        setErrorMsg(null);
+        let savedCount = 0;
+        try {
+            for (let idx = 0; idx < fileQueue.length; idx++) {
+                const st = savedQueueStatesRef.current.get(idx);
+                if (!st) continue;
+                let finalImageUrl = st.image;
+                if (st.image && st.image.startsWith('data:')) {
+                    try {
+                        const uploadRes = await fetch('/api/upload', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ imageBase64: st.image, userId: userId ?? '' })
+                        });
+                        const uploadData = await uploadRes.json();
+                        if (uploadData.success && uploadData.data?.imageUrl) finalImageUrl = uploadData.data.imageUrl;
+                    } catch {}
+                }
+                const storeName = st.verStore || st.shopName || '';
+                const entryDate = st.verDate || st.date || '';
+                const items     = (st.verItems && st.verItems.length > 0) ? st.verItems : [];
+                const subtotal  = items.length > 0
+                    ? items.reduce((s: number, it: any) => s + (it.unitPrice * it.quantity), 0)
+                    : parseFloat(st.amount) || 0;
+                const grandTotal = subtotal - (st.verDiscount || 0) + (st.verVat || 0);
+                const payload = {
+                    date: entryDate, time: st.verTime || st.manualTime || '',
+                    paymentMethod: st.verPaymentMethod || st.paymentMethod || '',
+                    category: st.verCategory || st.mainCategory || '',
+                    currency: st.verCurrency || st.currency || 'THB',
+                    imageData: finalImageUrl || undefined, items,
+                    summary: { subtotal: grandTotal, vat: st.verVat || 0, wht: 0, total: grandTotal }
+                };
+                const result = st.extractedReceiptId
+                    ? await updateReceipt(st.extractedReceiptId, { userId: userId ?? '', imageUrl: finalImageUrl || undefined, source: 'web', storeName, totalAmount: grandTotal, extractedData: payload })
+                    : await createReceipt({ userId: userId ?? '', storeName, totalAmount: grandTotal, extractedData: payload }) as any;
+                if (result?.success) savedCount++;
+            }
+            if (onSuccess) onSuccess();
+            onClose();
+        } catch (err) {
+            setErrorMsg(`บันทึกไม่สำเร็จ (${savedCount}/${fileQueue.length} รายการ)`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const handleExtraFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
         if (!files.length) return;
@@ -497,13 +639,13 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         }
         setErrorMsg(null);
 
-        const newFiles = await Promise.all(validFiles.map(async (file) => ({
-            name: file.name,
-            type: file.type,
-            data: await readFileAsDataUrl(file),
-        })));
+        const newThumbs = await Promise.all(validFiles.map(async f => {
+            if (f.type === 'application/pdf') return 'pdf';
+            try { return (await compressImageFile(f)).base64; } catch { return readFileAsDataUrl(f); }
+        }));
 
-        setExtraFiles(prev => [...prev, ...newFiles]);
+        setFileQueue(prev => [...prev, ...validFiles]);
+        setQueueThumbnails(prev => [...prev, ...newThumbs]);
         e.target.value = '';
     };
 
@@ -545,8 +687,6 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
             setSuccessMsg(nextState.successMsg ?? null);
             setShowVerification(!!nextState.showVerification);
         } else {
-            setSelectedFile(nextFile ?? selectedFile);
-            setImage(null);
             setShopName('');
             setAmount('');
             setDate(new Date().toISOString().split('T')[0]);
@@ -575,6 +715,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
             setExtractedReceiptId(null);
             setSuccessMsg(null);
             setShowVerification(false);
+            if (nextFile) handleFile(nextFile);
         }
 
         setActiveDocIndex(-1);
@@ -1366,30 +1507,31 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                 <span style={{ fontSize: '0.75rem', color: '#7c3aed', fontWeight: '700' }}>ยอดสุทธิ</span>
                                 <span style={{ fontSize: '1rem', fontWeight: '900', color: '#5b21b6', fontVariantNumeric: 'tabular-nums' }}>฿{calcVerTotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
                             </div>
-                            <button
-                                onClick={handleVerificationSave}
-                                disabled={isSaving || !verStore || !verDate}
-                                style={{
-                                    padding: '11px 28px', borderRadius: '10px',
-                                    background: isSaving || !verStore || !verDate
-                                        ? '#a78bfa'
-                                        : 'linear-gradient(135deg,#7c3aed 0%,#5b21b6 100%)',
-                                    color: 'white', fontWeight: '800', border: 'none',
-                                    cursor: isSaving || !verStore || !verDate ? 'not-allowed' : 'pointer',
-                                    display: 'flex', alignItems: 'center', gap: '9px',
-                                    fontSize: '0.92rem', boxShadow: isSaving ? 'none' : '0 4px 16px rgba(124,58,237,0.4)',
-                                    transition: 'all 0.2s'
-                                }}
-                            >
-                                {isSaving ? (
-                                    <><LoadingSpinner /> กำลังบันทึก...</>
-                                ) : (
-                                    <>
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                                        ยืนยันและบันทึก
-                                    </>
-                                )}
-                            </button>
+                            {fileQueue.length > 1 && queueIndex < fileQueue.length - 1 ? (
+                                <button
+                                    onClick={handleQueueNext}
+                                    style={{ padding: '11px 28px', borderRadius: '10px', background: 'linear-gradient(135deg,#7c3aed 0%,#5b21b6 100%)', color: 'white', fontWeight: '800', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '9px', fontSize: '0.92rem', boxShadow: '0 4px 16px rgba(124,58,237,0.4)', transition: 'all 0.2s' }}
+                                >
+                                    ถัดไป
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                                </button>
+                            ) : fileQueue.length > 1 ? (
+                                <button
+                                    onClick={handleSaveAll}
+                                    disabled={isSaving}
+                                    style={{ padding: '11px 28px', borderRadius: '10px', background: isSaving ? '#a78bfa' : 'linear-gradient(135deg,#7c3aed 0%,#5b21b6 100%)', color: 'white', fontWeight: '800', border: 'none', cursor: isSaving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '9px', fontSize: '0.92rem', boxShadow: isSaving ? 'none' : '0 4px 16px rgba(124,58,237,0.4)', transition: 'all 0.2s' }}
+                                >
+                                    {isSaving ? <><LoadingSpinner /> กำลังบันทึก...</> : <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>บันทึกทั้งหมด ({fileQueue.length} ใบ)</>}
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleVerificationSave}
+                                    disabled={isSaving || !verStore || !verDate}
+                                    style={{ padding: '11px 28px', borderRadius: '10px', background: isSaving || !verStore || !verDate ? '#a78bfa' : 'linear-gradient(135deg,#7c3aed 0%,#5b21b6 100%)', color: 'white', fontWeight: '800', border: 'none', cursor: isSaving || !verStore || !verDate ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '9px', fontSize: '0.92rem', boxShadow: isSaving ? 'none' : '0 4px 16px rgba(124,58,237,0.4)', transition: 'all 0.2s' }}
+                                >
+                                    {isSaving ? <><LoadingSpinner /> กำลังบันทึก...</> : <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>ยืนยันและบันทึก</>}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1615,7 +1757,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                             )}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {fileQueue.length > 1 && queueIndex > 0 && (
+                            {!isMobile && fileQueue.length > 1 && queueIndex > 0 && (
                                 <button
                                     onClick={() => {
                                         const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
@@ -1627,7 +1769,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                     ก่อนหน้า
                                 </button>
                             )}
-                            {fileQueue.length > 1 && queueIndex < fileQueue.length - 1 && (
+                            {!isMobile && fileQueue.length > 1 && queueIndex < fileQueue.length - 1 && (
                                 <button
                                     onClick={() => {
                                         const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
@@ -2221,9 +2363,20 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
                     <div className="sr-footer" style={{ padding: isMobile ? '12px 16px' : '16px 32px', borderTop: `1px solid ${bdLight}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', background: bgCard }}>
                         <button onClick={onClose} style={{ padding: isMobile ? '11px 0' : '10px 24px', flex: isMobile ? '1' : 'none', borderRadius: '10px', border: `1.5px solid ${bdColor}`, backgroundColor: bgCard, color: txMuted, fontWeight: '800', cursor: 'pointer', fontSize: '0.88rem' }}>ยกเลิก</button>
-                        <button onClick={handleSave} disabled={isSaving} style={{ padding: isMobile ? '11px 0' : '12px 32px', flex: isMobile ? '2' : 'none', borderRadius: '10px', background: isSaving ? '#6d28d9' : 'linear-gradient(135deg,#7c3aed,#5b21b6)', color: '#ffffff', fontWeight: '800', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.88rem', cursor: isSaving ? 'not-allowed' : 'pointer', boxShadow: isSaving ? 'none' : '0 4px 12px rgba(124,58,237,0.4)', opacity: isSaving ? 0.7 : 1 }}>
-                            {isSaving ? <LoadingSpinner /> : <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg> {fileQueue.length > 1 && queueIndex < fileQueue.length - 1 ? `บันทึก และถัดไป (${queueIndex + 1}/${fileQueue.length})` : 'สร้างรายจ่าย'}</>}
-                        </button>
+                        {fileQueue.length > 1 && queueIndex < fileQueue.length - 1 ? (
+                            <button onClick={handleQueueNext} style={{ padding: isMobile ? '11px 0' : '12px 32px', flex: isMobile ? '2' : 'none', borderRadius: '10px', background: 'linear-gradient(135deg,#7c3aed,#5b21b6)', color: '#ffffff', fontWeight: '800', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(124,58,237,0.4)' }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                                ถัดไป ({queueIndex + 2}/{fileQueue.length})
+                            </button>
+                        ) : fileQueue.length > 1 ? (
+                            <button onClick={handleSaveAll} disabled={isSaving} style={{ padding: isMobile ? '11px 0' : '12px 32px', flex: isMobile ? '2' : 'none', borderRadius: '10px', background: isSaving ? '#6d28d9' : 'linear-gradient(135deg,#7c3aed,#5b21b6)', color: '#ffffff', fontWeight: '800', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.88rem', cursor: isSaving ? 'not-allowed' : 'pointer', boxShadow: isSaving ? 'none' : '0 4px 12px rgba(124,58,237,0.4)', opacity: isSaving ? 0.7 : 1 }}>
+                                {isSaving ? <LoadingSpinner /> : <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>บันทึกทั้งหมด ({fileQueue.length} ใบ)</>}
+                            </button>
+                        ) : (
+                            <button onClick={handleSave} disabled={isSaving} style={{ padding: isMobile ? '11px 0' : '12px 32px', flex: isMobile ? '2' : 'none', borderRadius: '10px', background: isSaving ? '#6d28d9' : 'linear-gradient(135deg,#7c3aed,#5b21b6)', color: '#ffffff', fontWeight: '800', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.88rem', cursor: isSaving ? 'not-allowed' : 'pointer', boxShadow: isSaving ? 'none' : '0 4px 12px rgba(124,58,237,0.4)', opacity: isSaving ? 0.7 : 1 }}>
+                                {isSaving ? <LoadingSpinner /> : <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>สร้างรายจ่าย</>}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
