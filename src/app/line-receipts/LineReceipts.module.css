@@ -60,21 +60,23 @@
   font-size: 0.9rem;
 }
 
+/* Mobile-first: default = 2 columns */
 .galleryGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
   align-items: start;
 }
 
 .galleryCard {
   background: var(--card-bg);
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--border-color);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   transition: transform 0.2s, box-shadow 0.2s;
   min-width: 0;
+  width: 100%;
 }
 
 .galleryCard:hover {
@@ -84,9 +86,9 @@
 
 .imageContainer {
   width: 100%;
-  height: 200px;
-  min-height: 200px;
-  max-height: 200px;
+  height: 120px;
+  min-height: 120px;
+  max-height: 120px;
   background: var(--input-bg);
   display: flex;
   align-items: center;
@@ -100,7 +102,9 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center top;
   transition: transform 0.3s;
+  display: block;
 }
 
 .galleryCard:hover .imageContainer img {
@@ -108,13 +112,13 @@
 }
 
 .cardDetails {
-  padding: 16px;
+  padding: 8px 10px;
 }
 
 .storeName {
   font-weight: 600;
   color: var(--text-main);
-  font-size: 1.05rem;
+  font-size: 0.78rem;
   margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
@@ -122,88 +126,59 @@
 }
 
 .amount {
-  font-size: 1.1rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: #10b981;
-  margin-bottom: 8px;
+  margin-bottom: 2px;
 }
 
 .date {
-  font-size: 0.8rem;
+  font-size: 0.68rem;
   color: var(--text-muted);
 }
 
-@media (max-width: 768px) {
+/* Desktop: switch to auto-fill multi-column */
+@media (min-width: 769px) {
   .galleryGrid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    align-items: start;
-  }
-
-  .galleryCard {
-    overflow: hidden;
-    min-width: 0;
-    width: 100%;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
   }
 
   .imageContainer {
-    height: 120px !important;
-    min-height: 120px !important;
-    max-height: 120px !important;
-  }
-
-  .imageContainer img {
-    width: 100%;
-    height: 120px;
-    min-height: 120px;
-    max-height: 120px;
-    object-fit: cover;
-    object-position: center top;
-    display: block;
+    height: 200px;
+    min-height: 200px;
+    max-height: 200px;
   }
 
   .cardDetails {
-    padding: 8px 10px;
+    padding: 16px;
   }
 
   .storeName {
-    font-size: 0.78rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 1.05rem;
   }
 
   .amount {
-    font-size: 0.85rem;
-    margin-bottom: 2px;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
   }
 
   .date {
-    font-size: 0.68rem;
+    font-size: 0.8rem;
   }
 }
 
-/* Very small phones — single column */
-@media (max-width: 360px) {
+/* Very small phones (≤320px) — single column */
+@media (max-width: 320px) {
   .galleryGrid {
     grid-template-columns: 1fr;
     gap: 10px;
   }
 
   .imageContainer {
-    height: 150px !important;
-    min-height: 150px !important;
-    max-height: 150px !important;
-  }
-
-  .imageContainer img {
     height: 150px;
     min-height: 150px;
     max-height: 150px;
-  }
-
-  .cardDetails {
-    padding: 10px 12px;
   }
 
   .storeName {

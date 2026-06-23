@@ -34,6 +34,14 @@ function LineReceiptsContent() {
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
   const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 769);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
   const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'duplicate'>(() => {
     const tab = searchParams.get('tab');
     if (tab === 'line' || tab === 'web' || tab === 'duplicate') return tab;
@@ -495,19 +503,19 @@ function LineReceiptsContent() {
                     <path d="M17 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/>
                     <line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="13" y2="13"/>
                   </svg>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: '600' }}>
+                  <span style={{ fontSize: isMobile ? '0.78rem' : '0.85rem', color: 'var(--text-main)', fontWeight: '600', flex: 1, minWidth: 0 }}>
                     <strong style={{ color: '#ef4444' }}>{duplicateIds.size} รายการ</strong>
-                    {' '}ถูกซ่อนเนื่องจากซ้ำกับรายการที่มีอยู่แล้ว (เช่น ใบเสร็จที่ส่งผ่าน LINE แล้วอัปโหลดซ้ำ)
+                    {isMobile ? ' ซ้ำ — ถูกซ่อน' : ' ถูกซ่อนเนื่องจากซ้ำกับรายการที่มีอยู่แล้ว (เช่น ใบเสร็จที่ส่งผ่าน LINE แล้วอัปโหลดซ้ำ)'}
                   </span>
                   <button
                     onClick={() => setFilterTab('duplicate')}
                     style={{
-                      marginLeft: 'auto', padding: '5px 14px', borderRadius: '8px', cursor: 'pointer',
+                      marginLeft: 'auto', padding: isMobile ? '5px 10px' : '5px 14px', borderRadius: '8px', cursor: 'pointer',
                       border: '1px solid rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.1)',
-                      color: '#ef4444', fontSize: '0.8rem', fontWeight: '700', flexShrink: 0,
+                      color: '#ef4444', fontSize: '0.78rem', fontWeight: '700', flexShrink: 0, whiteSpace: 'nowrap',
                     }}
                   >
-                    ดูรายการซ้ำ →
+                    {isMobile ? 'ดู →' : 'ดูรายการซ้ำ →'}
                   </button>
                 </div>
               )}

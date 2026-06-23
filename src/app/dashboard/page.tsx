@@ -2,11 +2,13 @@
 
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
-import CreateReceiptSheet from '@/components/CreateReceiptSheet';
-import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
+import dynamic from 'next/dynamic';
+
+const CreateReceiptSheet = dynamic(() => import('@/components/CreateReceiptSheet'), { ssr: false });
+const ReceiptDetailSheet = dynamic(() => import('@/components/ReceiptDetailSheet'), { ssr: false });
 
 import { StatCard, ReceiptTable, FilterBar, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
@@ -72,21 +74,25 @@ export default function DashboardPage() {
   };
 
   // คำนวณสถิติจริง (ไม่รวมใบที่ซ้ำกัน)
-  const { duplicateIds } = identifyDuplicateReceipts(receipts);
-  const uniqueReceipts = receipts.filter(r => !duplicateIds.has(r._id || r.id || ''));
+  const uniqueReceipts = useMemo(() => {
+    const { duplicateIds } = identifyDuplicateReceipts(receipts);
+    return receipts.filter(r => !duplicateIds.has(r._id || r.id || ''));
+  }, [receipts]);
 
-  const totalAmount = uniqueReceipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0);
-  const pendingCount = uniqueReceipts.filter(r => !r.extractedData).length;
-  const approvedCount = uniqueReceipts.filter(r => r.extractedData).length;
+  const { totalAmount, pendingCount, approvedCount } = useMemo(() => ({
+    totalAmount: uniqueReceipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0),
+    pendingCount: uniqueReceipts.filter(r => !r.extractedData).length,
+    approvedCount: uniqueReceipts.filter(r => r.extractedData).length,
+  }), [uniqueReceipts]);
 
-  const filteredReceipts = uniqueReceipts.filter(r => {
+  const filteredReceipts = useMemo(() => uniqueReceipts.filter(r => {
     const cat = r.extractedData?.category || 'อื่นๆ';
     const matchCat = activeCategory === 'ทั้งหมด' || cat === activeCategory;
     const q = searchText.trim().toLowerCase();
     const matchSearch = !q || (r.storeName || '').toLowerCase().includes(q) ||
       String((r.amount ?? r.totalAmount) || '').includes(q) || cat.toLowerCase().includes(q);
     return matchCat && matchSearch;
-  });
+  }), [uniqueReceipts, activeCategory, searchText]);
 
   return (
     <div className="dashboard-layout">
@@ -188,7 +194,7 @@ export default function DashboardPage() {
             activeCategory={activeCategory}
             onCategoryChange={setActiveCategory}
           />
-          <ReceiptTable loading={loading} receipts={uniqueReceipts} recentlyEditedId={recentlyEditedId} />
+          <ReceiptTable loading={loading} receipts={filteredReceipts} recentlyEditedId={recentlyEditedId} />
         </div>
       </main>
 
