@@ -94,26 +94,6 @@ const TopBar = ({
                 </div>
 
                 <div className={styles.actions}>
-                    {/* Search bar — desktop only */}
-                    <div className={styles.searchContainer}>
-                        <div className={styles.searchIcon}>
-                            <SearchIcon />
-                        </div>
-                        <input
-                            type="text"
-                            placeholder="ค้นหา..."
-                            className={styles.searchInput}
-                        />
-                    </div>
-
-                    {/* Search toggle — mobile only */}
-                    <button
-                        className={styles.mobileSearchBtn}
-                        onClick={() => setIsSearchOpen(v => !v)}
-                        aria-label="ค้นหา"
-                    >
-                        {isSearchOpen ? <CloseIcon /> : <SearchIcon />}
-                    </button>
 
                     <Link href="/notification" className={styles.iconButton} title="การแจ้งเตือน">
                         <BellIcon />
@@ -196,19 +176,6 @@ const TopBar = ({
                 </div>
             </header>
 
-            {/* Search bar — always visible on mobile */}
-            <div className={styles.mobileSearchRow}>
-                <div className={styles.mobileSearchInner}>
-                    <div className={styles.mobileSearchIconWrap}>
-                        <SearchIcon />
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="ค้นหา..."
-                        className={styles.mobileSearchInput}
-                    />
-                </div>
-            </div>
         </>
     );
 };
