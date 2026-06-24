@@ -23,10 +23,6 @@ function getViewedIds(): Set<string> {
   } catch { return new Set(); }
 }
 
-function saveViewedIds(ids: Set<string>) {
-  localStorage.setItem(VIEWED_KEY, JSON.stringify([...ids]));
-  window.dispatchEvent(new Event(UNREAD_EVENT));
-}
 
 function LineReceiptsContent() {
   const { data: session } = useSession();
@@ -38,6 +34,14 @@ function LineReceiptsContent() {
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
   const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 769);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
   const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'duplicate'>(() => {
     const tab = searchParams.get('tab');
     if (tab === 'line' || tab === 'web' || tab === 'duplicate') return tab;
@@ -156,12 +160,19 @@ function LineReceiptsContent() {
 
   const markAsViewed = useCallback((id: string) => {
     setViewedIds(prev => {
+      if (prev.has(id)) return prev;
       const next = new Set(prev);
       next.add(id);
-      saveViewedIds(next);
       return next;
     });
   }, []);
+
+  // Sync viewedIds to localStorage after state update (not inside updater)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && viewedIds.size > 0) {
+      localStorage.setItem(VIEWED_KEY, JSON.stringify([...viewedIds]));
+    }
+  }, [viewedIds]);
 
   const handleReceiptClick = (receipt: Receipt) => {
     markAsViewed(receipt._id || receipt.id || '');
@@ -197,12 +208,12 @@ function LineReceiptsContent() {
         />
 
         <div className="page-container">
-          <div className={styles.header} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
+          <div className={styles.pageHeader}>
+            <div className={styles.header}>
               <h2>รูปใบเสร็จที่ส่งผ่าน LINE</h2>
               <p>รวมรูปภาพทั้งหมดที่คุณส่งเข้ามาผ่านบอท LINE</p>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className={styles.tabsRow}>
               {([
                 {
                   key: 'all',
@@ -267,10 +278,10 @@ function LineReceiptsContent() {
                   <button
                     key={tab.key}
                     onClick={() => setFilterTab(tab.key)}
+                    className={styles.tabBtn}
                     style={{
                       padding: '8px 16px', borderRadius: '10px', cursor: 'pointer',
                       fontSize: '0.875rem', fontWeight: '700', transition: 'all 0.2s',
-                      display: 'flex', alignItems: 'center', gap: '7px',
                       border: isActive ? 'none' : '1.5px solid var(--border-color)',
                       background: isActive ? tab.activeBg : 'var(--surface-color)',
                       color: isActive ? 'white' : 'var(--text-muted)',
@@ -481,7 +492,34 @@ function LineReceiptsContent() {
               <p>ลองปรับเปลี่ยนคำค้นหา หรือตัวกรองหมวดหมู่/ช่วงเวลาอื่นดูนะ</p>
             </div>
           ) : (
-            <div className={styles.galleryGrid}>
+            <>
+              {filterTab !== 'duplicate' && duplicateIds.size > 0 && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '10px 16px', borderRadius: '10px', marginBottom: '12px',
+                  background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" style={{ flexShrink: 0 }}>
+                    <path d="M17 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/>
+                    <line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="13" y2="13"/>
+                  </svg>
+                  <span style={{ fontSize: isMobile ? '0.78rem' : '0.85rem', color: 'var(--text-main)', fontWeight: '600', flex: 1, minWidth: 0 }}>
+                    <strong style={{ color: '#ef4444' }}>{duplicateIds.size} รายการ</strong>
+                    {isMobile ? ' ซ้ำ — ถูกซ่อน' : ' ถูกซ่อนเนื่องจากซ้ำกับรายการที่มีอยู่แล้ว (เช่น ใบเสร็จที่ส่งผ่าน LINE แล้วอัปโหลดซ้ำ)'}
+                  </span>
+                  <button
+                    onClick={() => setFilterTab('duplicate')}
+                    style={{
+                      marginLeft: 'auto', padding: isMobile ? '5px 10px' : '5px 14px', borderRadius: '8px', cursor: 'pointer',
+                      border: '1px solid rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.1)',
+                      color: '#ef4444', fontSize: '0.78rem', fontWeight: '700', flexShrink: 0, whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {isMobile ? 'ดู →' : 'ดูรายการซ้ำ →'}
+                  </button>
+                </div>
+              )}
+              <div className={styles.galleryGrid}>
               {filteredReceipts.map((receipt, index) => {
                 const isNew = !viewedIds.has(receipt._id || receipt.id || '');
                 return (
@@ -533,7 +571,7 @@ function LineReceiptsContent() {
                         <div style={{
                           display: 'none', position: 'absolute', right: 0, top: '32px',
                           background: 'var(--card-bg)', borderRadius: '10px', border: '1px solid var(--border-color)',
-                          boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: '130px', overflow: 'hidden', zIndex: 20,
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.15)', minWidth: '130px', overflow: 'hidden', zIndex: 20,
                         }}>
                           <button
                             onClick={e => {
@@ -541,14 +579,14 @@ function LineReceiptsContent() {
                               handleReceiptClick(receipt);
                               (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
                             }}
-                            style={{ width: '100%', padding: '10px 14px', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600', color: '#374151', display: 'flex', alignItems: 'center', gap: '8px' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                            style={{ width: '100%', padding: '10px 14px', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
                             onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                           >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             แก้ไข
                           </button>
-                          <div style={{ height: '1px', background: '#f3f4f6', margin: '0 10px' }} />
+                          <div style={{ height: '1px', background: 'var(--border-color)', margin: '0 10px' }} />
                           <button
                             onClick={e => {
                               e.stopPropagation();
@@ -556,7 +594,7 @@ function LineReceiptsContent() {
                               (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
                             }}
                             style={{ width: '100%', padding: '10px 14px', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '0.875rem', fontWeight: '600', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = '#fff1f2')}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}
                             onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                           >
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -567,7 +605,7 @@ function LineReceiptsContent() {
                     </div>
                     <div className={styles.imageContainer}>
                       {receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl ? (
-                        <img src={getImageUrl(receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl || undefined) || undefined} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
+                        <img src={getImageUrl(receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl) || undefined} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
                       ) : (
                         <div className={styles.noImage}>
                           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -599,7 +637,9 @@ function LineReceiptsContent() {
                   </div>
                 );
               })}
-            </div>
+              </div>
+
+            </>
           )}
         </div>
       </main>
@@ -608,16 +648,16 @@ function LineReceiptsContent() {
       {deleteConfirm && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 2000,
-          background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <div style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '28px 32px', width: 'min(400px, 90vw)', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '28px 32px', width: 'min(400px, 90vw)', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a', margin: '0 0 8px' }}>ยืนยันการลบ</h3>
-            <p style={{ fontSize: '0.9rem', color: '#64748b', margin: '0 0 24px', lineHeight: 1.5 }}>
-              ต้องการลบ <strong style={{ color: '#1e293b' }}>{deleteConfirm.storeName || 'รายการนี้'}</strong> ออกจากระบบ? การกระทำนี้ไม่สามารถย้อนกลับได้
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-main)', margin: '0 0 8px' }}>ยืนยันการลบ</h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 24px', lineHeight: 1.6 }}>
+              ต้องการลบ <strong style={{ color: 'var(--text-main)' }}>{deleteConfirm.storeName || 'รายการนี้'}</strong> ออกจากระบบ? การกระทำนี้ไม่สามารถย้อนกลับได้
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border-color)', background: 'var(--surface-color)', fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-muted)', cursor: 'pointer' }}>ยกเลิก</button>
@@ -631,6 +671,7 @@ function LineReceiptsContent() {
         isOpen={isCreateSheetOpen}
         onClose={() => setIsCreateSheetOpen(false)}
         onSuccess={() => {
+          if (session?.user?.id) fetchReceipts(session.user.id);
           if (session?.user?.id) {
             const lineUserId = (session as any)?.lineUserId as string | undefined;
             fetchReceipts(session.user.id, lineUserId);
@@ -645,7 +686,7 @@ function LineReceiptsContent() {
       {/* ── Receipt Detail Sheet ── */}
       <ReceiptDetailSheet
         isOpen={!!selectedReceipt}
-        receipt={selectedReceipt}
+        receipt={selectedReceipt ?? undefined}
         onClose={() => setSelectedReceipt(null)}
         onSuccess={(id) => {
           if (session?.user?.id) {

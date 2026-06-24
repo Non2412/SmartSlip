@@ -60,19 +60,23 @@
   font-size: 0.9rem;
 }
 
+/* Mobile-first: default = 2 columns */
 .galleryGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  align-items: start;
 }
 
 .galleryCard {
   background: var(--card-bg);
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--border-color);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   transition: transform 0.2s, box-shadow 0.2s;
+  min-width: 0;
+  width: 100%;
 }
 
 .galleryCard:hover {
@@ -82,20 +86,25 @@
 
 .imageContainer {
   width: 100%;
-  height: 200px;
+  height: 120px;
+  min-height: 120px;
+  max-height: 120px;
   background: var(--input-bg);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 .imageContainer img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center top;
   transition: transform 0.3s;
+  display: block;
 }
 
 .galleryCard:hover .imageContainer img {
@@ -103,13 +112,13 @@
 }
 
 .cardDetails {
-  padding: 16px;
+  padding: 8px 10px;
 }
 
 .storeName {
   font-weight: 600;
   color: var(--text-main);
-  font-size: 1.05rem;
+  font-size: 0.78rem;
   margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
@@ -117,42 +126,67 @@
 }
 
 .amount {
-  font-size: 1.1rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: #10b981;
-  margin-bottom: 8px;
+  margin-bottom: 2px;
 }
 
 .date {
-  font-size: 0.8rem;
+  font-size: 0.68rem;
   color: var(--text-muted);
 }
 
-@media (max-width: 768px) {
+/* Desktop: switch to auto-fill multi-column */
+@media (min-width: 769px) {
   .galleryGrid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
   }
 
   .imageContainer {
-    height: 130px;
+    height: 200px;
+    min-height: 200px;
+    max-height: 200px;
   }
 
   .cardDetails {
-    padding: 10px 12px;
+    padding: 16px;
   }
 
   .storeName {
-    font-size: 0.8rem;
+    font-size: 1.05rem;
   }
 
   .amount {
-    font-size: 0.9rem;
-    margin-bottom: 4px;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
   }
 
   .date {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* Very small phones (≤320px) — single column */
+@media (max-width: 320px) {
+  .galleryGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .imageContainer {
+    height: 150px;
+    min-height: 150px;
+    max-height: 150px;
+  }
+
+  .storeName {
+    font-size: 0.875rem;
+  }
+
+  .amount {
+    font-size: 1rem;
   }
 }
 
@@ -319,7 +353,7 @@
 
 .searchWrapper {
   flex: 1;
-  min-width: 300px;
+  min-width: 0;
   position: relative;
 }
 
@@ -387,8 +421,12 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
 
-/* Mobile dropdowns — hidden on desktop */
+/* Mobile dropdowns — hidden on desktop by default */
 .mobileDropdowns {
+  display: none;
+}
+
+.mobileDropdownsContainer {
   display: none;
 }
 
@@ -428,42 +466,29 @@
   display: flex;
 }
 
-@media (max-width: 768px) {
-  .filterBar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    padding: 16px;
-  }
+/* Tab row for source filter (ทั้งหมด / LINE / เว็บ / ซ้ำกัน) */
+.tabsRow {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
 
-  .searchWrapper {
-    min-width: 100%;
-  }
+/* Individual tab button */
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
 
-  /* Hide chip groups on mobile */
-  .desktopOnly {
-    display: none !important;
-  }
-
-  /* Show dropdown container on mobile */
-  .mobileDropdownsContainer {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
-  }
-
-  .mobileDropdowns {
-    display: flex;
-    gap: 10px;
-    width: 100%;
-  }
-
-  .mobileSecondaryFilters {
-    display: flex;
-    gap: 8px;
-    width: 100%;
-  }
+/* Page header: title on top, tabs below on mobile */
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
 }
 
 .secondaryFilters {
@@ -505,6 +530,223 @@
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
-.mobileDropdownsContainer {
-  display: none;
+@media (max-width: 768px) {
+  .filterBar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .searchWrapper {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Hide chip groups on mobile */
+  .desktopOnly {
+    display: none !important;
+  }
+
+  /* Show dropdown container on mobile */
+  .mobileDropdownsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .mobileDropdowns {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .mobileSecondaryFilters {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  /* Tab row: 2×2 grid so all 4 tabs are visible at once */
+  .tabsRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .tabBtn {
+    justify-content: center;
+    width: 100%;
+    font-size: 0.8rem !important;
+    padding: 9px 10px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Header: title full width, tabs below */
+  .pageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+}
+
+/* Very small phones: tighter tab padding */
+@media (max-width: 360px) {
+  .tabBtn {
+    font-size: 0.75rem !important;
+    padding: 8px 8px !important;
+    gap: 5px !important;
+  }
+}
+
+@media (max-width: 500px) {
+  .filterBar {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+}
+
+/* ── View Mode Toggle ── */
+.viewModeBar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  background: var(--input-bg);
+  padding: 4px;
+  border-radius: 12px;
+  width: fit-content;
+}
+
+.viewModeBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.viewModeBtn:hover {
+  color: var(--text-main);
+}
+
+.viewModeBtnActive {
+  background: var(--surface-color);
+  color: var(--text-main);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  font-weight: 700;
+}
+
+/* ── List View ── */
+.listView {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.listRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.listRow:last-child {
+  border-bottom: none;
+}
+
+.listRow:hover {
+  background: var(--surface-hover);
+}
+
+.listThumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--input-bg);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: 1px solid var(--border-color);
+}
+
+.listThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.listNewDot {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 1.5px solid var(--card-bg);
+}
+
+.listInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.listStoreName {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.listDate {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.listRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.listAmount {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #10b981;
+}
+
+.listCategory {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--input-bg);
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
 }

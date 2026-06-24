@@ -311,15 +311,22 @@
 }
 
 /* Responsive CSS rules */
+@media (max-width: 1024px) {
+  .topConfigsRow {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .selectRowGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
 @media (max-width: 768px) {
   .dateRangeRow {
     grid-template-columns: 1fr;
     gap: 12px;
-  }
-
-  .topConfigsRow {
-    grid-template-columns: 1fr;
-    gap: 16px;
   }
 
   .selectRowGrid {
@@ -336,6 +343,30 @@
   .clearBtn, .downloadBtn {
     width: 100%;
     text-align: center;
+  }
+
+  .card {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .mainTitle {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .mainTitle {
+    font-size: 1.25rem;
+  }
+
+  .subTitle {
+    font-size: 0.875rem;
   }
 }
 
