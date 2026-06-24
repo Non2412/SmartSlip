@@ -72,7 +72,7 @@ export async function processGeminiImage(image: string) {
 6. อ่านตัวเลขภาษาไทย (๐-๙) ได้โดยตรง อย่าแปลงเป็น 0
 `.trim();
 
-    const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.5-flash"];
+    const modelsToTry = ["gemini-3.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
     let response;
     let lastError;
 

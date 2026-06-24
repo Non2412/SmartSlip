@@ -2,11 +2,13 @@
 
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
-import CreateReceiptSheet from '@/components/CreateReceiptSheet';
-import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
+import dynamic from 'next/dynamic';
 
-import { StatCard, ReceiptTable, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
-import { useState, useEffect } from 'react';
+const CreateReceiptSheet = dynamic(() => import('@/components/CreateReceiptSheet'), { ssr: false });
+const ReceiptDetailSheet = dynamic(() => import('@/components/ReceiptDetailSheet'), { ssr: false });
+
+import { StatCard, ReceiptTable, FilterBar, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
+import { useState, useEffect, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
@@ -21,9 +23,13 @@ export default function DashboardPage() {
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<any | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<any | null>(null);
+  const [activeCategory, setActiveCategory] = useState('ทั้งหมด');
+  const [searchText, setSearchText] = useState('');
   const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
+
+  const handleReceiptClick = (r: any) => setSelectedReceipt(r);
 
 
 
@@ -42,7 +48,7 @@ export default function DashboardPage() {
       if (openReceiptId) {
         const matched = receipts.find(r => (r._id || r.id) === openReceiptId);
         if (matched) {
-          setSelectedReceipt(matched);
+          handleReceiptClick(matched);
           // Clean the query parameter from URL to avoid reopening on reload
           const newUrl = window.location.pathname;
           window.history.replaceState({ path: newUrl }, '', newUrl);
@@ -68,12 +74,25 @@ export default function DashboardPage() {
   };
 
   // คำนวณสถิติจริง (ไม่รวมใบที่ซ้ำกัน)
-  const { duplicateIds } = identifyDuplicateReceipts(receipts);
-  const uniqueReceipts = receipts.filter(r => !duplicateIds.has(r._id || r.id || ''));
+  const uniqueReceipts = useMemo(() => {
+    const { duplicateIds } = identifyDuplicateReceipts(receipts);
+    return receipts.filter(r => !duplicateIds.has(r._id || r.id || ''));
+  }, [receipts]);
 
-  const totalAmount = uniqueReceipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0);
-  const pendingCount = uniqueReceipts.filter(r => !r.extractedData).length;
-  const approvedCount = uniqueReceipts.filter(r => r.extractedData).length;
+  const { totalAmount, pendingCount, approvedCount } = useMemo(() => ({
+    totalAmount: uniqueReceipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0),
+    pendingCount: uniqueReceipts.filter(r => !r.extractedData).length,
+    approvedCount: uniqueReceipts.filter(r => r.extractedData).length,
+  }), [uniqueReceipts]);
+
+  const filteredReceipts = useMemo(() => uniqueReceipts.filter(r => {
+    const cat = r.extractedData?.category || 'อื่นๆ';
+    const matchCat = activeCategory === 'ทั้งหมด' || cat === activeCategory;
+    const q = searchText.trim().toLowerCase();
+    const matchSearch = !q || (r.storeName || '').toLowerCase().includes(q) ||
+      String((r.amount ?? r.totalAmount) || '').includes(q) || cat.toLowerCase().includes(q);
+    return matchCat && matchSearch;
+  }), [uniqueReceipts, activeCategory, searchText]);
 
   return (
     <div className="dashboard-layout">
@@ -161,15 +180,21 @@ export default function DashboardPage() {
                 </div>
                 <RecentUploads
                   receipts={uniqueReceipts.filter(r => r.source === 'line')}
-                  onReceiptClick={setSelectedReceipt}
-                  onEdit={setSelectedReceipt}
+                  onReceiptClick={handleReceiptClick}
+                  onEdit={handleReceiptClick}
                   onDelete={setDeleteConfirm}
                   recentlyEditedId={recentlyEditedId}
                 />
               </>
             )}
           </div>
-          <ReceiptTable loading={loading} receipts={uniqueReceipts} recentlyEditedId={recentlyEditedId} />
+          <FilterBar
+            searchText={searchText}
+            onSearchChange={setSearchText}
+            activeCategory={activeCategory}
+            onCategoryChange={setActiveCategory}
+          />
+          <ReceiptTable loading={loading} receipts={filteredReceipts} recentlyEditedId={recentlyEditedId} />
         </div>
       </main>
 
@@ -177,25 +202,25 @@ export default function DashboardPage() {
       {deleteConfirm && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 2000,
-          background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div style={{
-            background: 'white', borderRadius: '16px', padding: '28px 32px',
+            background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '28px 32px',
             width: 'min(400px, 90vw)', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
           }}>
             {/* Icon */}
-            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a', margin: '0 0 8px' }}>ยืนยันการลบ</h3>
-            <p style={{ fontSize: '0.9rem', color: '#64748b', margin: '0 0 24px', lineHeight: 1.5 }}>
-              ต้องการลบ <strong style={{ color: '#1e293b' }}>{deleteConfirm.storeName || 'รายการนี้'}</strong> ออกจากระบบ? การกระทำนี้ไม่สามารถย้อนกลับได้
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-main)', margin: '0 0 8px' }}>ยืนยันการลบ</h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 24px', lineHeight: 1.5 }}>
+              ต้องการลบ <strong style={{ color: 'var(--text-main)' }}>{deleteConfirm.storeName || 'รายการนี้'}</strong> ออกจากระบบ? การกระทำนี้ไม่สามารถย้อนกลับได้
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
                 onClick={() => setDeleteConfirm(null)}
-                style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid #e2e8f0', background: 'white', fontWeight: '700', fontSize: '0.9rem', color: '#64748b', cursor: 'pointer' }}
+                style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border-color)', background: 'var(--surface-color)', fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-muted)', cursor: 'pointer' }}
               >
                 ยกเลิก
               </button>
@@ -226,7 +251,7 @@ export default function DashboardPage() {
 
       <ReceiptDetailSheet
         isOpen={!!selectedReceipt}
-        receipt={selectedReceipt}
+        receipt={selectedReceipt ?? undefined}
         onClose={() => setSelectedReceipt(null)}
         onSuccess={(id) => {
           if (session?.user?.id) {

@@ -22,7 +22,7 @@
   flex: 1;
   display: flex;
   justify-content: center;
-  min-width: 300px;
+  min-width: 0;
 }
 
 .title {
@@ -197,6 +197,88 @@
   transform: translateY(-1px);
 }
 
+/* Mobile 3-dot menu */
+.mobileMenuWrap {
+  display: none;
+  position: relative;
+}
+
+.mobileMenuBtn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.mobileMenuBtn:hover {
+  background: var(--surface-hover);
+  color: var(--text-main);
+}
+
+.mobileDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  min-width: 180px;
+  z-index: 200;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobileDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  color: var(--text-main);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mobileDropdownItem:last-child {
+  border-bottom: none;
+}
+
+.mobileDropdownItem:hover {
+  background: var(--surface-hover);
+}
+
+.dropdownBadge {
+  margin-left: auto;
+  background: #ef4444;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
 /* ===== Default states (desktop >1024px) ===== */
 /* Title switching */
 .titleFull   { display: inline; }
@@ -263,7 +345,7 @@
 
   .mobileSearchIconWrap {
     position: absolute;
-    left: 12px;
+    left: 14px;
     top: 50%;
     transform: translateY(-50%);
     color: #94a3b8;
@@ -274,10 +356,10 @@
 
   .mobileSearchInput {
     width: 100%;
-    padding: 10px 16px 10px 38px;
+    padding: 12px 16px 12px 42px;
     border-radius: 12px;
     border: 1px solid var(--border-color);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     outline: none;
     background: var(--input-bg);
     color: var(--text-main);
@@ -298,6 +380,9 @@
     flex-wrap: nowrap;
     gap: 8px;
     padding: 8px 12px;
+    /* Safe area สำหรับ notch */
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
   }
 
   /* ให้ฝั่งซ้าย (title) หดได้ แต่ฝั่งขวา (actions) ไม่หด */
@@ -321,32 +406,31 @@
     flex-shrink: 0;
   }
 
-  /* ซ่อน text ปุ่ม สร้างใบเสร็จ → เหลือแค่ไอคอน */
-  .primaryButton span, .exportButton span {
-    display: none;
-  }
-
-  .primaryButton {
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    justify-content: center;
-    border-radius: 10px;
+  /* ซ่อน search และ export บน mobile */
+  .mobileSearchBtn {
+    display: none !important;
   }
 
   .exportButton {
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    justify-content: center;
-    border-radius: 10px;
+    display: none !important;
   }
 
-  /* bell icon เล็กลงนิด */
+  /* ซ่อน bell, dark mode, + button — รวมเป็น 3-dot menu */
   .iconButton {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
+    display: none !important;
+  }
+
+  .darkModeButton {
+    display: none !important;
+  }
+
+  .primaryButton {
+    display: none !important;
+  }
+
+  /* แสดง 3-dot menu */
+  .mobileMenuWrap {
+    display: flex;
   }
 
   /* สลับ title: ซ่อน full — แสดง mobile */
@@ -360,8 +444,35 @@
     border-radius: 10px;
   }
 
-  /* Search row — padding แคบลงบนมือถือ */
+  /* Search row — แสดงเสมอบนมือถือ ไม่ต้อง toggle */
   .mobileSearchRow {
-    padding: 8px 12px 10px;
+    display: block !important;
+    padding: 8px 12px 12px;
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* Very small phones (360px) — ลด gap เพิ่มเติม */
+@media (max-width: 360px) {
+  .header {
+    gap: 6px;
+    padding: 6px 10px;
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
+  }
+
+  .actions {
+    gap: 6px;
+  }
+
+  .mobileMenuBtn,
+  .menuButton {
+    width: 36px;
+    height: 36px;
+  }
+
+  .title {
+    font-size: 0.875rem;
   }
 }

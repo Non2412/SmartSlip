@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Anuphan } from "next/font/google";
 import "./globals.css";
 
@@ -21,6 +21,12 @@ const anuphan = Anuphan({
 export const metadata: Metadata = {
   title: "SmartSlip AI - Dashboard",
   description: "AI-powered receipt management and expense tracking",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 import { Providers } from "@/components/Providers";
