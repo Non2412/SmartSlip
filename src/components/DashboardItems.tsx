@@ -48,7 +48,16 @@ export const StatCard = ({ title, value, trend, status, icon, iconBg = 'green' }
     </div>
 );
 
-export const FilterBar = () => (
+const CATEGORIES = ['ทั้งหมด', 'อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'];
+
+interface FilterBarProps {
+    searchText: string;
+    onSearchChange: (v: string) => void;
+    activeCategory: string;
+    onCategoryChange: (cat: string) => void;
+}
+
+export const FilterBar = ({ searchText, onSearchChange, activeCategory, onCategoryChange }: FilterBarProps) => (
     <div className={styles.filterBar}>
         <div className={styles.searchWrapper}>
             <span className={styles.searchIcon}>
@@ -56,12 +65,14 @@ export const FilterBar = () => (
             </span>
             <input
                 type="text"
-                placeholder="ค้นหาร้านค้า, วันที่, ยอดเงิน..."
+                placeholder="ค้นหาร้านค้า, ยอดเงิน..."
                 className={styles.searchInput}
+                value={searchText}
+                onChange={e => onSearchChange(e.target.value)}
             />
         </div>
 
-        {/* Desktop: chips (hidden on mobile) */}
+        {/* Desktop: chips */}
         <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
             <span className={styles.filterLabel}>หมวดหมู่:</span>
             <div className={styles.filterChips}>
@@ -81,7 +92,7 @@ export const FilterBar = () => (
             </div>
         </div>
 
-        {/* Mobile: dropdowns (hidden on desktop) */}
+        {/* Mobile: dropdown */}
         <div className={styles.mobileDropdowns}>
             <select className={styles.mobileSelect} defaultValue="all">
                 <option value="all">หมวดหมู่: ทั้งหมด</option>
@@ -103,6 +114,7 @@ export const FilterBar = () => (
 export const ReceiptTable = ({ loading, receipts = [], recentlyEditedId }: { loading?: boolean, receipts?: any[], recentlyEditedId?: string | null }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(5);
+    const [mobileColTab, setMobileColTab] = useState<'amount' | 'category' | 'status' | 'date'>('amount');
 
     const totalItems = receipts.length;
     const totalPages = Math.ceil(totalItems / pageSize) || 1;
@@ -160,8 +172,82 @@ export const ReceiptTable = ({ loading, receipts = [], recentlyEditedId }: { loa
     const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const endIndex = Math.min(currentPage * pageSize, totalItems);
 
+    const mobileTabs = [
+        { key: 'amount' as const, label: 'ยอดสุทธิ' },
+        { key: 'category' as const, label: 'หมวดหมู่' },
+        { key: 'status' as const, label: 'สถานะ' },
+        { key: 'date' as const, label: 'วันที่' },
+    ];
+
     return (
         <div className={styles.tableContainer}>
+            {/* ── Mobile column tabs (hidden on desktop) ── */}
+            <div className={styles.mobileColTabsBar}>
+                {mobileTabs.map(tab => (
+                    <button
+                        key={tab.key}
+                        className={`${styles.mobileColTab} ${mobileColTab === tab.key ? styles.mobileColTabActive : ''}`}
+                        onClick={() => setMobileColTab(tab.key)}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* ── Mobile list rows (hidden on desktop) ── */}
+            <div className={styles.mobileTableList}>
+                {loading ? (
+                    <div className={styles.mobileLoadingRow}>กำลังโหลด...</div>
+                ) : paginatedReceipts.length === 0 ? (
+                    <div className={styles.mobileLoadingRow}>ไม่พบรายการ</div>
+                ) : paginatedReceipts.map((receipt, index) => {
+                    const imgUrl = cleanAndProxyImageUrl(receipt.extractedData?.imageData || receipt.imageUrl || receipt.imageURL);
+                    const amount = (receipt.amount !== undefined ? receipt.amount : receipt.totalAmount);
+                    const dateStr = receipt.extractedData?.date
+                        ? new Date(receipt.extractedData.date).toLocaleDateString('th-TH')
+                        : new Date(receipt.createdAt).toLocaleDateString('th-TH');
+                    return (
+                        <div key={receipt._id || receipt.id || index} className={styles.mobileTableRow}>
+                            <div className={styles.mobileTableThumb}>
+                                {imgUrl ? (
+                                    <img src={imgUrl} alt={receipt.storeName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                    <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)' }}>
+                                        {receipt.storeName?.charAt(0) || 'R'}
+                                    </span>
+                                )}
+                            </div>
+                            <div className={styles.mobileTableInfo}>
+                                <span className={styles.mobileTableStore}>
+                                    {receipt.storeName || 'ไม่ระบุ'}
+                                </span>
+                                {(receipt._id === recentlyEditedId || receipt.id === recentlyEditedId) && (
+                                    <span className={styles.mobileEditedBadge}>✏️ เพิ่งแก้ไข</span>
+                                )}
+                            </div>
+                            <div className={styles.mobileTableColValue}>
+                                {mobileColTab === 'amount' && (
+                                    <span className={styles.mobileAmountVal}>
+                                        ฿{amount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                                    </span>
+                                )}
+                                {mobileColTab === 'category' && (
+                                    <span className={styles.mobileCategoryVal}>{receipt.extractedData?.category || 'ไม่ระบุ'}</span>
+                                )}
+                                {mobileColTab === 'status' && (
+                                    <span className={!receipt.extractedData ? styles.statusWarning : styles.statusSuccess}>
+                                        {!receipt.extractedData ? 'รอตรวจสอบ' : 'สำเร็จ'}
+                                    </span>
+                                )}
+                                {mobileColTab === 'date' && (
+                                    <span className={styles.mobileDateVal}>{dateStr}</span>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
             <table className={styles.receiptTable}>
                 <thead>
                     <tr>
@@ -888,7 +974,7 @@ export const RecentUploads = ({
                                 style={{ cursor: onReceiptClick ? 'pointer' : 'default', transition: 'background 0.15s', position: 'relative' }}
                             >
                                 {/* Thumbnail */}
-                                <div style={{ width: '44px', height: '44px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, border: '1px solid #e5e7eb' }}>
+                                <div className={styles.uploadThumbnail}>
                                     {imageData ? (
                                         <Image
                                             src={imageData}
@@ -931,7 +1017,7 @@ export const RecentUploads = ({
                                 </div>
 
                                 {/* Three-dot menu button */}
-                                <div style={{ position: 'relative', flexShrink: 0 }}>
+                                <div className={styles.uploadMenuWrapper}>
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
