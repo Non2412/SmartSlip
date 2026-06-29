@@ -76,23 +76,6 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
             label="วิธีการใช้งาน"
             icon={<HelpIcon />}
           />
-<<<<<<< HEAD
-=======
-          <SidebarItem
-            href="#"
-            label="ติดต่อเรา"
-            icon={<MailIcon />}
-            onClick={() => {
-              if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-                if (onClose) onClose();
-                router.push('/contact');
-              } else {
-                setIsContactOpen(true);
-                if (onClose) onClose();
-              }
-            }}
-          />
->>>>>>> 9ff0aba2cba321f7cf31341a702624bae05cb8be
         </ul>
 
         <div className={styles.navSpacer} />
