@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 
 import styles from './Sidebar.module.css';
@@ -15,6 +15,7 @@ interface SidebarProps {
 
 const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session } = useSession();
   const user = session?.user;
   const [unreadCount, setUnreadCount] = useState(0);
@@ -142,8 +143,13 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
             label="ติดต่อเรา"
             icon={<MailIcon />}
             onClick={() => {
-              setIsContactOpen(true);
-              if (onClose) onClose();
+              if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+                if (onClose) onClose();
+                router.push('/contact');
+              } else {
+                setIsContactOpen(true);
+                if (onClose) onClose();
+              }
             }}
           />
         </ul>
