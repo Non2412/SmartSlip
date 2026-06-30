@@ -3,6 +3,9 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .filterBar {
@@ -39,7 +42,7 @@
 
 .searchInput {
   width: 100%;
-  padding: 12px 16px 12px 42px;
+  padding: 14px 16px 14px 44px; /* Optimized touch padding */
   border-radius: 12px;
   border: 1.5px solid var(--border-color);
   background: var(--input-bg);
@@ -48,6 +51,7 @@
   font-size: 0.9rem;
   outline: none;
   transition: all 0.2s ease;
+  min-height: 48px; /* Touch target optimized */
 }
 
 .searchInput:focus {
@@ -56,7 +60,8 @@
 }
 
 .clearFiltersBtn {
-  padding: 10px 16px;
+  padding: 12px 18px; /* Optimized touch padding */
+  min-height: 48px; /* Touch target optimized */
   border-radius: 10px;
   border: 1.5px solid var(--border-color);
   background: var(--surface-color);
@@ -66,14 +71,18 @@
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  transition: all 0.2s ease;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
 }
 
 .clearFiltersBtn:hover {
   background: var(--border-color);
   color: var(--text-main);
+}
+
+.clearFiltersBtn:active {
+  transform: scale(0.97); /* Micro-interaction for touch */
 }
 
 .filtersRow {
@@ -99,10 +108,18 @@
 .filterChips {
   display: flex;
   gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth iOS swipe */
+  padding-bottom: 2px;
+}
+
+.filterChips::-webkit-scrollbar {
+  display: none; /* Hide scrollbars for cleaner view */
 }
 
 .filterChip {
-  padding: 6px 14px;
+  padding: 8px 16px; /* Optimized touch padding */
+  min-height: 38px;
   border-radius: 20px;
   background: var(--surface-color);
   border: 1px solid var(--border-color);
@@ -111,11 +128,20 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
 }
 
 .filterChip:hover {
   background: var(--border-color);
   color: var(--text-main);
+}
+
+.filterChip:active {
+  transform: scale(0.95);
 }
 
 .filterChipActive {
@@ -126,7 +152,8 @@
 }
 
 .secondarySelect {
-  padding: 6px 12px;
+  padding: 8px 12px;
+  min-height: 36px;
   border-radius: 8px;
   border: 1px solid var(--border-color);
   background: var(--input-bg);
@@ -167,7 +194,7 @@
 }
 
 .historyTable td {
-  padding: 16px 20px;
+  padding: 18px 20px; /* Touch optimized cell height */
   border-bottom: 1px solid var(--border-color);
   font-size: 0.9rem;
   color: var(--text-main);
@@ -216,7 +243,7 @@
 
 .categoryBadge {
   display: inline-block;
-  padding: 4px 10px;
+  padding: 6px 12px;
   border-radius: 20px;
   background: rgba(16, 185, 129, 0.1);
   color: #10b981;
@@ -315,8 +342,9 @@
 }
 
 .pageSizeSelect {
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 8px 12px; /* Touch optimized */
+  min-height: 36px;
+  border-radius: 8px;
   border: 1px solid var(--border-color);
   background: var(--card-bg);
   color: var(--text-main);
@@ -328,11 +356,12 @@
 
 .paginationButtons {
   display: flex;
-  gap: 4px;
+  gap: 6px;
 }
 
 .pageBtn {
-  padding: 6px 12px;
+  padding: 8px 14px; /* Touch optimized */
+  min-height: 38px;
   border-radius: 8px;
   border: 1px solid var(--border-color);
   background: var(--card-bg);
@@ -341,6 +370,10 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
 }
 
 .pageBtn:hover:not(.pageBtnDisabled) {
@@ -363,7 +396,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px); /* Premium Laptop/PC backdrop blur */
   z-index: 1000;
   animation: fadeIn 0.2s ease-out;
 }
@@ -413,13 +446,15 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 1.2rem;
-  padding: 4px;
+  font-size: 1.3rem;
+  padding: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: background 0.15s ease;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .closeBtn:hover {
@@ -534,7 +569,8 @@
 
 .actionBtnEdit {
   flex: 1;
-  padding: 12px;
+  padding: 14px; /* Touch target optimized */
+  min-height: 48px;
   border-radius: 10px;
   border: none;
   background: #10b981;
@@ -547,26 +583,62 @@
   justify-content: center;
   gap: 8px;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
 }
 
 .actionBtnEdit:hover {
   background: #059669;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+.actionBtnEdit:active {
+  transform: scale(0.97);
+}
+
+/* ==========================================================================
+   Responsive / Multi-Platform Queries (PC, Laptop, iPad, Android, iOS)
+   ========================================================================== */
+
+/* ── iPad & Tablets (Landscape & Portrait: 768px - 1024px) ── */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .drawer {
+    width: 420px; /* Slimmer drawer so iPad displays both table & drawer comfortably */
+  }
+
+  .filtersRow {
+    gap: 16px;
+  }
+
+  .filterGroup {
+    gap: 8px;
+  }
+
+  .historyTable th, 
+  .historyTable td {
+    padding: 14px 12px; /* Slightly tighter paddings for tablet screens */
+    font-size: 0.85rem;
+  }
+
+  .storeCell {
+    gap: 8px;
+  }
+}
+
+/* ── Mobile Devices (Android & iOS: 0px - 767px) ── */
+@media (max-width: 767px) {
   .searchRow {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
   }
   
   .clearFiltersBtn {
     justify-content: center;
+    width: 100%;
   }
 
   .filtersRow {
-    display: none; /* Hide desktop filters on mobile */
+    display: none; /* Rely on mobile dropdowns select inputs on phone */
   }
 
   .mobileDropdowns {
@@ -577,73 +649,128 @@
 
   .mobileSelect {
     flex: 1;
-    padding: 10px;
+    padding: 12px; /* Mobile touch size */
+    min-height: 44px;
     border-radius: 10px;
     border: 1px solid var(--border-color);
     background: var(--input-bg);
     color: var(--text-main);
     font-family: inherit;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     outline: none;
+    cursor: pointer;
   }
 
-  /* Responsive Table to Cards */
+  /* Responsive Table to Cards layout */
   .historyTable thead {
     display: none;
   }
 
   .historyTable tbody tr {
     display: block;
-    padding: 12px 16px;
+    padding: 16px;
     border-bottom: 1px solid var(--border-color);
+    background: var(--card-bg);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border-color);
+  }
+
+  .historyTable tbody tr:hover {
+    background: var(--surface-color);
   }
 
   .historyTable td {
     display: flex;
     justify-content: space-between;
-    padding: 6px 0;
+    align-items: center;
+    padding: 8px 0;
     border: none;
     font-size: 0.85rem;
   }
 
+  /* Label attribute formatting */
   .historyTable td::before {
     content: attr(data-label);
     font-weight: 700;
     color: var(--text-muted);
+    font-size: 0.8rem;
   }
 
   .storeCell {
     display: flex;
     width: 100%;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+    padding: 0 0 10px 0;
+    border-bottom: 1px solid var(--border-color);
   }
 
   .storeCell::before {
-    display: none !important;
+    display: none !important; /* Hide label for store */
+  }
+
+  .storeIcon {
+    width: 42px;
+    height: 42px; /* Bigger store avatar on mobile cards */
+  }
+
+  .storeName {
+    font-size: 0.95rem;
   }
 
   .paginationContainer {
     flex-direction: column;
-    gap: 16px;
+    gap: 18px;
     align-items: center;
+    padding: 20px 16px;
   }
 
   .paginationControls {
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
     width: 100%;
   }
 
   .pageSizeSelector {
     justify-content: center;
+    width: 100%;
   }
 
   .paginationButtons {
     justify-content: center;
     width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .pageBtn {
+    min-height: 42px;
+    padding: 8px 14px;
   }
 
   .drawer {
-    width: 100%;
+    width: 100%; /* Slide-in covers whole viewport on small smartphone screen */
+    border-left: none;
+  }
+
+  .imagePreviewBox {
+    height: 200px;
+  }
+}
+
+/* ── Laptops & High DPI Screens (1024px to 1440px) ── */
+@media (min-width: 1025px) and (max-width: 1440px) {
+  .historyTable td {
+    padding: 16px 14px;
+  }
+  
+  .drawer {
+    width: 440px;
+  }
+}
+
+/* ── PC & Large Desktop Monitor Screens (min-width: 1441px) ── */
+@media (min-width: 1441px) {
+  .container {
+    padding: 0 20px;
   }
 }
