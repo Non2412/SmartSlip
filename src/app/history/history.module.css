@@ -643,13 +643,15 @@
 
   .mobileDropdowns {
     display: flex;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
     width: 100%;
   }
 
   .mobileSelect {
     flex: 1;
-    padding: 12px; /* Mobile touch size */
+    min-width: calc(50% - 4px);
+    padding: 12px;
     min-height: 44px;
     border-radius: 10px;
     border: 1px solid var(--border-color);
@@ -659,6 +661,12 @@
     font-size: 0.85rem;
     outline: none;
     cursor: pointer;
+  }
+
+  .mobileDropdowns select:nth-child(3) {
+    flex: 1;
+    width: 100%;
+    min-width: 100%;
   }
 
   /* Responsive Table to Cards layout */
@@ -695,6 +703,10 @@
     font-weight: 700;
     color: var(--text-muted);
     font-size: 0.8rem;
+  }
+
+  .historyTable td[data-label="ร้านค้า"]::before {
+    display: none !important;
   }
 
   .storeCell {
