@@ -60,7 +60,8 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
           เมนูธุรกิจ
         </div>
         <ul className={styles.navList}>
-          <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="รายการใบเสร็จ" icon={<ListIcon />} />
+          <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="ภาพรวม" icon={<ListIcon />} />
+          <SidebarItem href="/history" active={pathname === '/history'} label="ประวัติใบเสร็จ" icon={<HistoryIcon />} />
           <SidebarItem href="/line-receipts" active={pathname === '/line-receipts'} label="รูปภาพ" icon={<ImageIcon />} badge={unreadCount} />
           <SidebarItem href="/export" active={pathname === '/export'} label="ส่งออกข้อมูล" icon={<ExportIcon />} />
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<PlusIcon />} onClick={onAddReceipt} />
@@ -232,6 +233,15 @@ function ExportIcon() {
       <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
       <polyline points="16 6 12 2 8 6" />
       <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+function HistoryIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
     </svg>
   );
 }

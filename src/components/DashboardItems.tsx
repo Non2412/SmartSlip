@@ -49,67 +49,162 @@ export const StatCard = ({ title, value, trend, status, icon, iconBg = 'green' }
 );
 
 const CATEGORIES = ['ทั้งหมด', 'อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'];
+const PERIODS = ['7 วัน', 'รายเดือน', 'รายปี'];
+const MONTHS = [
+    'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+];
 
 interface FilterBarProps {
     searchText: string;
     onSearchChange: (v: string) => void;
     activeCategory: string;
     onCategoryChange: (cat: string) => void;
+    activePeriod: string | null;
+    onPeriodChange: (period: string | null) => void;
+    filterMonth: number;
+    onMonthChange: (m: number) => void;
+    filterYear: number;
+    onYearChange: (y: number) => void;
 }
 
-export const FilterBar = ({ searchText, onSearchChange, activeCategory, onCategoryChange }: FilterBarProps) => (
-    <div className={styles.filterBar}>
-        <div className={styles.searchWrapper}>
-            <span className={styles.searchIcon}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            </span>
-            <input
-                type="text"
-                placeholder="ค้นหาร้านค้า, ยอดเงิน..."
-                className={styles.searchInput}
-                value={searchText}
-                onChange={e => onSearchChange(e.target.value)}
-            />
-        </div>
+export const FilterBar = ({
+    searchText,
+    onSearchChange,
+    activeCategory,
+    onCategoryChange,
+    activePeriod,
+    onPeriodChange,
+    filterMonth,
+    onMonthChange,
+    filterYear,
+    onYearChange
+}: FilterBarProps) => {
+    const currentYearVal = new Date().getFullYear();
+    const availableYears = [currentYearVal, currentYearVal - 1, currentYearVal - 2, currentYearVal - 3];
 
-        {/* Desktop: chips */}
-        <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
-            <span className={styles.filterLabel}>หมวดหมู่:</span>
-            <div className={styles.filterChips}>
-                <div className={`${styles.filterChip} ${styles.filterChipActive}`}>ทั้งหมด</div>
-                <div className={styles.filterChip}>อาหาร</div>
-                <div className={styles.filterChip}>เดินทาง</div>
-                <div className={styles.filterChip}>ช้อปปิ้ง</div>
-                <div className={styles.filterChip}>อื่นๆ</div>
+    return (
+        <div className={styles.filterBar}>
+            <div className={styles.searchWrapper}>
+                <span className={styles.searchIcon}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </span>
+                <input
+                    type="text"
+                    placeholder="ค้นหาร้านค้า, ยอดเงิน..."
+                    className={styles.searchInput}
+                    value={searchText}
+                    onChange={e => onSearchChange(e.target.value)}
+                />
+            </div>
+
+            {/* Desktop: chips */}
+            <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
+                <span className={styles.filterLabel}>หมวดหมู่:</span>
+                <div className={styles.filterChips}>
+                    {CATEGORIES.map(cat => (
+                        <div
+                            key={cat}
+                            className={`${styles.filterChip} ${activeCategory === cat ? styles.filterChipActive : ''}`}
+                            onClick={() => onCategoryChange(cat)}
+                        >
+                            {cat}
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
+                <span className={styles.filterLabel}>ช่วงเวลา:</span>
+                <div className={styles.filterChips}>
+                    {PERIODS.map(period => (
+                        <div
+                            key={period}
+                            className={`${styles.filterChip} ${activePeriod === period ? styles.filterChipActive : ''}`}
+                            onClick={() => onPeriodChange(activePeriod === period ? null : period)}
+                        >
+                            {period}
+                        </div>
+                    ))}
+                </div>
+
+                {activePeriod === 'รายเดือน' && (
+                    <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
+                        <select
+                            value={filterMonth}
+                            onChange={e => onMonthChange(Number(e.target.value))}
+                            style={{
+                                padding: '4px 8px', borderRadius: '6px',
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--card-bg)', color: 'var(--text-main)',
+                                fontSize: '0.8rem', outline: 'none'
+                            }}
+                        >
+                            {MONTHS.map((name, index) => (
+                                <option key={index} value={index}>{name}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={filterYear}
+                            onChange={e => onYearChange(Number(e.target.value))}
+                            style={{
+                                padding: '4px 8px', borderRadius: '6px',
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--card-bg)', color: 'var(--text-main)',
+                                fontSize: '0.8rem', outline: 'none'
+                            }}
+                        >
+                            {availableYears.map(y => (
+                                <option key={y} value={y}>พ.ศ. {y + 543}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
+                {activePeriod === 'รายปี' && (
+                    <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
+                        <select
+                            value={filterYear}
+                            onChange={e => onYearChange(Number(e.target.value))}
+                            style={{
+                                padding: '4px 8px', borderRadius: '6px',
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--card-bg)', color: 'var(--text-main)',
+                                fontSize: '0.8rem', outline: 'none'
+                            }}
+                        >
+                            {availableYears.map(y => (
+                                <option key={y} value={y}>พ.ศ. {y + 543}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+            </div>
+
+            {/* Mobile: dropdown */}
+            <div className={styles.mobileDropdowns}>
+                <select
+                    className={styles.mobileSelect}
+                    value={activeCategory}
+                    onChange={e => onCategoryChange(e.target.value)}
+                >
+                    {CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>หมวดหมู่: {cat}</option>
+                    ))}
+                </select>
+                <select
+                    className={styles.mobileSelect}
+                    value={activePeriod || ''}
+                    onChange={e => onPeriodChange(e.target.value || null)}
+                >
+                    <option value="">ช่วงเวลา: ทั้งหมด</option>
+                    <option value="7 วัน">7 วัน</option>
+                    <option value="รายเดือน">รายเดือน</option>
+                    <option value="รายปี">รายปี</option>
+                </select>
             </div>
         </div>
-        <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
-            <span className={styles.filterLabel}>ช่วงเวลา:</span>
-            <div className={styles.filterChips}>
-                <div className={styles.filterChip}>7 วัน</div>
-                <div className={styles.filterChip}>รายเดือน</div>
-                <div className={styles.filterChip}>รายปี</div>
-            </div>
-        </div>
-
-        {/* Mobile: dropdown */}
-        <div className={styles.mobileDropdowns}>
-            <select className={styles.mobileSelect} defaultValue="all">
-                <option value="all">หมวดหมู่: ทั้งหมด</option>
-                <option value="food">อาหาร</option>
-                <option value="travel">เดินทาง</option>
-                <option value="shopping">ช้อปปิ้ง</option>
-                <option value="other">อื่นๆ</option>
-            </select>
-            <select className={styles.mobileSelect} defaultValue="">
-                <option value="">ช่วงเวลา</option>
-                <option value="7d">7 วัน</option>
-                <option value="month">รายเดือน</option>
-                <option value="year">รายปี</option>
-            </select>
-        </div>
-    </div>
-);
+    );
+};
 
 export const ReceiptTable = ({ loading, receipts = [], recentlyEditedId }: { loading?: boolean, receipts?: any[], recentlyEditedId?: string | null }) => {
     const [currentPage, setCurrentPage] = useState(1);

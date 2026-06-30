@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import clientPromise from '@/lib/mongodb';
-import { appendReceiptToUserSheet } from '@/lib/googlesheets';
 
 async function verifySignature(body: string, signature: string) {
   const channelSecret = process.env.LINE_CHANNEL_SECRET || '';
@@ -180,25 +179,7 @@ export async function POST(req: NextRequest) {
           };
           const insertResult = await targetDb.collection('receipts').insertOne(newReceipt);
 
-          // 6. Append to Google Sheet (if user has a sheet)
-          if (userDoc?.googleSheetId) {
-            try {
-              const imageUrl = gcsUrl || '';
-              await appendReceiptToUserSheet(userDoc.googleSheetId, {
-                date: data?.date || new Date().toISOString(),
-                storeName: newReceipt.storeName,
-                sender: data?.method || '',
-                amount: newReceipt.totalAmount,
-                status: 'pending',
-                confidence: ocrFailed ? 'low' : 'high',
-                receiptId: insertResult.insertedId.toString(),
-                imageUrl,
-              }, userAccessToken);
-              console.log('✅ Receipt appended to Google Sheet:', userDoc.googleSheetId);
-            } catch (sheetErr) {
-              console.error('❌ Sheet append failed (non-critical):', sheetErr);
-            }
-          }
+
 
           // 7. Reply Result to LINE User
           if (ocrFailed) {

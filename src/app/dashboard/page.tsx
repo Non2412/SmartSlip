@@ -25,6 +25,9 @@ export default function DashboardPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<any | null>(null);
   const [activeCategory, setActiveCategory] = useState('ทั้งหมด');
   const [searchText, setSearchText] = useState('');
+  const [activePeriod, setActivePeriod] = useState<string | null>(null);
+  const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth());
+  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
@@ -86,13 +89,35 @@ export default function DashboardPage() {
   }), [uniqueReceipts]);
 
   const filteredReceipts = useMemo(() => uniqueReceipts.filter(r => {
+    // 1. Category filter
     const cat = r.extractedData?.category || 'อื่นๆ';
     const matchCat = activeCategory === 'ทั้งหมด' || cat === activeCategory;
+
+    // 2. Period filter
+    let matchPeriod = true;
+    const dateObj = new Date(r.extractedData?.date || r.createdAt);
+    if (activePeriod === '7 วัน') {
+      const now = new Date();
+      const diffTime = Math.abs(now.getTime() - dateObj.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays > 7) matchPeriod = false;
+    } else if (activePeriod === 'รายเดือน') {
+      if (dateObj.getMonth() !== filterMonth || dateObj.getFullYear() !== filterYear) {
+        matchPeriod = false;
+      }
+    } else if (activePeriod === 'รายปี') {
+      if (dateObj.getFullYear() !== filterYear) {
+        matchPeriod = false;
+      }
+    }
+
+    // 3. Search query filter
     const q = searchText.trim().toLowerCase();
     const matchSearch = !q || (r.storeName || '').toLowerCase().includes(q) ||
       String((r.amount ?? r.totalAmount) || '').includes(q) || cat.toLowerCase().includes(q);
-    return matchCat && matchSearch;
-  }), [uniqueReceipts, activeCategory, searchText]);
+
+    return matchCat && matchPeriod && matchSearch;
+  }), [uniqueReceipts, activeCategory, activePeriod, filterMonth, filterYear, searchText]);
 
   return (
     <div className="dashboard-layout">
@@ -193,6 +218,12 @@ export default function DashboardPage() {
             onSearchChange={setSearchText}
             activeCategory={activeCategory}
             onCategoryChange={setActiveCategory}
+            activePeriod={activePeriod}
+            onPeriodChange={setActivePeriod}
+            filterMonth={filterMonth}
+            onMonthChange={setFilterMonth}
+            filterYear={filterYear}
+            onYearChange={setFilterYear}
           />
           <ReceiptTable loading={loading} receipts={filteredReceipts} recentlyEditedId={recentlyEditedId} />
         </div>
