@@ -52,6 +52,8 @@ function LineReceiptsContent() {
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
   const [filterMonth, setFilterMonth] = useState<number>(new Date().getMonth());
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
 
   useEffect(() => {
@@ -147,6 +149,17 @@ function LineReceiptsContent() {
 
     return true;
   });
+
+  // Reset to page 1 whenever filters/search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, selectedPeriod, filterMonth, filterYear, filterTab]);
+
+  const totalPages = Math.ceil(filteredReceipts.length / ITEMS_PER_PAGE);
+  const paginatedReceipts = filteredReceipts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   useEffect(() => {
     if (lineReceipts.length === 0) return;
@@ -519,8 +532,43 @@ function LineReceiptsContent() {
                   </button>
                 </div>
               )}
+
+              {/* ── Pagination (top) ── */}
+              {totalPages > 1 && (
+                <div className={styles.pagination}>
+                  <div className={styles.paginationInfo}>
+                    แสดง {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredReceipts.length)} จาก {filteredReceipts.length} รายการ
+                  </div>
+                  <div className={styles.paginationControls}>
+                    <button className={styles.pageBtn} onClick={() => setCurrentPage(1)} disabled={currentPage === 1} title="หน้าแรก">«</button>
+                    <button className={styles.pageBtn} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} title="หน้าก่อน">‹</button>
+                    {(() => {
+                      const pages: (number | '...')[] = [];
+                      if (totalPages <= 7) {
+                        for (let i = 1; i <= totalPages; i++) pages.push(i);
+                      } else {
+                        pages.push(1);
+                        if (currentPage > 3) pages.push('...');
+                        for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) pages.push(i);
+                        if (currentPage < totalPages - 2) pages.push('...');
+                        pages.push(totalPages);
+                      }
+                      return pages.map((p, i) =>
+                        p === '...' ? (
+                          <span key={`ellipsis-${i}`} className={styles.pageEllipsis}>…</span>
+                        ) : (
+                          <button key={p} className={`${styles.pageBtn} ${currentPage === p ? styles.pageBtnActive : ''}`} onClick={() => setCurrentPage(p as number)}>{p}</button>
+                        )
+                      );
+                    })()}
+                    <button className={styles.pageBtn} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} title="หน้าถัดไป">›</button>
+                    <button className={styles.pageBtn} onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} title="หน้าสุดท้าย">»</button>
+                  </div>
+                </div>
+              )}
+
               <div className={styles.galleryGrid}>
-              {filteredReceipts.map((receipt, index) => {
+              {paginatedReceipts.map((receipt, index) => {
                 const isNew = !viewedIds.has(receipt._id || receipt.id || '');
                 return (
                   <div
