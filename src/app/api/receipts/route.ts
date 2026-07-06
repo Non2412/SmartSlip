@@ -71,7 +71,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { storeName, totalAmount, userId, extractedData, imageFileId } = body;
+    const { storeName, totalAmount, userId, extractedData, imageFileId, imageHash } = body;
 
     if (!storeName || totalAmount === undefined) {
       return NextResponse.json(
@@ -89,6 +89,7 @@ export async function POST(request: Request) {
       userId: userId || 'user123',
       extractedData: extractedData || null,
       imageFileId: imageFileId || null,
+      imageHash: imageHash || null,
       transactionId: `web-${new ObjectId().toHexString()}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -120,7 +121,7 @@ export async function PATCH(request: Request) {
     if (!id) return NextResponse.json({ success: false, error: 'ID required' }, { status: 400 });
 
     const body = await request.json();
-    const { storeName, totalAmount, extractedData, imageUrl, imageURL } = body;
+    const { storeName, totalAmount, extractedData, imageUrl, imageURL, imageHash } = body;
 
     const client = await clientPromise;
     const db = client.db('smartslip_api');
@@ -131,6 +132,7 @@ export async function PATCH(request: Request) {
     if (extractedData !== undefined) updateFields.extractedData = extractedData;
     if (imageUrl !== undefined) updateFields.imageUrl = imageUrl;
     if (imageURL !== undefined) updateFields.imageURL = imageURL;
+    if (imageHash !== undefined) updateFields.imageHash = imageHash;
 
     const result = await db.collection('receipts').findOneAndUpdate(
       { _id: new ObjectId(id) },

@@ -175,6 +175,7 @@ export async function POST(req: NextRequest) {
             extractedData: data || null,
             imageFileId: driveFileId,
             imageUrl: gcsUrl,
+            imageHash: crypto.createHash('sha256').update(imageBuffer).digest('hex'),
             createdAt: new Date().toISOString(),
           };
           const insertResult = await targetDb.collection('receipts').insertOne(newReceipt);

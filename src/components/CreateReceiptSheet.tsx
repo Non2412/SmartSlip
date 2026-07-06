@@ -289,6 +289,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [mainCategory, setMainCategory] = useState('อื่นๆ');
     const [notes, setNotes] = useState('');
     const [receiptNo, setReceiptNo] = useState('');
+    const [imageHash, setImageHash] = useState('');
     const [vendorTaxId, setVendorTaxId] = useState('');
     const [vendorAddress, setVendorAddress] = useState('');
     const [currency, setCurrency] = useState('THB');
@@ -377,6 +378,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 setSuccessMsg(null);
                 setFormTab('info');
                 setReceiptNo('');
+                setImageHash('');
                 setVendorTaxId('');
                 setVendorAddress('');
                 setCreationMethod('manual');
@@ -526,6 +528,8 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 const ocrVat      = typeof result.vat === 'number' ? result.vat : 0;
                 const ocrTaxId    = result.taxId || result.tax_id || '';
                 const ocrAmount   = result.amount?.toString() || '';
+                const ocrReceiptNo = result.receiptNo || '';
+                const ocrImageHash = result.imageHash || '';
                 const rawItems    = result.items;
                 let verItemsOcr: VerificationLineItem[] = [];
                 if (Array.isArray(rawItems) && rawItems.length > 0) {
@@ -543,7 +547,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     shopName: ocrStore, amount: ocrAmount, date: ocrDate,
                     paymentMethod: ocrPayment, mainCategory: ocrCategory, notes: '',
                     manualTime: ocrTime, manualDiscount: ocrDiscount, vendorTaxId: ocrTaxId,
-                    vendorAddress: '', currency: 'THB', receiptNo: '', taxInvoiceNo: '',
+                    vendorAddress: '', currency: 'THB', receiptNo: ocrReceiptNo, imageHash: ocrImageHash, taxInvoiceNo: '',
                     isTaxInvoice: false, paymentStatus: 'paid',
                     verStore: ocrStore, verCategory: ocrCategory, verDate: ocrDate, verTime: ocrTime,
                     verPaymentMethod: ocrPayment, verCurrency: 'THB', verTaxId: ocrTaxId,
@@ -566,7 +570,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const handleQueueNext = () => {
         const nextIdx = queueIndex + 1;
         if (nextIdx >= fileQueue.length) return;
-        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, imageHash, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
         setQueueSummaries(prev => {
             const updated = [...prev];
             updated[queueIndex] = { shopName: verStore || shopName, amount: String(amount), date: verDate || date, thumb: queueThumbnails[queueIndex] || '' };
@@ -577,7 +581,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
     // Save ALL queue items to DB at once
     const handleSaveAll = async () => {
-        const currentSnapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+        const currentSnapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, imageHash, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
         savedQueueStatesRef.current.set(queueIndex, currentSnapshot);
 
         setIsSaving(true);
@@ -611,12 +615,13 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     paymentMethod: st.verPaymentMethod || st.paymentMethod || '',
                     category: st.verCategory || st.mainCategory || '',
                     currency: st.verCurrency || st.currency || 'THB',
+                    receiptNo: st.receiptNo || '',
                     imageData: finalImageUrl || undefined, items,
                     summary: { subtotal: grandTotal, vat: st.verVat || 0, wht: 0, total: grandTotal }
                 };
                 const result = st.extractedReceiptId
-                    ? await updateReceipt(st.extractedReceiptId, { userId: userId ?? '', imageUrl: finalImageUrl || undefined, source: 'web', storeName, totalAmount: grandTotal, extractedData: payload })
-                    : await createReceipt({ userId: userId ?? '', storeName, totalAmount: grandTotal, extractedData: payload }) as any;
+                    ? await updateReceipt(st.extractedReceiptId, { userId: userId ?? '', imageUrl: finalImageUrl || undefined, source: 'web', storeName, totalAmount: grandTotal, imageHash: st.imageHash || undefined, extractedData: payload })
+                    : await createReceipt({ userId: userId ?? '', storeName, totalAmount: grandTotal, imageHash: st.imageHash || undefined, extractedData: payload }) as any;
                 if (result?.success) savedCount++;
             }
             if (onSuccess) onSuccess();
@@ -670,6 +675,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
             setVendorAddress(nextState.vendorAddress ?? '');
             setCurrency(nextState.currency ?? 'THB');
             setReceiptNo(nextState.receiptNo ?? '');
+            setImageHash(nextState.imageHash ?? '');
             setTaxInvoiceNo(nextState.taxInvoiceNo ?? '');
             setIsTaxInvoice(nextState.isTaxInvoice ?? false);
             setPaymentStatus(nextState.paymentStatus ?? 'paid');
@@ -699,6 +705,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
             setVendorAddress('');
             setCurrency('THB');
             setReceiptNo('');
+            setImageHash('');
             setTaxInvoiceNo('');
             setIsTaxInvoice(false);
             setPaymentStatus('paid');
@@ -764,6 +771,8 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 const ocrVat      = typeof result.vat === 'number' ? result.vat : 0;
                 const ocrTaxId    = result.taxId || result.tax_id || '';
                 const ocrAmount   = result.amount?.toString() || '';
+                const ocrReceiptNo = result.receiptNo || '';
+                const ocrImageHash = result.imageHash || '';
                 const rawItems    = result.items;
 
                 // ── Populate Verification view ──
@@ -786,6 +795,8 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 setAmount(ocrAmount);
                 setManualDiscount(ocrDiscount);
                 setVendorTaxId(ocrTaxId);
+                setReceiptNo(ocrReceiptNo);
+                setImageHash(ocrImageHash);
 
                 // ── Build line items for both views ──
                 if (Array.isArray(rawItems) && rawItems.length > 0) {
@@ -899,7 +910,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                         updated[queueIndex] = { shopName: verStore, amount: String(grandTotal), date: verDate, thumb: queueThumbnails[queueIndex] || '' };
                         return updated;
                     });
-                    const snapshot = { image, shopName: verStore, amount: String(grandTotal), date: verDate, paymentMethod: verPaymentMethod, mainCategory: verCategory, notes: '', manualTime: verTime, manualDiscount: verDiscount, vendorTaxId: verTaxId, vendorAddress: '', currency: verCurrency, receiptNo: '', taxInvoiceNo: '', isTaxInvoice: false, paymentStatus: 'paid' as const, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification: true };
+                    const snapshot = { image, shopName: verStore, amount: String(grandTotal), date: verDate, paymentMethod: verPaymentMethod, mainCategory: verCategory, notes: '', manualTime: verTime, manualDiscount: verDiscount, vendorTaxId: verTaxId, vendorAddress: '', currency: verCurrency, receiptNo: '', imageHash: '', taxInvoiceNo: '', isTaxInvoice: false, paymentStatus: 'paid' as const, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification: true };
                     navigateToQueueIndex(queueIndex, nextIdx, snapshot);
                 } else {
                     onClose();
@@ -968,12 +979,14 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     source: 'web',
                     storeName: shopName,
                     totalAmount: finalTotal,
+                    imageHash: imageHash || undefined,
                     extractedData: payload
                   })
                 : await createReceipt({
                     userId: userId ?? '',
                     storeName: shopName,
                     totalAmount: finalTotal,
+                    imageHash: imageHash || undefined,
                     extractedData: payload
                   }) as any;
 
@@ -986,7 +999,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                         updated[queueIndex] = { shopName, amount: String(finalTotal), date, thumb: queueThumbnails[queueIndex] || '' };
                         return updated;
                     });
-                    const snapshot = { image, shopName, amount: String(finalTotal), date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+                    const snapshot = { image, shopName, amount: String(finalTotal), date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, imageHash, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
                     navigateToQueueIndex(queueIndex, nextIdx, snapshot);
                 } else {
                     onClose();
@@ -1661,7 +1674,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                 key={idx}
                                                 onClick={() => {
                                                 if (idx === queueIndex) { setActiveDocIndex(-1); setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); return; }
-                                                const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+                                                const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, imageHash, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
                                                 setActiveDocIndex(-1);
                                                 navigateToQueueIndex(queueIndex, idx, snapshot);
                                             }}
@@ -1760,7 +1773,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                             {!isMobile && fileQueue.length > 1 && queueIndex > 0 && (
                                 <button
                                     onClick={() => {
-                                        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+                                        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, imageHash, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
                                         navigateToQueueIndex(queueIndex, queueIndex - 1, snapshot);
                                     }}
                                     style={{ padding: '6px 14px', borderRadius: '8px', border: `1px solid ${bdColor}`, background: bgCard, color: txMuted, fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
@@ -1772,7 +1785,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                             {!isMobile && fileQueue.length > 1 && queueIndex < fileQueue.length - 1 && (
                                 <button
                                     onClick={() => {
-                                        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+                                        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, imageHash, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
                                         setQueueSummaries(prev => {
                                             const updated = [...prev];
                                             updated[queueIndex] = { shopName, amount, date, thumb: queueThumbnails[queueIndex] || '' };

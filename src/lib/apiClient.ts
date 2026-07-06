@@ -17,6 +17,7 @@ export interface Receipt {
   createdAt: string;
   updatedAt: string;
   transactionId?: string;
+  imageHash?: string;
   extractedData?: {
     date?: string;
     time?: string;
@@ -43,6 +44,7 @@ export interface CreateReceiptData {
   userId: string;
   extractedData?: unknown;
   imageFileId?: string;
+  imageHash?: string;
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
