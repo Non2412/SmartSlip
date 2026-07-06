@@ -71,6 +71,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
           ช่วยเหลือ
         </div>
         <ul className={styles.navListNoMargin}>
+          <SidebarItem href="/ai-advisor" active={pathname === '/ai-advisor'} label="ที่ปรึกษาการเงิน (AI)" icon={<RobotIcon />} />
           <SidebarItem
             href="/how-to-use"
             active={pathname === '/how-to-use'}
@@ -244,6 +245,18 @@ function HistoryIcon() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function RobotIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 8V4H9" />
+      <rect width="16" height="12" x="4" y="8" rx="2" />
+      <circle cx="9" cy="13" r="1" />
+      <circle cx="15" cy="13" r="1" />
+      <path d="M9 17h6" />
     </svg>
   );
 }
