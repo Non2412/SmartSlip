@@ -130,10 +130,12 @@ const SidebarItem = ({
       {badge > 0 && (
         <span style={{
           marginLeft: 'auto', minWidth: '20px', height: '20px',
-          background: '#ef4444', color: 'white', borderRadius: '10px',
-          fontSize: '0.7rem', fontWeight: '800',
+          background: 'linear-gradient(135deg, #ff4e50, #f93d3d)',
+          color: 'white', borderRadius: '10px',
+          fontSize: '0.68rem', fontWeight: '800',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '0 5px', lineHeight: 1,
+          padding: '0 6px', lineHeight: 1,
+          boxShadow: '0 2px 8px rgba(249, 61, 61, 0.4)',
         }}>
           {badge > 99 ? '99+' : badge}
         </span>

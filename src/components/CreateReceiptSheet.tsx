@@ -592,6 +592,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 const st = savedQueueStatesRef.current.get(idx);
                 if (!st) continue;
                 let finalImageUrl = st.image;
+                let finalImageHash = st.imageHash;
                 if (st.image && st.image.startsWith('data:')) {
                     try {
                         const uploadRes = await fetch('/api/upload', {
@@ -600,15 +601,18 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                             body: JSON.stringify({ imageBase64: st.image, userId: userId ?? '' })
                         });
                         const uploadData = await uploadRes.json();
-                        if (uploadData.success && uploadData.data?.imageUrl) finalImageUrl = uploadData.data.imageUrl;
+                        if (uploadData.success) {
+                            if (uploadData.data?.imageUrl) finalImageUrl = uploadData.data.imageUrl;
+                            if (uploadData.data?.imageHash) finalImageHash = uploadData.data.imageHash;
+                        }
                     } catch {}
                 }
                 const storeName = st.verStore || st.shopName || '';
                 const entryDate = st.verDate || st.date || '';
                 const items     = (st.verItems && st.verItems.length > 0) ? st.verItems : [];
                 const subtotal  = items.length > 0
-                    ? items.reduce((s: number, it: any) => s + (it.unitPrice * it.quantity), 0)
-                    : parseFloat(st.amount) || 0;
+                     ? items.reduce((s: number, it: any) => s + (it.unitPrice * it.quantity), 0)
+                     : parseFloat(st.amount) || 0;
                 const grandTotal = subtotal - (st.verDiscount || 0) + (st.verVat || 0);
                 const payload = {
                     date: entryDate, time: st.verTime || st.manualTime || '',
@@ -620,8 +624,8 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     summary: { subtotal: grandTotal, vat: st.verVat || 0, wht: 0, total: grandTotal }
                 };
                 const result = st.extractedReceiptId
-                    ? await updateReceipt(st.extractedReceiptId, { userId: userId ?? '', imageUrl: finalImageUrl || undefined, source: 'web', storeName, totalAmount: grandTotal, imageHash: st.imageHash || undefined, extractedData: payload })
-                    : await createReceipt({ userId: userId ?? '', storeName, totalAmount: grandTotal, imageHash: st.imageHash || undefined, extractedData: payload }) as any;
+                    ? await updateReceipt(st.extractedReceiptId, { userId: userId ?? '', imageUrl: finalImageUrl || undefined, source: 'web', storeName, totalAmount: grandTotal, imageHash: finalImageHash || undefined, extractedData: payload })
+                    : await createReceipt({ userId: userId ?? '', storeName, totalAmount: grandTotal, imageHash: finalImageHash || undefined, extractedData: payload }) as any;
                 if (result?.success) savedCount++;
             }
             if (onSuccess) onSuccess();
@@ -935,6 +939,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         setErrorMsg(null);
         try {
             let finalImageUrl = image;
+            let finalImageHash = imageHash;
             if (image && image.startsWith('data:')) {
                 try {
                     const uploadRes = await fetch('/api/upload', {
@@ -943,8 +948,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                         body: JSON.stringify({ imageBase64: image, userId: userId ?? '' })
                     });
                     const uploadResData = await uploadRes.json();
-                    if (uploadResData.success && uploadResData.data?.imageUrl) {
-                        finalImageUrl = uploadResData.data.imageUrl;
+                    if (uploadResData.success) {
+                        if (uploadResData.data?.imageUrl) finalImageUrl = uploadResData.data.imageUrl;
+                        if (uploadResData.data?.imageHash) finalImageHash = uploadResData.data.imageHash;
                     }
                 } catch (e) {
                     console.error("Upload failed", e);
@@ -979,14 +985,14 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     source: 'web',
                     storeName: shopName,
                     totalAmount: finalTotal,
-                    imageHash: imageHash || undefined,
+                    imageHash: finalImageHash || undefined,
                     extractedData: payload
                   })
                 : await createReceipt({
                     userId: userId ?? '',
                     storeName: shopName,
                     totalAmount: finalTotal,
-                    imageHash: imageHash || undefined,
+                    imageHash: finalImageHash || undefined,
                     extractedData: payload
                   }) as any;
 

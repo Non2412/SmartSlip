@@ -833,8 +833,8 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
                                             y1={y} 
                                             x2={500 - paddingRight} 
                                             y2={y} 
-                                            stroke="#f1f5f9" 
-                                            strokeWidth="1.5" 
+                                            stroke="var(--border-color)" 
+                                            strokeWidth="1" 
                                             strokeDasharray="4 4" 
                                         />
                                         <text 
@@ -996,7 +996,7 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
                                     })()}
                                 </g>
                                 <text x="75" y="70" textAnchor="middle" fill="#94a3b8" fontSize="10" fontWeight="600">ยอดรวม</text>
-                                <text x="75" y="88" textAnchor="middle" fill="#ffffff" fontSize="13" fontWeight="700">฿{totalCategoryAmount.toLocaleString('th-TH')}</text>
+                                <text x="75" y="88" textAnchor="middle" fill="var(--text-main)" fontSize="13" fontWeight="700">฿{totalCategoryAmount.toLocaleString('th-TH')}</text>
                             </svg>
                         </div>
                         

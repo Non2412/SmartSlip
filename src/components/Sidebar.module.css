@@ -182,10 +182,10 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  font-size: 0.9rem;
+  padding: 10px 14px;
+  border-radius: 12px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 0.925rem;
   text-decoration: none;
   width: 100%;
   border: none;
@@ -201,15 +201,12 @@
   color: var(--sidebar-text-active);
   background-color: var(--sidebar-item-active);
   font-weight: 700;
-  border-left: 3px solid var(--sidebar-text-active);
-  padding-left: 9px;
 }
 
 .sidebarLinkInactive {
   color: var(--text-muted);
   background-color: transparent;
   font-weight: 500;
-  border-left: 3px solid transparent;
 }
 
 .sidebarLinkInactive:hover {

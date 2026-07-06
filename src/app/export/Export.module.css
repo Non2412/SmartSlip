@@ -112,7 +112,7 @@
   font-family: inherit;
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s;
-  color-scheme: light dark;
+  color-scheme: inherit;
 }
 
 .dateInput:focus {

@@ -118,9 +118,11 @@ export function identifyDuplicateReceipts(receipts: any[]): { duplicateIds: Set<
         // Normalize store names to match e.g. "wedrink" vs "WEDRINK"
         const cleanStore1 = store.replace(/\s+/g, '');
         const cleanStore2 = prev.store.replace(/\s+/g, '');
-        const storeMatch = cleanStore1.includes(cleanStore2) || 
-                           cleanStore2.includes(cleanStore1) ||
-                           cleanStore1.substring(0, 4) === cleanStore2.substring(0, 4);
+        const storeMatch = cleanStore1 !== '' && cleanStore2 !== '' && (
+          cleanStore1.includes(cleanStore2) || 
+          cleanStore2.includes(cleanStore1) ||
+          cleanStore1.substring(0, 4) === cleanStore2.substring(0, 4)
+        );
 
         let timeOrDateMatch = false;
         if (txDate !== '' && prev.txDate !== '') {
