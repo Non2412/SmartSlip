@@ -133,6 +133,12 @@ export const receiptApi = {
     return apiRequest(`/receipts?id=${id}`, { method: 'DELETE' });
   },
 
+  // ลบหลายใบเสร็จ
+  deleteMultiple: (ids: string[]) => {
+    const idsStr = ids.join(',');
+    return apiRequest(`/receipts?ids=${encodeURIComponent(idsStr)}`, { method: 'DELETE' });
+  },
+
   // ประมวลผล OCR และอัปโหลดขึ้น Drive
   extract: (file: File, userId: string) => {
     const formData = new FormData();

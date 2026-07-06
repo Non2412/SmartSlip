@@ -153,18 +153,24 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE: ลบใบเสร็จ (ตัวอย่างสำหรับอนาคต)
+// DELETE: ลบใบเสร็จ (รองรับทีละใบ หรือ หลายใบผ่าน ?ids=)
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const idsParam = searchParams.get('ids');
 
-    if (!id) return NextResponse.json({ success: false, error: 'ID required' }, { status: 400 });
+    if (!id && !idsParam) return NextResponse.json({ success: false, error: 'ID or IDs required' }, { status: 400 });
 
     const client = await clientPromise;
     const db = client.db('smartslip_api');
 
-    await db.collection('receipts').deleteOne({ _id: new ObjectId(id) });
+    if (idsParam) {
+      const ids = idsParam.split(',').map(item => new ObjectId(item.trim()));
+      await db.collection('receipts').deleteMany({ _id: { $in: ids } });
+    } else if (id) {
+      await db.collection('receipts').deleteOne({ _id: new ObjectId(id) });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -3,12 +3,17 @@
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import dynamic from 'next/dynamic';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import styles from './Advisor.module.css';
 
 const CreateReceiptSheet = dynamic(() => import('@/components/CreateReceiptSheet'), { ssr: false });
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 export default function AIAdvisorPage() {
   const pathname = usePathname();
@@ -18,41 +23,29 @@ export default function AIAdvisorPage() {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [aiReport, setAiReport] = useState<string>('');
-  const [lastUpdated, setLastUpdated] = useState<string>('');
-  const [loadingStep, setLoadingStep] = useState(0);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputText, setInputText] = useState('');
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Sync state with localStorage to persist advisor analysis
+  // Sync state with localStorage to persist chat history
   useEffect(() => {
     if (typeof window !== 'undefined' && session?.user?.id) {
-      const cachedReport = localStorage.getItem(`smartslip_ai_report_${session.user.id}`);
-      const cachedTime = localStorage.getItem(`smartslip_ai_report_time_${session.user.id}`);
-      if (cachedReport) {
-        setAiReport(cachedReport);
-      }
-      if (cachedTime) {
-        setLastUpdated(cachedTime);
+      const cachedHistory = localStorage.getItem(`smartslip_chat_history_${session.user.id}`);
+      if (cachedHistory) {
+        try {
+          setMessages(JSON.parse(cachedHistory));
+        } catch (e) {
+          console.error('Error parsing cached chat history', e);
+        }
       }
     }
   }, [session]);
 
-  // Loading status text cycles
+  // Scroll to bottom when messages or loading state changes
   useEffect(() => {
-    if (!loading) return;
-    const steps = [
-      'กำลังรวบรวมและวิเคราะห์ข้อมูลรายจ่ายจากสลิปของคุณ...',
-      'กำลังส่งข้อมูลให้ที่ปรึกษาการเงินอัจฉริยะ (Gemini AI)...',
-      'ที่ปรึกษา AI กำลังประเมินและวิเคราะห์จุดรั่วไหลทางการเงิน...',
-      'กำลังจัดเตรียมเคล็ดลับการออมเงินและตั้งค่าชาเลนจ์เฉพาะคุณ...',
-      'กำลังสรุปรายงานในไม่ช้า กรุณารอสักครู่...'
-    ];
-
-    const interval = setInterval(() => {
-      setLoadingStep((prev) => (prev + 1) % steps.length);
-    }, 4500);
-
-    return () => clearInterval(interval);
-  }, [loading]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
@@ -64,41 +57,61 @@ export default function AIAdvisorPage() {
     setIsSidebarOpen(false);
   }, [pathname]);
 
-  const handleRequestAnalysis = async () => {
-    if (!session?.user?.id) return;
-    
+  const handleSendMessage = async (textToSend?: string) => {
+    const text = (textToSend || inputText).trim();
+    if (!text || !session?.user?.id) return;
+
+    if (!textToSend) setInputText('');
+
+    // Append user message
+    const userMsg: ChatMessage = { role: 'user', content: text };
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setLoading(true);
-    setLoadingStep(0);
     setError(null);
+
+    // Cache user's message
+    localStorage.setItem(`smartslip_chat_history_${session.user.id}`, JSON.stringify(updatedMessages));
 
     try {
       const lineUserId = (session as any)?.lineUserId;
       const res = await fetch('/api/ai-advisor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: session.user.id, lineUserId })
+        body: JSON.stringify({ userId: session.user.id, lineUserId, messages: updatedMessages })
       });
 
       const resData = await res.json();
       if (!res.ok || !resData.success) {
-        throw new Error(resData.error || 'Failed to generate financial analysis');
+        throw new Error(resData.error || 'Failed to generate chat response');
       }
 
-      const reportText = resData.data;
-      const timeString = new Date().toLocaleString('th-TH');
+      const replyText = resData.data;
+      const assistantMsg: ChatMessage = { role: 'assistant', content: replyText };
+      const finalMessages = [...updatedMessages, assistantMsg];
+      setMessages(finalMessages);
 
-      setAiReport(reportText);
-      setLastUpdated(timeString);
-
-      // Save to localStorage
-      localStorage.setItem(`smartslip_ai_report_${session.user.id}`, reportText);
-      localStorage.setItem(`smartslip_ai_report_time_${session.user.id}`, timeString);
+      // Cache conversation
+      localStorage.setItem(`smartslip_chat_history_${session.user.id}`, JSON.stringify(finalMessages));
     } catch (err: any) {
-      console.error('Request AI Advisor Error:', err);
-      setError(err.message || 'เกิดข้อผิดพลาดในการขอข้อมูลคำแนะนำการเงินจาก AI');
+      console.error('AI Chat Error:', err);
+      setError(err.message || 'เกิดข้อผิดพลาดในการสนทนากับ AI');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleClearChat = () => {
+    if (confirm('คุณต้องการล้างประวัติการสนทนาทั้งหมดใช่หรือไม่?')) {
+      setMessages([]);
+      if (session?.user?.id) {
+        localStorage.removeItem(`smartslip_chat_history_${session.user.id}`);
+      }
+    }
+  };
+
+  const handleSuggestionClick = (suggestionText: string) => {
+    handleSendMessage(suggestionText);
   };
 
   // Simple and safe helper function to parse Gemini Markdown output into HTML
@@ -138,12 +151,11 @@ export default function AIAdvisorPage() {
     return parsed;
   };
 
-  const stepsText = [
-    'กำลังรวบรวมและวิเคราะห์ข้อมูลรายจ่ายจากสลิปของคุณ...',
-    'กำลังส่งข้อมูลให้ที่ปรึกษาการเงินอัจฉริยะ (Gemini AI)...',
-    'ที่ปรึกษา AI กำลังประเมินและวิเคราะห์จุดรั่วไหลทางการเงิน...',
-    'กำลังจัดเตรียมเคล็ดลับการออมเงินและตั้งค่าชาเลนจ์เฉพาะคุณ...',
-    'กำลังสรุปรายงานในไม่ช้า กรุณารอสักครู่...'
+  const suggestionChips = [
+    { text: '📊 วิเคราะห์รายจ่ายของฉันทั้งหมด', label: 'วิเคราะห์สุขภาพการเงิน' },
+    { text: '💡 แนะนำ 5 วิธีประหยัดค่าเดินทางด่วน', label: 'วิธีลดค่าเดินทาง' },
+    { text: '🛒 แนะนำการคุมรายจ่ายหมวดอาหาร', label: 'คุมงบอาหาร' },
+    { text: '🏆 ขอคำท้าทาย (Challenge) ออมเงินเดือนนี้', label: 'รับคำท้าออมเงิน' },
   ];
 
   return (
@@ -169,76 +181,156 @@ export default function AIAdvisorPage() {
         <div className="page-container">
           <div className={styles.container}>
             <div className={styles.headerSection}>
-              <h1 className={styles.title}>ที่ปรึกษาทางการเงินอัจฉริยะ</h1>
+              <h1 className={styles.title}>SmartSlip AI Chatbot</h1>
               <p className={styles.subtitle}>
-                ให้ AI สแกนข้อมูลสถิติรายจ่ายจากสลิปและใบเสร็จของคุณ เพื่อช่วยให้คุณควบคุมการเงินได้ดีและมีเงินเก็บมากขึ้น
+                ปรึกษา วางแผน และสนทนาการเงินแบบเป็นกันเอง โดย AI อัจฉริยะจะอ้างอิงจากข้อมูลรายจ่ายจริงของคุณ
               </p>
             </div>
 
-            <div className={styles.card}>
-              <div className={styles.advisorIntro}>
-                <div className={styles.aiAvatarWrapper}>
-                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 8V4H9" />
-                    <rect width="16" height="12" x="4" y="8" rx="2" />
-                    <circle cx="9" cy="13" r="1" />
-                    <circle cx="15" cy="13" r="1" />
-                    <path d="M9 17h6" />
-                  </svg>
+            <div className={styles.chatContainer}>
+              {/* Chat Panel Header */}
+              <div className={styles.chatHeader}>
+                <div className={styles.chatHeaderInfo}>
+                  <div className={styles.statusIndicator}></div>
+                  <h3>ห้องสนทนากับ AI</h3>
                 </div>
-                <div className={styles.introText}>
-                  <h3>สวัสดีครับ! ผมคือที่ปรึกษาการเงิน SmartSlip AI</h3>
-                  <p>
-                    ผมสามารถช่วยสแกนรายจ่ายรวมแยกตามหมวดหมู่ ตรวจพฤติกรรมการจ่ายเงินที่ซ้ำซาก หรือรายจ่ายก้อนใหญ่ที่เป็นจุดรั่วไหล 
-                    พร้อมให้คำแนะนำ 5 ข้อย่อย และชาเลนจ์ท้าทายให้คุณออมเงินได้สำเร็จในเดือนนี้
-                  </p>
-                </div>
-                <div>
-                  <button 
-                    onClick={handleRequestAnalysis} 
-                    className={styles.actionButton}
-                    disabled={loading}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                {messages.length > 0 && (
+                  <button onClick={handleClearChat} className={styles.clearBtn}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                     </svg>
-                    {aiReport ? 'วิเคราะห์การเงินใหม่อีกครั้ง' : 'เริ่มต้นวิเคราะห์การเงิน'}
+                    ล้างการสนทนา
                   </button>
-                </div>
+                )}
               </div>
 
-              {loading && (
-                <div className={styles.loadingSection}>
-                  <div className={styles.spinner}></div>
-                  <div className={styles.loadingText}>{stepsText[loadingStep]}</div>
-                </div>
-              )}
-
-              {error && (
-                <div style={{
-                  padding: '16px 20px', borderRadius: '12px',
-                  background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
-                  color: '#ef4444', fontSize: '0.9rem', fontWeight: '600',
-                  marginTop: '16px', display: 'flex', alignItems: 'center', gap: '8px'
-                }}>
-                  <span>⚠️</span>
-                  <div>{error}</div>
-                </div>
-              )}
-
-              {aiReport && !loading && (
-                <div className={styles.reportContainer}>
-                  <div 
-                    dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(aiReport) }}
-                  />
-                  
-                  {lastUpdated && (
-                    <div className={styles.reportFooter}>
-                      <span className={styles.timestamp}>วิเคราะห์ล่าสุดเมื่อ: {lastUpdated}</span>
+              {/* Chat Message List */}
+              <div className={styles.chatMessages}>
+                {messages.length === 0 ? (
+                  // Initial welcome intro view
+                  <div style={{ margin: 'auto', textAlign: 'center', maxWidth: '440px', padding: '20px' }}>
+                    <div className={styles.aiAvatarWrapper} style={{ margin: '0 auto 16px' }}>
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 8V4H9" />
+                        <rect width="16" height="12" x="4" y="8" rx="2" />
+                        <circle cx="9" cy="13" r="1" />
+                        <circle cx="15" cy="13" r="1" />
+                        <path d="M9 17h6" />
+                      </svg>
                     </div>
-                  )}
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '8px' }}>
+                      สวัสดีครับ! ผมคือที่ปรึกษาการเงิน AI
+                    </h3>
+                    <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '24px' }}>
+                      พิมพ์ทักทายหรือเลือกหัวข้อแนะนำด้านล่างนี้ เพื่อเริ่มปรึกษาการเงิน แนะนำวิธีเก็บออม หรือประเมินพฤติกรรมการจ่ายเงินจริงของคุณได้ทันทีครับ
+                    </p>
+                  </div>
+                ) : (
+                  // Render active messages list
+                  messages.map((msg, index) => {
+                    const isAi = msg.role === 'assistant';
+                    return (
+                      <div key={index} className={`${styles.messageRow} ${isAi ? styles.messageRowAi : styles.messageRowUser}`}>
+                        {isAi && (
+                          <div className={styles.avatarWrapper}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <rect width="16" height="12" x="4" y="8" rx="2" />
+                              <circle cx="9" cy="13" r="1" /><circle cx="15" cy="13" r="1" />
+                              <path d="M9 17h6" />
+                            </svg>
+                          </div>
+                        )}
+                        <div 
+                          className={`${styles.messageBubble} ${isAi ? styles.aiBubble : styles.userBubble}`}
+                          dangerouslySetInnerHTML={{ __html: isAi ? parseMarkdownToHtml(msg.content) : msg.content }}
+                        />
+                      </div>
+                    );
+                  })
+                )}
+
+                {/* Loading typing bubble */}
+                {loading && (
+                  <div className={`${styles.messageRow} ${styles.messageRowAi}`}>
+                    <div className={styles.avatarWrapper}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <rect width="16" height="12" x="4" y="8" rx="2" />
+                        <circle cx="9" cy="13" r="1" /><circle cx="15" cy="13" r="1" />
+                        <path d="M9 17h6" />
+                      </svg>
+                    </div>
+                    <div className={`${styles.messageBubble} ${styles.aiBubble}`} style={{ padding: '8px 12px' }}>
+                      <div className={styles.typingBubble}>
+                        <div className={styles.typingDot}></div>
+                        <div className={styles.typingDot}></div>
+                        <div className={styles.typingDot}></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Error Banner */}
+                {error && (
+                  <div style={{
+                    padding: '12px 18px', borderRadius: '12px',
+                    background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+                    color: '#ef4444', fontSize: '0.85rem', fontWeight: '600',
+                    display: 'flex', alignItems: 'center', gap: '8px', width: 'fit-content'
+                  }}>
+                    <span>⚠️</span>
+                    <div>{error}</div>
+                  </div>
+                )}
+
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Suggestions Row */}
+              {!loading && (
+                <div className={styles.suggestionsWrapper}>
+                  <span className={styles.suggestionsLabel}>หัวข้อสนทนาแนะนำ:</span>
+                  <div className={styles.suggestionsRow}>
+                    {suggestionChips.map((chip, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSuggestionClick(chip.text)}
+                        className={styles.suggestionChip}
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
+
+              {/* Chat Input Form */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendMessage();
+                }}
+                className={styles.chatInputForm}
+              >
+                <input
+                  type="text"
+                  placeholder="พิมพ์คุยปรึกษาหรือถามเรื่องเงิน..."
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  className={styles.chatInput}
+                  disabled={loading}
+                />
+                <button
+                  type="submit"
+                  disabled={loading || !inputText.trim()}
+                  className={styles.sendBtn}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transform: 'rotate(45deg) translate(-1px, 1px)' }}>
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                </button>
+              </form>
             </div>
           </div>
         </div>

@@ -35,6 +35,11 @@ function LineReceiptsContent() {
   const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Bulk selection states
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 769);
@@ -54,7 +59,7 @@ function LineReceiptsContent() {
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
-  const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
+  const { receipts, fetchReceipts, deleteReceipt, deleteMultipleReceipts, loading } = useReceipts();
 
   useEffect(() => {
     setViewedIds(getViewedIds());
@@ -198,6 +203,49 @@ function LineReceiptsContent() {
     setDeleteConfirm(null);
   };
 
+  // Bulk actions handlers
+  const toggleSelectMode = () => {
+    setIsSelectMode(!isSelectMode);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelectItem = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAllFiltered = (filteredList: Receipt[]) => {
+    const allIds = filteredList.map(r => r._id || r.id || '');
+    setSelectedIds(new Set(allIds));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkDeleteConfirmed = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    const res = await deleteMultipleReceipts(ids);
+    if (res.success) {
+      setToastMsg(`ลบใบเสร็จสำเร็จจำนวน ${ids.length} รายการ`);
+      setTimeout(() => setToastMsg(null), 3000);
+    } else {
+      alert(res.error || 'เกิดข้อผิดพลาดในการลบใบเสร็จ');
+    }
+    setSelectedIds(new Set());
+    setIsSelectMode(false);
+    setShowBulkDeleteConfirm(false);
+  };
+
   // Proxy GCS images through local API to bypass public access restrictions
   const getImageUrl = (url?: string) => {
     return cleanAndProxyImageUrl(url);
@@ -314,6 +362,31 @@ function LineReceiptsContent() {
                   </button>
                 );
               })}
+              
+              <button
+                onClick={toggleSelectMode}
+                className={`${styles.actionButtonSecondary} ${isSelectMode ? styles.actionButtonActive : ''}`}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: '700',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginLeft: 'auto', // push to the right end of the tabs row
+                  border: isSelectMode ? 'none' : '1.5px solid var(--border-color)',
+                  height: 'fit-content'
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="18" height="18" x="3" y="3" rx="2" />
+                  <path d="m9 12 2 2 4-4" />
+                </svg>
+                {isSelectMode ? 'ยกเลิกโหมดเลือก' : 'เลือกหลายรายการ'}
+              </button>
             </div>
           </div>
 
@@ -570,13 +643,30 @@ function LineReceiptsContent() {
               <div className={styles.galleryGrid}>
               {paginatedReceipts.map((receipt, index) => {
                 const isNew = !viewedIds.has(receipt._id || receipt.id || '');
+                const isItemSecleted = selectedIds.has(receipt._id || receipt.id || '');
                 return (
                   <div
                     key={(receipt._id || receipt.id) || index}
-                    className={styles.galleryCard}
-                    onClick={() => handleReceiptClick(receipt)}
+                    className={`${styles.galleryCard} ${isItemSecleted ? styles.cardSelected : ''}`}
+                    onClick={() => {
+                      if (isSelectMode) {
+                        toggleSelectItem(receipt._id || receipt.id || '');
+                      } else {
+                        handleReceiptClick(receipt);
+                      }
+                    }}
                     style={{ cursor: 'pointer', position: 'relative' }}
                   >
+                    {isSelectMode && (
+                      <div className={`${styles.cardCheckbox} ${isItemSecleted ? styles.cardCheckboxChecked : ''}`}>
+                        {isItemSecleted && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </div>
+                    )}
+
                     {isNew && (
                       <div style={{
                         position: 'absolute', top: '8px', left: '8px', zIndex: 10,
@@ -597,10 +687,11 @@ function LineReceiptsContent() {
                       </div>
                     )}
 
-                    <div
-                      style={{ position: 'absolute', top: '8px', right: '8px', zIndex: 10 }}
-                      onClick={e => e.stopPropagation()}
-                    >
+                    {!isSelectMode && (
+                      <div
+                        style={{ position: 'absolute', top: '8px', right: '8px', zIndex: 10 }}
+                        onClick={e => e.stopPropagation()}
+                      >
                       <div style={{ position: 'relative' }}>
                         <button
                           onClick={e => {
@@ -651,6 +742,7 @@ function LineReceiptsContent() {
                         </div>
                       </div>
                     </div>
+                    )}
                     <div className={styles.imageContainer}>
                       {receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl ? (
                         <img src={getImageUrl(receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl) || undefined} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
@@ -710,6 +802,62 @@ function LineReceiptsContent() {
             <div style={{ display: 'flex', gap: '12px' }}>
               <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border-color)', background: 'var(--surface-color)', fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-muted)', cursor: 'pointer' }}>ยกเลิก</button>
               <button onClick={handleDeleteConfirmed} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: 'white', fontWeight: '800', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(239,68,68,0.35)' }}>ลบ</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Floating Action Bar for Bulk Selection Mode ── */}
+      {isSelectMode && (
+        <div className={styles.floatingActionBar}>
+          <div className={styles.actionBarInfo}>
+            เลือกอยู่ <strong>{selectedIds.size}</strong> รายการ
+          </div>
+          <div className={styles.actionBarButtons}>
+            <button 
+              className={`${styles.actionBarBtn} ${styles.actionBarBtnSecondary}`}
+              onClick={() => {
+                if (selectedIds.size === filteredReceipts.length) {
+                  deselectAll();
+                } else {
+                  selectAllFiltered(filteredReceipts);
+                }
+              }}
+            >
+              {selectedIds.size === filteredReceipts.length ? 'ยกเลิกทั้งหมด' : 'เลือกทั้งหมด'}
+            </button>
+            <button 
+              className={`${styles.actionBarBtn} ${styles.actionBarBtnDanger}`}
+              disabled={selectedIds.size === 0}
+              onClick={() => setShowBulkDeleteConfirm(true)}
+            >
+              ลบที่เลือก ({selectedIds.size})
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk Delete Confirmation Dialog ── */}
+      {showBulkDeleteConfirm && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 2000,
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '28px 32px',
+            width: 'min(400px, 90vw)', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+          }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-main)', margin: '0 0 8px' }}>ยืนยันการลบแบบกลุ่ม</h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 24px', lineHeight: 1.5 }}>
+              คุณต้องการลบใบเสร็จที่เลือกจำนวน <strong style={{ color: 'var(--text-main)' }}>{selectedIds.size} รายการ</strong> ออกจากระบบหรือไม่? การลบนี้จะไม่สามารถย้อนกลับได้
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setShowBulkDeleteConfirm(false)} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border-color)', background: 'var(--surface-color)', fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-muted)', cursor: 'pointer' }}>ยกเลิก</button>
+              <button onClick={handleBulkDeleteConfirmed} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: 'white', fontWeight: '800', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(239,68,68,0.35)' }}>ลบทั้งหมด</button>
             </div>
           </div>
         </div>
