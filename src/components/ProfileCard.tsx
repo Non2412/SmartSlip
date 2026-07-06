@@ -40,7 +40,32 @@ export default function ProfileCard({ refreshTrigger }: { refreshTrigger?: numbe
         <span>เบอร์โทร:</span>
         <strong>{data.phone || "-"}</strong>
       </div>
-      
+      {data.budgets && (
+        <>
+          <div style={{ marginTop: '20px', fontWeight: 'bold', fontSize: '0.95rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', color: 'var(--text-main)' }}>เป้าหมายงบประมาณรายเดือน</div>
+          <div className={styles.row}>
+            <span>งบอาหาร:</span>
+            <strong>{data.budgets.food ? `฿${data.budgets.food.toLocaleString('th-TH')}` : "-"}</strong>
+          </div>
+          <div className={styles.row}>
+            <span>งบเดินทาง:</span>
+            <strong>{data.budgets.travel ? `฿${data.budgets.travel.toLocaleString('th-TH')}` : "-"}</strong>
+          </div>
+          <div className={styles.row}>
+            <span>งบช้อปปิ้ง:</span>
+            <strong>{data.budgets.shopping ? `฿${data.budgets.shopping.toLocaleString('th-TH')}` : "-"}</strong>
+          </div>
+          <div className={styles.row}>
+            <span>งบอื่นๆ:</span>
+            <strong>{data.budgets.other ? `฿${data.budgets.other.toLocaleString('th-TH')}` : "-"}</strong>
+          </div>
+          <div className={styles.row} style={{ borderTop: '2.5px double var(--border-color)', fontWeight: 'bold' }}>
+            <span>งบรวมทั้งหมด:</span>
+            <strong>{data.budgets.total ? `฿${data.budgets.total.toLocaleString('th-TH')}` : "-"}</strong>
+          </div>
+        </>
+      )}
+
       <button className={styles.button} style={{ background: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0', marginTop: '20px' }} onClick={() => window.print()}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
         พิมพ์ข้อมูล / PDF

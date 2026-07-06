@@ -31,10 +31,9 @@ export default function DashboardPage() {
   const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
+  const [budgets, setBudgets] = useState<any>(null);
 
   const handleReceiptClick = (r: any) => setSelectedReceipt(r);
-
-
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -42,6 +41,18 @@ export default function DashboardPage() {
       fetchReceipts(session.user.id, lineUserId);
     }
   }, [session, fetchReceipts]);
+
+  // Load budgets settings
+  useEffect(() => {
+    fetch("/api/profile")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.error && data.budgets) {
+          setBudgets(data.budgets);
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   // Auto-open receipt detail sheet if openReceiptId is present in URL
   useEffect(() => {
@@ -87,6 +98,69 @@ export default function DashboardPage() {
     pendingCount: uniqueReceipts.filter(r => !r.extractedData).length,
     approvedCount: uniqueReceipts.filter(r => r.extractedData).length,
   }), [uniqueReceipts]);
+
+  const budgetAlerts = useMemo(() => {
+    if (!budgets || uniqueReceipts.length === 0) return [];
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    const currentMonthUniqueReceipts = uniqueReceipts.filter(r => {
+      const dateStr = r.extractedData?.date || r.createdAt;
+      if (!dateStr) return false;
+      const d = new Date(dateStr);
+      return !isNaN(d.getTime()) && d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    });
+
+    let foodSpent = 0;
+    let travelSpent = 0;
+    let shoppingSpent = 0;
+    let otherSpent = 0;
+    let totalSpent = 0;
+
+    currentMonthUniqueReceipts.forEach(r => {
+      const amt = Number(r.amount !== undefined ? r.amount : (r.totalAmount || 0));
+      totalSpent += amt;
+      
+      const cat = r.extractedData?.category || 'อื่นๆ';
+      if (cat === 'อาหาร') {
+        foodSpent += amt;
+      } else if (cat === 'เดินทาง') {
+        travelSpent += amt;
+      } else if (cat === 'ช้อปปิ้ง') {
+        shoppingSpent += amt;
+      } else {
+        otherSpent += amt;
+      }
+    });
+
+    const alerts: any[] = [];
+    const checkBudget = (spent: number, limit: number, name: string) => {
+      if (limit > 0) {
+        const percent = (spent / limit) * 100;
+        if (percent >= 100) {
+          alerts.push({
+            type: 'danger',
+            message: `งบประมาณสำหรับหมวดหมู่ "${name}" เกินกำหนด 100% แล้ว (ใช้ไป ฿${spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} จากงบ ฿${limit.toLocaleString('th-TH')})`
+          });
+        } else if (percent >= 80) {
+          alerts.push({
+            type: 'warning',
+            message: `งบประมาณสำหรับหมวดหมู่ "${name}" เกินเกณฑ์ 80% แล้ว (ใช้ไป ฿${spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} จากงบ ฿${limit.toLocaleString('th-TH')})`
+          });
+        }
+      }
+    };
+
+    checkBudget(foodSpent, budgets.food, 'อาหาร');
+    checkBudget(travelSpent, budgets.travel, 'เดินทาง');
+    checkBudget(shoppingSpent, budgets.shopping, 'ช้อปปิ้ง');
+    checkBudget(otherSpent, budgets.other, 'อื่นๆ');
+    checkBudget(totalSpent, budgets.total, 'ยอดรวมทั้งหมด');
+
+    return alerts;
+  }, [budgets, uniqueReceipts]);
 
   const filteredReceipts = useMemo(() => uniqueReceipts.filter(r => {
     // 1. Category filter
@@ -140,6 +214,24 @@ export default function DashboardPage() {
         />
 
         <div className="page-container">
+          {/* Budget Warnings Banner */}
+          {!loading && budgetAlerts.length > 0 && (
+            <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {budgetAlerts.map((alert, idx) => (
+                <div key={idx} style={{
+                  padding: '12px 18px', borderRadius: '10px',
+                  background: alert.type === 'danger' ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)',
+                  border: alert.type === 'danger' ? '1px solid rgba(239,68,68,0.2)' : '1px solid rgba(245,158,11,0.2)',
+                  color: alert.type === 'danger' ? '#ef4444' : '#f59e0b',
+                  fontSize: '0.85rem', fontWeight: '600',
+                  display: 'flex', alignItems: 'center', gap: '8px'
+                }}>
+                  <span>{alert.type === 'danger' ? '🚨' : '⚠️'}</span>
+                  <span>{alert.message}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Summary Stats Row */}
           <div className={styles.summaryStatsRow}>

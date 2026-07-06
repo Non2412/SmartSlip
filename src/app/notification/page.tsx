@@ -9,6 +9,7 @@ import TopBar from '@/components/TopBar';
 import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import { useReceipts } from '@/hooks/useReceipts';
 import { cleanAndProxyImageUrl } from '@/lib/apiClient';
+import { identifyDuplicateReceipts } from '@/lib/ocr-utils';
 import styles from './Notification.module.css';
 
 export default function NotificationPage() {
@@ -16,6 +17,7 @@ export default function NotificationPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const { receipts, fetchReceipts, loading } = useReceipts();
+  const [budgets, setBudgets] = useState<any>(null);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -24,6 +26,18 @@ export default function NotificationPage() {
     }
   }, [session, fetchReceipts]);
 
+  // Load budgets settings
+  useEffect(() => {
+    fetch("/api/profile")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.error && data.budgets) {
+          setBudgets(data.budgets);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
   const openCreateSheet = () => setIsCreateSheetOpen(true);
@@ -31,6 +45,79 @@ export default function NotificationPage() {
 
   // Filter for receipts in pending status (no extractedData)
   const pendingReceipts = receipts.filter(r => !r.extractedData);
+
+  // Calculate duplicate statistics and current month budget spend ratios
+  const normalizedReceipts = receipts.map(r => {
+    const doc = { ...r, id: r._id || r.id };
+    if (doc.amount !== undefined && doc.totalAmount === undefined) {
+      doc.totalAmount = doc.amount;
+    }
+    return doc;
+  });
+
+  const { duplicateIds } = identifyDuplicateReceipts(normalizedReceipts);
+  const duplicatesCount = duplicateIds.size;
+  const uniqueReceipts = normalizedReceipts.filter(r => !duplicateIds.has(r.id || ''));
+
+  // Current month calculation
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+
+  const currentMonthUniqueReceipts = uniqueReceipts.filter(r => {
+    const dateStr = r.extractedData?.date || r.createdAt;
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    return !isNaN(d.getTime()) && d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+  });
+
+  let foodSpent = 0;
+  let travelSpent = 0;
+  let shoppingSpent = 0;
+  let otherSpent = 0;
+  let totalSpent = 0;
+
+  currentMonthUniqueReceipts.forEach(r => {
+    const amt = Number(r.amount !== undefined ? r.amount : (r.totalAmount || 0));
+    totalSpent += amt;
+    
+    const cat = r.extractedData?.category || 'อื่นๆ';
+    if (cat === 'อาหาร') {
+      foodSpent += amt;
+    } else if (cat === 'เดินทาง') {
+      travelSpent += amt;
+    } else if (cat === 'ช้อปปิ้ง') {
+      shoppingSpent += amt;
+    } else {
+      otherSpent += amt;
+    }
+  });
+
+  const budgetAlerts: any[] = [];
+  if (budgets) {
+    const checkBudget = (spent: number, limit: number, name: string) => {
+      if (limit > 0) {
+        const percent = (spent / limit) * 100;
+        if (percent >= 100) {
+          budgetAlerts.push({
+            type: 'danger',
+            message: `งบประมาณสำหรับหมวดหมู่ "${name}" เกินกำหนด 100% แล้ว (ใช้ไป ฿${spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} จากงบ ฿${limit.toLocaleString('th-TH')})`
+          });
+        } else if (percent >= 80) {
+          budgetAlerts.push({
+            type: 'warning',
+            message: `งบประมาณสำหรับหมวดหมู่ "${name}" สูงเกิน 80% แล้ว (ใช้ไป ฿${spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} จากงบ ฿${limit.toLocaleString('th-TH')})`
+          });
+        }
+      }
+    };
+
+    checkBudget(foodSpent, budgets.food, 'อาหาร');
+    checkBudget(travelSpent, budgets.travel, 'เดินทาง');
+    checkBudget(shoppingSpent, budgets.shopping, 'ช้อปปิ้ง');
+    checkBudget(otherSpent, budgets.other, 'อื่นๆ');
+    checkBudget(totalSpent, budgets.total, 'ยอดรวมทั้งหมด');
+  }
 
   return (
     <div className="dashboard-layout">
@@ -57,6 +144,52 @@ export default function NotificationPage() {
           </div>
 
           <div className={styles.notificationsContainer}>
+            {/* Custom Audit & Budget Alerts (Top section) */}
+            {!loading && (budgetAlerts.length > 0 || duplicatesCount > 0) && (
+              <div style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                
+                {/* Duplicate receipts alert */}
+                {duplicatesCount > 0 && (
+                  <div style={{
+                    padding: '16px 20px', borderRadius: '12px',
+                    background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ fontSize: '1.3rem' }}>⚠️</span>
+                      <div>
+                        <strong style={{ color: 'var(--text-main)', display: 'block', fontSize: '0.9rem' }}>ตรวจพบใบเสร็จซ้ำซ้อนในระบบ</strong>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>พบใบเสร็จที่มีรูปภาพหรือองค์ประกอบธุรกรรมตรงกันจำนวน {duplicatesCount} รายการ ถูกซ่อนเพื่อความถูกต้อง</span>
+                      </div>
+                    </div>
+                    <Link href="/line-receipts" style={{
+                      padding: '8px 16px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold', textDecoration: 'none'
+                    }}>
+                      ดูรายการสลิปซ้ำ
+                    </Link>
+                  </div>
+                )}
+
+                {/* Budget limits alert list */}
+                {budgetAlerts.map((alert, index) => (
+                  <div key={index} style={{
+                    padding: '14px 20px', borderRadius: '12px',
+                    background: alert.type === 'danger' ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)',
+                    border: alert.type === 'danger' ? '1px solid rgba(239,68,68,0.2)' : '1px solid rgba(245,158,11,0.2)',
+                    display: 'flex', alignItems: 'center', gap: '12px'
+                  }}>
+                    <span style={{ fontSize: '1.3rem' }}>{alert.type === 'danger' ? '🚨' : '⚠️'}</span>
+                    <div>
+                      <strong style={{ color: 'var(--text-main)', display: 'block', fontSize: '0.9rem' }}>
+                        {alert.type === 'danger' ? 'งบประมาณเกินกำหนด (Limit Exceeded)' : 'งบประมาณใกล้เต็ม (Budget Warning)'}
+                      </strong>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{alert.message}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {loading ? (
               <div className={styles.loadingState}>
                 <div className={styles.spinner}></div>
