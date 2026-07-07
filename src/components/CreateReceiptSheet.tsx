@@ -258,6 +258,20 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [formTab, setFormTab] = useState<'info' | 'items'>('info');
     const [creationMethod, setCreationMethod] = useState<CreationMethod>('manual');
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [customCategories, setCustomCategories] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetch("/api/profile")
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.error && data.customCategories) {
+                        setCustomCategories(data.customCategories);
+                    }
+                })
+                .catch(console.error);
+        }
+    }, [isOpen]);
     const manualImageRef = useRef<HTMLInputElement>(null);
     const extraFileInputRef = useRef<HTMLInputElement>(null);
     const [extraFiles, setExtraFiles] = useState<{name: string, data: string, type: string}[]>([]);
@@ -1303,35 +1317,52 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                     <div>
                                         <label style={{ ...labelStyle, color: txLabel }}>หมวดหมู่ค่าใช้จ่าย</label>
                                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                            {[
-                                                { id: 'อาหาร', icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
-                                                { id: 'เดินทาง', icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
-                                                { id: 'ช้อปปิ้ง', icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
-                                                { id: 'อื่นๆ', icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
-                                            ].map(cat => {
-                                                const active = verCategory === cat.id;
-                                                return (
-                                                    <button
-                                                        key={cat.id}
-                                                        onClick={() => setVerCategory(cat.id)}
-                                                        style={{
-                                                            padding: '6px 14px', borderRadius: '20px',
-                                                            border: `1.5px solid ${active ? cat.border : bdColor}`,
-                                                            background: active ? cat.color : bgCard,
-                                                            color: active ? cat.text : txMuted,
-                                                            fontWeight: active ? '800' : '600',
-                                                            fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.15s',
-                                                            display: 'flex', alignItems: 'center', gap: '5px',
-                                                            boxShadow: active ? `0 0 0 3px ${cat.border}22` : 'none'
-                                                        }}
-                                                    >
-                                                        {cat.icon} {cat.id}
-                                                    </button>
-                                                );
-                                            })}
+                                            {(() => {
+                                                const defaultChips = [
+                                                    { id: 'อาหาร', icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
+                                                    { id: 'เดินทาง', icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
+                                                    { id: 'ช้อปปิ้ง', icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
+                                                ];
+                                                const customChips = customCategories.map((cat, idx) => {
+                                                    const palette = [
+                                                        { color: '#f3e8ff', border: '#a855f7', text: '#6b21a8' },
+                                                        { color: '#e0f7fa', border: '#06b6d4', text: '#006064' },
+                                                        { color: '#ffe4e6', border: '#f43f5e', text: '#9f1239' },
+                                                    ];
+                                                    const style = palette[idx % palette.length];
+                                                    return {
+                                                        id: cat,
+                                                        icon: '🏷️',
+                                                        ...style
+                                                    };
+                                                });
+                                                const finalChips = [...defaultChips, ...customChips, { id: 'อื่นๆ', icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' }];
+
+                                                return finalChips.map(cat => {
+                                                    const active = verCategory === cat.id;
+                                                    return (
+                                                        <button
+                                                            key={cat.id}
+                                                            onClick={() => setVerCategory(cat.id)}
+                                                            style={{
+                                                                padding: '6px 14px', borderRadius: '20px',
+                                                                border: `1.5px solid ${active ? cat.border : bdColor}`,
+                                                                background: active ? cat.color : bgCard,
+                                                                color: active ? cat.text : txMuted,
+                                                                fontWeight: active ? '800' : '600',
+                                                                fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.15s',
+                                                                display: 'flex', alignItems: 'center', gap: '5px',
+                                                                boxShadow: active ? `0 0 0 3px ${cat.border}22` : 'none'
+                                                            }}
+                                                        >
+                                                            {cat.icon} {cat.id}
+                                                        </button>
+                                                    );
+                                                });
+                                            })()}
                                         </div>
                                         {/* fallback text if not in chips */}
-                                        {!['อาหาร','เดินทาง','ช้อปปิ้ง','อื่นๆ'].includes(verCategory) && (
+                                        {!['อาหาร','เดินทาง','ช้อปปิ้ง', ...customCategories, 'อื่นๆ'].includes(verCategory) && (
                                             <input
                                                 value={verCategory}
                                                 onChange={e => setVerCategory(e.target.value)}
@@ -1976,30 +2007,56 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                 </div>
                                                 <div>
                                                     <label style={{ ...labelStyle, color: txLabel }}>หมวดหมู่ค่าใช้จ่าย</label>
-                                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                                        {[
-                                                            { id: 'อาหาร',       icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
-                                                            { id: 'เดินทาง',     icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
-                                                            { id: 'ช้อปปิ้ง',   icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
-                                                            { id: 'อื่นๆ',      icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
-                                                        ].map(cat => {
-                                                            const active = mainCategory === cat.id;
-                                                            return (
-                                                                <button key={cat.id} onClick={() => setMainCategory(cat.id)} style={{
-                                                                    padding: '6px 14px', borderRadius: '20px',
-                                                                    border: `1.5px solid ${active ? cat.border : bdColor}`,
-                                                                    background: active ? cat.color : bgCard,
-                                                                    color: active ? cat.text : txMuted,
-                                                                    fontWeight: active ? '800' : '600',
-                                                                    fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.15s',
-                                                                    display: 'flex', alignItems: 'center', gap: '5px',
-                                                                    boxShadow: active ? `0 0 0 3px ${cat.border}22` : 'none'
-                                                                }}>
-                                                                    {cat.icon} {cat.id}
-                                                                </button>
-                                                            );
-                                                        })}
+                                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: ['อาหาร','เดินทาง','ช้อปปิ้ง', ...customCategories, 'อื่นๆ'].includes(mainCategory) ? 0 : '10px' }}>
+                                                        {(() => {
+                                                            const defaultChips = [
+                                                                { id: 'อาหาร',       icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
+                                                                { id: 'เดินทาง',     icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
+                                                                { id: 'ช้อปปิ้ง',   icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
+                                                            ];
+                                                            const customChips = customCategories.map((cat, idx) => {
+                                                                const palette = [
+                                                                    { color: '#f3e8ff', border: '#a855f7', text: '#6b21a8' },
+                                                                    { color: '#e0f7fa', border: '#06b6d4', text: '#006064' },
+                                                                    { color: '#ffe4e6', border: '#f43f5e', text: '#9f1239' },
+                                                                ];
+                                                                const style = palette[idx % palette.length];
+                                                                return {
+                                                                    id: cat,
+                                                                    icon: '🏷️',
+                                                                    ...style
+                                                                };
+                                                            });
+                                                            const finalChips = [...defaultChips, ...customChips, { id: 'อื่นๆ', icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' }];
+
+                                                            return finalChips.map(cat => {
+                                                                const active = mainCategory === cat.id;
+                                                                return (
+                                                                    <button key={cat.id} onClick={() => setMainCategory(cat.id)} style={{
+                                                                        padding: '6px 14px', borderRadius: '20px',
+                                                                        border: `1.5px solid ${active ? cat.border : bdColor}`,
+                                                                        background: active ? cat.color : bgCard,
+                                                                        color: active ? cat.text : txMuted,
+                                                                        fontWeight: active ? '800' : '600',
+                                                                        fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.15s',
+                                                                        display: 'flex', alignItems: 'center', gap: '5px',
+                                                                        boxShadow: active ? `0 0 0 3px ${cat.border}22` : 'none'
+                                                                    }}>
+                                                                        {cat.icon} {cat.id}
+                                                                    </button>
+                                                                );
+                                                            });
+                                                        })()}
                                                     </div>
+                                                    {/* fallback text if not in chips */}
+                                                    {!['อาหาร','เดินทาง','ช้อปปิ้ง', ...customCategories, 'อื่นๆ'].includes(mainCategory) && (
+                                                        <input
+                                                            value={mainCategory}
+                                                            onChange={e => setMainCategory(e.target.value)}
+                                                            style={{ ...inputStyle, marginTop: '10px' }}
+                                                            placeholder="ระบุหมวดหมู่กำหนดเอง"
+                                                        />
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -2133,42 +2190,59 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                             เลือกหมวดหมู่เพื่อใช้กับใบเสร็จทุกใบในชุดนี้โดยอัตโนมัติ
                                         </p>
                                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                            {[
-                                                { id: 'อาหาร',    icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
-                                                { id: 'เดินทาง',  icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
-                                                { id: 'ช้อปปิ้ง', icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
-                                                { id: 'อื่นๆ',    icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
-                                            ].map(cat => {
-                                                const active = batchCategory === cat.id;
-                                                return (
-                                                    <button
-                                                        key={cat.id}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const newCat = active ? '' : cat.id;
-                                                            setBatchCategory(newCat);
-                                                            setVerCategory(newCat);
-                                                            setMainCategory(newCat || 'อื่นๆ');
-                                                            savedQueueStatesRef.current.forEach((state, idx) => {
-                                                                savedQueueStatesRef.current.set(idx, { ...state, verCategory: newCat, mainCategory: newCat || 'อื่นๆ' });
-                                                            });
-                                                        }}
-                                                        style={{
-                                                            padding: '7px 16px', borderRadius: '20px',
-                                                            border: `1.5px solid ${active ? cat.border : bdColor}`,
-                                                            background: active ? cat.color : bgCard,
-                                                            color: active ? cat.text : txMuted,
-                                                            fontWeight: active ? '800' : '600',
-                                                            fontSize: '0.82rem', cursor: 'pointer',
-                                                            display: 'flex', alignItems: 'center', gap: '5px',
-                                                            boxShadow: active ? `0 0 0 3px ${cat.border}22` : 'none',
-                                                            transition: 'all 0.15s',
-                                                        }}
-                                                    >
-                                                        {cat.icon} {cat.id}
-                                                    </button>
-                                                );
-                                            })}
+                                            {(() => {
+                                                const defaultChips = [
+                                                    { id: 'อาหาร',    icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
+                                                    { id: 'เดินทาง',  icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
+                                                    { id: 'ช้อปปิ้ง', icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
+                                                ];
+                                                const customChips = customCategories.map((cat, idx) => {
+                                                    const palette = [
+                                                        { color: '#f3e8ff', border: '#a855f7', text: '#6b21a8' },
+                                                        { color: '#e0f7fa', border: '#06b6d4', text: '#006064' },
+                                                        { color: '#ffe4e6', border: '#f43f5e', text: '#9f1239' },
+                                                    ];
+                                                    const style = palette[idx % palette.length];
+                                                    return {
+                                                        id: cat,
+                                                        icon: '🏷️',
+                                                        ...style
+                                                    };
+                                                });
+                                                const finalChips = [...defaultChips, ...customChips, { id: 'อื่นๆ', icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' }];
+
+                                                return finalChips.map(cat => {
+                                                    const active = batchCategory === cat.id;
+                                                    return (
+                                                        <button
+                                                            key={cat.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const newCat = active ? '' : cat.id;
+                                                                setBatchCategory(newCat);
+                                                                setVerCategory(newCat);
+                                                                setMainCategory(newCat || 'อื่นๆ');
+                                                                savedQueueStatesRef.current.forEach((state, idx) => {
+                                                                    savedQueueStatesRef.current.set(idx, { ...state, verCategory: newCat, mainCategory: newCat || 'อื่นๆ' });
+                                                                });
+                                                            }}
+                                                            style={{
+                                                                padding: '7px 16px', borderRadius: '20px',
+                                                                border: `1.5px solid ${active ? cat.border : bdColor}`,
+                                                                background: active ? cat.color : bgCard,
+                                                                color: active ? cat.text : txMuted,
+                                                                fontWeight: active ? '800' : '600',
+                                                                fontSize: '0.82rem', cursor: 'pointer',
+                                                                display: 'flex', alignItems: 'center', gap: '5px',
+                                                                boxShadow: active ? `0 0 0 3px ${cat.border}22` : 'none',
+                                                                transition: 'all 0.15s',
+                                                            }}
+                                                        >
+                                                            {cat.icon} {cat.id}
+                                                        </button>
+                                                    );
+                                                });
+                                            })()}
                                         </div>
                                     </div>
                                 </div>

@@ -59,6 +59,12 @@ export default function ProfileCard({ refreshTrigger }: { refreshTrigger?: numbe
             <span>งบอื่นๆ:</span>
             <strong>{data.budgets.other ? `฿${data.budgets.other.toLocaleString('th-TH')}` : "-"}</strong>
           </div>
+          {data.customCategories && data.customCategories.map((cat: string, idx: number) => (
+            <div key={idx} className={styles.row}>
+              <span>งบ{cat}:</span>
+              <strong>{data.budgets[cat] ? `฿${Number(data.budgets[cat]).toLocaleString('th-TH')}` : "-"}</strong>
+            </div>
+          ))}
           <div className={styles.row} style={{ borderTop: '2.5px double var(--border-color)', fontWeight: 'bold' }}>
             <span>งบรวมทั้งหมด:</span>
             <strong>{data.budgets.total ? `฿${data.budgets.total.toLocaleString('th-TH')}` : "-"}</strong>

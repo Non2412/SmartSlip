@@ -561,3 +561,91 @@
   }
 }
 
+/* Chat Input Menu Button & Dropdown Styles */
+.menuBtn {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--surface-color);
+  border: 1.5px solid var(--border-color);
+  color: var(--text-main);
+  font-size: 1.25rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.menuBtn:hover {
+  background: var(--border-color);
+}
+
+.menuBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.suggestionsDropdown {
+  position: absolute;
+  bottom: 58px;
+  left: 0;
+  z-index: 100;
+  min-width: 260px;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border-color);
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dropdownHeader {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 12px 4px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 4px;
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.dropdownItem:hover {
+  background: var(--sidebar-item-hover);
+  color: var(--primary-color);
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95) translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+

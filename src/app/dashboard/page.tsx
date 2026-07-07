@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
   const [budgets, setBudgets] = useState<any>(null);
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [showAiWidget, setShowAiWidget] = useState(true);
 
   const handleReceiptClick = (r: any) => setSelectedReceipt(r);
@@ -43,17 +44,22 @@ export default function DashboardPage() {
     }
   }, [session, fetchReceipts]);
 
-  // Load budgets settings
+  // Load budgets & custom categories settings
   useEffect(() => {
     fetch("/api/profile")
       .then((res) => res.json())
       .then((data) => {
-        if (!data.error && data.budgets) {
-          setBudgets(data.budgets);
+        if (!data.error) {
+          if (data.budgets) setBudgets(data.budgets);
+          if (data.customCategories) setCustomCategories(data.customCategories);
         }
       })
       .catch(console.error);
   }, []);
+
+  const filterCategories = useMemo(() => {
+    return ['ทั้งหมด', 'อาหาร', 'เดินทาง', 'ช้อปปิ้ง', ...customCategories, 'อื่นๆ'];
+  }, [customCategories]);
 
   // Auto-open receipt detail sheet if openReceiptId is present in URL
   useEffect(() => {
@@ -171,26 +177,14 @@ export default function DashboardPage() {
       return !isNaN(d.getTime()) && d.getFullYear() === currentYear && d.getMonth() === currentMonth;
     });
 
-    let foodSpent = 0;
-    let travelSpent = 0;
-    let shoppingSpent = 0;
-    let otherSpent = 0;
+    const categorySpents: Record<string, number> = {};
     let totalSpent = 0;
 
     currentMonthUniqueReceipts.forEach(r => {
       const amt = Number(r.amount !== undefined ? r.amount : (r.totalAmount || 0));
       totalSpent += amt;
-      
       const cat = r.extractedData?.category || 'อื่นๆ';
-      if (cat === 'อาหาร') {
-        foodSpent += amt;
-      } else if (cat === 'เดินทาง') {
-        travelSpent += amt;
-      } else if (cat === 'ช้อปปิ้ง') {
-        shoppingSpent += amt;
-      } else {
-        otherSpent += amt;
-      }
+      categorySpents[cat] = (categorySpents[cat] || 0) + amt;
     });
 
     const alerts: any[] = [];
@@ -211,11 +205,29 @@ export default function DashboardPage() {
       }
     };
 
-    checkBudget(foodSpent, budgets.food, 'อาหาร');
-    checkBudget(travelSpent, budgets.travel, 'เดินทาง');
-    checkBudget(shoppingSpent, budgets.shopping, 'ช้อปปิ้ง');
-    checkBudget(otherSpent, budgets.other, 'อื่นๆ');
-    checkBudget(totalSpent, budgets.total, 'ยอดรวมทั้งหมด');
+    const keyMap: Record<string, string> = {
+      food: 'อาหาร',
+      travel: 'เดินทาง',
+      shopping: 'ช้อปปิ้ง',
+      other: 'อื่นๆ',
+      total: 'ยอดรวมทั้งหมด'
+    };
+
+    for (const key of Object.keys(budgets)) {
+      const limit = Number(budgets[key] || 0);
+      if (limit > 0) {
+        if (key in keyMap) {
+          const categoryName = keyMap[key];
+          if (key === 'total') {
+            checkBudget(totalSpent, limit, categoryName);
+          } else {
+            checkBudget(categorySpents[categoryName] || 0, limit, categoryName);
+          }
+        } else {
+          checkBudget(categorySpents[key] || 0, limit, key);
+        }
+      }
+    }
 
     return alerts;
   }, [budgets, uniqueReceipts]);
@@ -388,7 +400,7 @@ export default function DashboardPage() {
             ) : (
               <>
                 <div className={styles.chartColSpan2}>
-                  <ExpenseChart receipts={uniqueReceipts} />
+                  <ExpenseChart receipts={uniqueReceipts} customCategories={customCategories} />
                 </div>
                 <RecentUploads
                   receipts={uniqueReceipts.filter(r => r.source === 'line')}
@@ -411,6 +423,7 @@ export default function DashboardPage() {
             onMonthChange={setFilterMonth}
             filterYear={filterYear}
             onYearChange={setFilterYear}
+            categories={filterCategories}
           />
           <ReceiptTable loading={loading} receipts={filteredReceipts} recentlyEditedId={recentlyEditedId} />
         </div>

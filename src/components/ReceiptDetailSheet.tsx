@@ -126,6 +126,20 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
     const [vat, setVat] = useState(0);
     const [isSaving, setIsSaving] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [customCategories, setCustomCategories] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetch("/api/profile")
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.error && data.customCategories) {
+                        setCustomCategories(data.customCategories);
+                    }
+                })
+                .catch(console.error);
+        }
+    }, [isOpen]);
 
     // Populate form when currentReceipt changes
     useEffect(() => {
@@ -345,37 +359,54 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                             </div>
                             <div style={{ gridColumn: '1 / -1' }}>
                                 <label style={darkLabelStyle}>หมวดหมู่ค่าใช้จ่าย</label>
-                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: ['อาหาร','เดินทาง','ช้อปปิ้ง','อื่นๆ'].includes(category) ? 0 : '8px' }}>
-                                    {[
-                                        { id: 'อาหาร',    icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
-                                        { id: 'เดินทาง',  icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
-                                        { id: 'ช้อปปิ้ง', icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
-                                        { id: 'อื่นๆ',    icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
-                                    ].map(cat => {
-                                        const active = category === cat.id;
-                                        return (
-                                            <button
-                                                key={cat.id}
-                                                type="button"
-                                                onClick={() => setCategory(cat.id)}
-                                                style={{
-                                                    padding: '6px 14px', borderRadius: '20px',
-                                                    border: `1.5px solid ${active ? cat.border : 'var(--border-color)'}`,
-                                                    background: active ? cat.color : 'var(--input-bg)',
-                                                    color: active ? cat.text : 'var(--text-muted)',
-                                                    fontWeight: active ? '800' : '600',
-                                                    fontSize: '0.8rem', cursor: 'pointer',
-                                                    display: 'flex', alignItems: 'center', gap: '5px',
-                                                    boxShadow: active ? `0 0 0 3px ${cat.border}22` : 'none',
-                                                    transition: 'all 0.15s',
-                                                }}
-                                            >
-                                                {cat.icon} {cat.id}
-                                            </button>
-                                        );
-                                    })}
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: ['อาหาร','เดินทาง','ช้อปปิ้ง', ...customCategories, 'อื่นๆ'].includes(category) ? 0 : '8px' }}>
+                                    {(() => {
+                                        const defaultChips = [
+                                            { id: 'อาหาร',    icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
+                                            { id: 'เดินทาง',  icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
+                                            { id: 'ช้อปปิ้ง', icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
+                                        ];
+                                        const customChips = customCategories.map((cat, idx) => {
+                                            const palette = [
+                                                { color: '#f3e8ff', border: '#a855f7', text: '#6b21a8' },
+                                                { color: '#e0f7fa', border: '#06b6d4', text: '#006064' },
+                                                { color: '#ffe4e6', border: '#f43f5e', text: '#9f1239' },
+                                            ];
+                                            const style = palette[idx % palette.length];
+                                            return {
+                                                id: cat,
+                                                icon: '🏷️',
+                                                ...style
+                                            };
+                                        });
+                                        const finalChips = [...defaultChips, ...customChips, { id: 'อื่นๆ', icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' }];
+
+                                        return finalChips.map(cat => {
+                                            const active = category === cat.id;
+                                            return (
+                                                <button
+                                                    key={cat.id}
+                                                    type="button"
+                                                    onClick={() => setCategory(cat.id)}
+                                                    style={{
+                                                        padding: '6px 14px', borderRadius: '20px',
+                                                        border: `1.5px solid ${active ? cat.border : 'var(--border-color)'}`,
+                                                        background: active ? cat.color : 'var(--input-bg)',
+                                                        color: active ? cat.text : 'var(--text-muted)',
+                                                        fontWeight: active ? '800' : '600',
+                                                        fontSize: '0.8rem', cursor: 'pointer',
+                                                        display: 'flex', alignItems: 'center', gap: '5px',
+                                                        boxShadow: active ? `0 0 0 3px ${cat.border}22` : 'none',
+                                                        transition: 'all 0.15s',
+                                                    }}
+                                                >
+                                                    {cat.icon} {cat.id}
+                                                </button>
+                                            );
+                                        });
+                                    })()}
                                 </div>
-                                {!['อาหาร','เดินทาง','ช้อปปิ้ง','อื่นๆ'].includes(category) && (
+                                {!['อาหาร','เดินทาง','ช้อปปิ้ง', ...customCategories, 'อื่นๆ'].includes(category) && (
                                     <input
                                         value={category}
                                         onChange={e => setCategory(e.target.value)}

@@ -25,8 +25,9 @@ export default function AIAdvisorPage() {
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
-  
+  const [showSuggestionsMenu, setShowSuggestionsMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Sync state with localStorage to persist chat history
   useEffect(() => {
@@ -46,6 +47,17 @@ export default function AIAdvisorPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
+
+  // Close suggestions menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowSuggestionsMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
@@ -284,24 +296,6 @@ export default function AIAdvisorPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Suggestions Row */}
-              {!loading && (
-                <div className={styles.suggestionsWrapper}>
-                  <span className={styles.suggestionsLabel}>หัวข้อสนทนาแนะนำ:</span>
-                  <div className={styles.suggestionsRow}>
-                    {suggestionChips.map((chip, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleSuggestionClick(chip.text)}
-                        className={styles.suggestionChip}
-                      >
-                        {chip.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Chat Input Form */}
               <form
                 onSubmit={(e) => {
@@ -309,7 +303,41 @@ export default function AIAdvisorPage() {
                   handleSendMessage();
                 }}
                 className={styles.chatInputForm}
+                style={{ position: 'relative' }}
               >
+                {/* Vertical Three Dot Suggestion Button */}
+                <div ref={menuRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowSuggestionsMenu(!showSuggestionsMenu)}
+                    className={styles.menuBtn}
+                    title="หัวข้อแนะนำ"
+                    disabled={loading}
+                  >
+                    ⋮
+                  </button>
+
+                  {showSuggestionsMenu && (
+                    <div className={styles.suggestionsDropdown}>
+                      <div className={styles.dropdownHeader}>หัวข้อสนทนาแนะนำ</div>
+                      {suggestionChips.map((chip, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            handleSuggestionClick(chip.text);
+                            setShowSuggestionsMenu(false);
+                          }}
+                          className={styles.dropdownItem}
+                        >
+                          <span>{chip.text.split(' ')[0]}</span>
+                          <span>{chip.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <input
                   type="text"
                   placeholder="พิมพ์คุยปรึกษาหรือถามเรื่องเงิน..."
