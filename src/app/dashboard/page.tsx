@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
   const [budgets, setBudgets] = useState<any>(null);
+  const [showAiWidget, setShowAiWidget] = useState(true);
 
   const handleReceiptClick = (r: any) => setSelectedReceipt(r);
 
@@ -92,6 +93,63 @@ export default function DashboardPage() {
     const { duplicateIds } = identifyDuplicateReceipts(receipts);
     return receipts.filter(r => !duplicateIds.has(r._id || r.id || ''));
   }, [receipts]);
+
+  const aiDynamicInsight = useMemo(() => {
+    // 1. Check for duplicates first
+    const { duplicateIds } = identifyDuplicateReceipts(receipts);
+    if (duplicateIds.size > 0) {
+      return `สะกิดเตือนหน่อยน้า! พี่สแกนเจอใบเสร็จที่ข้อมูลซ้ำกันจำนวน ${duplicateIds.size} รายการในระบบ ลองเข้าไปตรวจสอบและลบออกแบบกลุ่มในหน้า "รูปภาพ" เพื่อให้สถิติถูกต้องนะครับผม`;
+    }
+
+    // 2. Check budgets warning
+    if (budgets && Object.keys(budgets).length > 0) {
+      // Calculate category spendings
+      const categoryTotals: Record<string, number> = {};
+      uniqueReceipts.forEach(r => {
+        const amt = Number(r.amount !== undefined ? r.amount : (r.totalAmount || 0));
+        const cat = r.extractedData?.category || 'อื่นๆ';
+        categoryTotals[cat] = (categoryTotals[cat] || 0) + amt;
+      });
+
+      // Find if any category exceeded budget or is near 80%
+      for (const cat of Object.keys(budgets)) {
+        const limit = parseFloat(budgets[cat] || '0');
+        if (limit > 0) {
+          const spent = categoryTotals[cat] || 0;
+          const ratio = spent / limit;
+          if (ratio >= 1.0) {
+            return `ระวังเป็นพิเศษนะครับ! ตอนนี้หมวด "${cat}" ของเราใช้เงินไป ฿${spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ซึ่งเกินงบประมาณที่ตั้งไว้ที่ ฿${limit.toLocaleString()} เรียบร้อยแล้ว ลองคุมส่วนนี้ดูน้า`;
+          } else if (ratio >= 0.8) {
+            return `สะกิดบอกนิดนึงครับ! หมวด "${cat}" ใช้ไปแล้วกว่า ${Math.round(ratio * 100)}% ของงบประมาณ (฿${spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} / ฿${limit.toLocaleString()}) ใกล้เต็มงบแล้วน้า`;
+          }
+        }
+      }
+    }
+
+    // 3. Category share warning
+    const categoryTotals: Record<string, number> = {};
+    uniqueReceipts.forEach(r => {
+      const amt = Number(r.amount !== undefined ? r.amount : (r.totalAmount || 0));
+      const cat = r.extractedData?.category || 'อื่นๆ';
+      categoryTotals[cat] = (categoryTotals[cat] || 0) + amt;
+    });
+
+    const total = Object.values(categoryTotals).reduce((sum, v) => sum + v, 0);
+    if (total > 0) {
+      const sortedCategories = Object.keys(categoryTotals).sort((a, b) => categoryTotals[b] - categoryTotals[a]);
+      const topCat = sortedCategories[0];
+      const topPct = ((categoryTotals[topCat] / total) * 100).toFixed(0);
+      if (topCat === 'อาหาร' && parseFloat(topPct) > 40) {
+        return `ดูเหมือนเดือนนี้เราจะหมดงบกับหมวด "อาหาร" เยอะที่สุด คิดเป็น ${topPct}% ของค่าใช้จ่ายทั้งหมดเลยน้า ถ้ามีเวลาลองหันมาทำอาหารทานเองบ้างเพื่อช่วยเซฟเงินในกระเป๋าเพิ่มขึ้นนะครับพี่เอาใจช่วย!`;
+      }
+      if (topCat === 'ช้อปปิ้ง' && parseFloat(topPct) > 30) {
+        return `หมวด "${topCat}" พุ่งสูงขึ้นเป็น ${topPct}% ของรายจ่ายทั้งหมดแล้วนะครับ! ก่อนจะกดจ่ายชิ้นถัดไป ลองถามตัวเองว่าจำเป็นจริงๆ หรือเปล่าดูน้า หรือถ้าชอบช้อป ลองคุยปรึกษาขอวิธีคุมงบจากพี่ได้นะครับ`;
+      }
+      return `ยอดใช้จ่ายสะสมของเราตอนนี้อยู่ที่ ฿${total.toLocaleString('th-TH', { minimumFractionDigits: 2 })} โดยหมวด "${topCat}" ถือเป็นรายจ่ายก้อนใหญ่สุด (${topPct}%) รักษาความสมดุลของการใช้จ่ายไว้แบบนี้ทำได้ดีแล้วครับ!`;
+    }
+
+    return `ยินดีต้อนรับเข้าสู่ SmartSlip ครับผม! พี่เป็นเพื่อนคู่คิดการเงินคอยช่วยสแกนประเมินรายจ่ายของเราให้ปลอดภัยและออมเงินได้มากขึ้น ลองทักมาพิมพ์คุยแชทปรึกษาเงินได้ตลอดเวลานะครับ!`;
+  }, [receipts, uniqueReceipts, budgets]);
 
   const { totalAmount, pendingCount, approvedCount } = useMemo(() => ({
     totalAmount: uniqueReceipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0),
@@ -280,6 +338,43 @@ export default function DashboardPage() {
               </>
             )}
           </div>
+
+          {/* AI Coach Insights Card */}
+          {!loading && showAiWidget && (
+            <div className={styles.aiInsightCard}>
+              <div className={styles.aiInsightAvatar} style={{ overflow: 'visible', background: 'none', boxShadow: 'none', padding: 0 }}>
+                <img
+                  src="/BOT.png"
+                  alt="SmartSlip AI"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+                <div className={styles.aiAvatarPing}></div>
+              </div>
+              <div className={styles.aiInsightContent}>
+                <span className={styles.aiInsightTag}>💬 คำแนะนำจากพี่ SmartSlip AI:</span>
+                <p className={styles.aiInsightText}>{aiDynamicInsight}</p>
+              </div>
+              <div className={styles.aiInsightActions}>
+                <button 
+                  onClick={() => window.location.href = '/ai-advisor'}
+                  className={styles.aiInsightBtn}
+                >
+                  คุยแชทปรึกษาเรื่องเงิน
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
+                </button>
+                <button 
+                  className={styles.aiInsightClose} 
+                  onClick={() => setShowAiWidget(false)}
+                  title="ปิดข้อความ"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Charts Row */}
           <div className={styles.chartsRow}>
