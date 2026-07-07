@@ -520,7 +520,7 @@ export const ReceiptTable = ({ loading, receipts = [], recentlyEditedId }: { loa
     );
 };
 
-export const ExpenseChart = ({ receipts = [], customCategories }: { receipts?: any[]; customCategories?: string[] }) => {
+export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
     const [viewType, setViewType] = useState<'week' | 'month' | 'year'>('week');
     const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -671,8 +671,7 @@ export const ExpenseChart = ({ receipts = [], customCategories }: { receipts?: a
     const gridLines = [0, 0.25, 0.5, 0.75, 1];
 
     // Compute category breakdown for the selected period
-    const customCats = customCategories || [];
-    const categoriesList = ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', ...customCats, 'อื่นๆ'];
+    const categoriesList = ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'];
 
     const categoryAmounts: Record<string, number> = {};
     categoriesList.forEach(cat => {
@@ -732,10 +731,7 @@ export const ExpenseChart = ({ receipts = [], customCategories }: { receipts?: a
         'ช้อปปิ้ง': '#ec4899',
         'อื่นๆ': '#10b981'
     };
-    customCats.forEach((cat, idx) => {
-        const colorIdx = (3 + idx) % (palette.length - 1);
-        sliceColors[cat] = palette[colorIdx];
-    });
+
 
     let accumulatedPercentage = 0;
     const slices = categoriesList.map(cat => {

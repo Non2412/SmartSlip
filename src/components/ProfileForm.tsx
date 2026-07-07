@@ -9,13 +9,6 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
     email: "",
     phone: "",
   });
-  const [budgets, setBudgets] = useState<any>({
-    food: 0,
-    travel: 0,
-    shopping: 0,
-    other: 0,
-    total: 0,
-  });
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [newCatInput, setNewCatInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,16 +25,6 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
             email: data.email || "",
             phone: data.phone || "",
           });
-          if (data.budgets) {
-            setBudgets({
-              food: data.budgets.food || 0,
-              travel: data.budgets.travel || 0,
-              shopping: data.budgets.shopping || 0,
-              other: data.budgets.other || 0,
-              total: data.budgets.total || 0,
-              ...data.budgets
-            });
-          }
           if (data.customCategories) {
             setCustomCategories(data.customCategories);
           }
@@ -52,16 +35,6 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleBudgetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value) || 0;
-    setBudgets({ ...budgets, [e.target.name]: val });
-  };
-
-  const handleCustomBudgetChange = (cat: string, valStr: string) => {
-    const val = parseFloat(valStr) || 0;
-    setBudgets({ ...budgets, [cat]: val });
   };
 
   const handleAddCategory = () => {
@@ -75,16 +48,12 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
     }
 
     setCustomCategories([...customCategories, input]);
-    setBudgets({ ...budgets, [input]: 0 });
     setNewCatInput("");
   };
 
   const handleRemoveCategory = (catName: string) => {
     if (confirm(`คุณแน่ใจหรือไม่ที่จะลบหมวดหมู่ "${catName}"?`)) {
       setCustomCategories(customCategories.filter(c => c !== catName));
-      const nextBudgets = { ...budgets };
-      delete nextBudgets[catName];
-      setBudgets(nextBudgets);
     }
   };
 
@@ -95,7 +64,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
       const res = await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, budgets, customCategories }),
+        body: JSON.stringify({ ...form, customCategories }),
       });
       if (res.ok) {
         alert("บันทึกข้อมูลเรียบร้อยแล้ว!");
@@ -141,48 +110,19 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
 
         <hr style={{ margin: '24px 0', border: 'none', borderTop: '1.5px dashed #cbd5e1' }} />
 
+        {/* Custom Categories section */}
         <h3 style={{ marginTop: '0', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><line x1="12" y1="3" x2="12" y2="21" /><line x1="3" y1="12" x2="21" y2="12" /></svg>
-          เป้าหมายงบประมาณรายเดือน (บาท)
+          จัดการหมวดหมู่รายจ่ายของคุณ
         </h3>
 
-        <div className={styles.formGroup}>
-          <label className={styles.label}>งบอาหาร (Food)</label>
-          <input className={styles.input} type="number" name="food" min="0" placeholder="0" value={budgets.food || ""} onChange={handleBudgetChange} />
-        </div>
-        <div className={styles.formGroup}>
-          <label className={styles.label}>งบเดินทาง (Travel)</label>
-          <input className={styles.input} type="number" name="travel" min="0" placeholder="0" value={budgets.travel || ""} onChange={handleBudgetChange} />
-        </div>
-        <div className={styles.formGroup}>
-          <label className={styles.label}>งบช้อปปิ้ง (Shopping)</label>
-          <input className={styles.input} type="number" name="shopping" min="0" placeholder="0" value={budgets.shopping || ""} onChange={handleBudgetChange} />
-        </div>
-        <div className={styles.formGroup}>
-          <label className={styles.label}>งบอื่น ๆ (Other)</label>
-          <input className={styles.input} type="number" name="other" min="0" placeholder="0" value={budgets.other || ""} onChange={handleBudgetChange} />
-        </div>
-
-        {/* Custom Categories and Budgets section */}
         {customCategories.length > 0 && (
-          <>
-            <h4 style={{ marginTop: '20px', marginBottom: '12px', fontSize: '0.95rem', color: 'var(--text-main)' }}>
-              งบประมาณหมวดหมู่ส่วนตัว
-            </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
             {customCategories.map((cat, idx) => (
-              <div key={idx} className={styles.customCategoryRow}>
+              <div key={idx} className={styles.customCategoryRow} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ flex: 1, minWidth: '100px', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)' }}>
                   {cat}
                 </div>
-                <input
-                  className={styles.input}
-                  type="number"
-                  placeholder="0"
-                  min="0"
-                  style={{ width: '120px' }}
-                  value={budgets[cat] || ""}
-                  onChange={(e) => handleCustomBudgetChange(cat, e.target.value)}
-                />
                 <button
                   type="button"
                   className={styles.deleteButton}
@@ -193,14 +133,14 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                 </button>
               </div>
             ))}
-          </>
+          </div>
         )}
 
         {/* Add New Custom Category Row */}
         <h4 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '0.95rem', color: 'var(--text-main)' }}>
           ➕ สร้างหมวดหมู่รายจ่ายใหม่
         </h4>
-        <div className={styles.addCategoryRow}>
+        <div className={styles.addCategoryRow} style={{ marginBottom: '24px' }}>
           <input
             className={styles.input}
             type="text"
@@ -221,11 +161,6 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
           >
             สร้างหมวดหมู่
           </button>
-        </div>
-
-        <div className={styles.formGroup} style={{ marginTop: '24px' }}>
-          <label className={styles.label} style={{ fontWeight: 'bold' }}>งบรวมทั้งหมด (Total Limit)</label>
-          <input className={styles.input} type="number" name="total" min="0" placeholder="0" value={budgets.total || ""} onChange={handleBudgetChange} style={{ fontWeight: 'bold' }} />
         </div>
 
         <button type="submit" className={styles.button} disabled={loading}>

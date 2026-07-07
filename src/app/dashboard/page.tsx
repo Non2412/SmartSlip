@@ -31,8 +31,6 @@ export default function DashboardPage() {
   const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
-  const [budgets, setBudgets] = useState<any>(null);
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [showAiWidget, setShowAiWidget] = useState(true);
 
   const handleReceiptClick = (r: any) => setSelectedReceipt(r);
@@ -44,22 +42,7 @@ export default function DashboardPage() {
     }
   }, [session, fetchReceipts]);
 
-  // Load budgets & custom categories settings
-  useEffect(() => {
-    fetch("/api/profile")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.error) {
-          if (data.budgets) setBudgets(data.budgets);
-          if (data.customCategories) setCustomCategories(data.customCategories);
-        }
-      })
-      .catch(console.error);
-  }, []);
-
-  const filterCategories = useMemo(() => {
-    return ['ทั้งหมด', 'อาหาร', 'เดินทาง', 'ช้อปปิ้ง', ...customCategories, 'อื่นๆ'];
-  }, [customCategories]);
+  const filterCategories = ['ทั้งหมด', 'อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'];
 
   // Auto-open receipt detail sheet if openReceiptId is present in URL
   useEffect(() => {
@@ -107,30 +90,7 @@ export default function DashboardPage() {
       return `สะกิดเตือนหน่อยน้า! พี่สแกนเจอใบเสร็จที่ข้อมูลซ้ำกันจำนวน ${duplicateIds.size} รายการในระบบ ลองเข้าไปตรวจสอบและลบออกแบบกลุ่มในหน้า "รูปภาพ" เพื่อให้สถิติถูกต้องนะครับผม`;
     }
 
-    // 2. Check budgets warning
-    if (budgets && Object.keys(budgets).length > 0) {
-      // Calculate category spendings
-      const categoryTotals: Record<string, number> = {};
-      uniqueReceipts.forEach(r => {
-        const amt = Number(r.amount !== undefined ? r.amount : (r.totalAmount || 0));
-        const cat = r.extractedData?.category || 'อื่นๆ';
-        categoryTotals[cat] = (categoryTotals[cat] || 0) + amt;
-      });
-
-      // Find if any category exceeded budget or is near 80%
-      for (const cat of Object.keys(budgets)) {
-        const limit = parseFloat(budgets[cat] || '0');
-        if (limit > 0) {
-          const spent = categoryTotals[cat] || 0;
-          const ratio = spent / limit;
-          if (ratio >= 1.0) {
-            return `ระวังเป็นพิเศษนะครับ! ตอนนี้หมวด "${cat}" ของเราใช้เงินไป ฿${spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ซึ่งเกินงบประมาณที่ตั้งไว้ที่ ฿${limit.toLocaleString()} เรียบร้อยแล้ว ลองคุมส่วนนี้ดูน้า`;
-          } else if (ratio >= 0.8) {
-            return `สะกิดบอกนิดนึงครับ! หมวด "${cat}" ใช้ไปแล้วกว่า ${Math.round(ratio * 100)}% ของงบประมาณ (฿${spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} / ฿${limit.toLocaleString()}) ใกล้เต็มงบแล้วน้า`;
-          }
-        }
-      }
-    }
+    // 2. Category share warning
 
     // 3. Category share warning
     const categoryTotals: Record<string, number> = {};
@@ -154,8 +114,8 @@ export default function DashboardPage() {
       return `ยอดใช้จ่ายสะสมของเราตอนนี้อยู่ที่ ฿${total.toLocaleString('th-TH', { minimumFractionDigits: 2 })} โดยหมวด "${topCat}" ถือเป็นรายจ่ายก้อนใหญ่สุด (${topPct}%) รักษาความสมดุลของการใช้จ่ายไว้แบบนี้ทำได้ดีแล้วครับ!`;
     }
 
-    return `ยินดีต้อนรับเข้าสู่ SmartSlip ครับผม! พี่เป็นเพื่อนคู่คิดการเงินคอยช่วยสแกนประเมินรายจ่ายของเราให้ปลอดภัยและออมเงินได้มากขึ้น ลองทักมาพิมพ์คุยแชทปรึกษาเงินได้ตลอดเวลานะครับ!`;
-  }, [receipts, uniqueReceipts, budgets]);
+    return `ยินดีต้อนรับเข้าสู่ SmartSlip ครับผม! พี่เป็นเพื่อนคู่คิดการเงินคอยช่วยสแกนประเมินรายจ่ายของเราให้ปลอดภัยและวางแผนคุมรายจ่ายได้มีประสิทธิภาพมากขึ้น ลองทักมาพิมพ์คุยแชทปรึกษาเงินได้ตลอดเวลานะครับ!`;
+  }, [receipts, uniqueReceipts]);
 
   const { totalAmount, pendingCount, approvedCount } = useMemo(() => ({
     totalAmount: uniqueReceipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0),
@@ -163,74 +123,7 @@ export default function DashboardPage() {
     approvedCount: uniqueReceipts.filter(r => r.extractedData).length,
   }), [uniqueReceipts]);
 
-  const budgetAlerts = useMemo(() => {
-    if (!budgets || uniqueReceipts.length === 0) return [];
-
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-
-    const currentMonthUniqueReceipts = uniqueReceipts.filter(r => {
-      const dateStr = r.extractedData?.date || r.createdAt;
-      if (!dateStr) return false;
-      const d = new Date(dateStr);
-      return !isNaN(d.getTime()) && d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-    });
-
-    const categorySpents: Record<string, number> = {};
-    let totalSpent = 0;
-
-    currentMonthUniqueReceipts.forEach(r => {
-      const amt = Number(r.amount !== undefined ? r.amount : (r.totalAmount || 0));
-      totalSpent += amt;
-      const cat = r.extractedData?.category || 'อื่นๆ';
-      categorySpents[cat] = (categorySpents[cat] || 0) + amt;
-    });
-
-    const alerts: any[] = [];
-    const checkBudget = (spent: number, limit: number, name: string) => {
-      if (limit > 0) {
-        const percent = (spent / limit) * 100;
-        if (percent >= 100) {
-          alerts.push({
-            type: 'danger',
-            message: `งบประมาณสำหรับหมวดหมู่ "${name}" เกินกำหนด 100% แล้ว (ใช้ไป ฿${spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} จากงบ ฿${limit.toLocaleString('th-TH')})`
-          });
-        } else if (percent >= 80) {
-          alerts.push({
-            type: 'warning',
-            message: `งบประมาณสำหรับหมวดหมู่ "${name}" เกินเกณฑ์ 80% แล้ว (ใช้ไป ฿${spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} จากงบ ฿${limit.toLocaleString('th-TH')})`
-          });
-        }
-      }
-    };
-
-    const keyMap: Record<string, string> = {
-      food: 'อาหาร',
-      travel: 'เดินทาง',
-      shopping: 'ช้อปปิ้ง',
-      other: 'อื่นๆ',
-      total: 'ยอดรวมทั้งหมด'
-    };
-
-    for (const key of Object.keys(budgets)) {
-      const limit = Number(budgets[key] || 0);
-      if (limit > 0) {
-        if (key in keyMap) {
-          const categoryName = keyMap[key];
-          if (key === 'total') {
-            checkBudget(totalSpent, limit, categoryName);
-          } else {
-            checkBudget(categorySpents[categoryName] || 0, limit, categoryName);
-          }
-        } else {
-          checkBudget(categorySpents[key] || 0, limit, key);
-        }
-      }
-    }
-
-    return alerts;
-  }, [budgets, uniqueReceipts]);
+  const budgetAlerts: any[] = [];
 
   const filteredReceipts = useMemo(() => uniqueReceipts.filter(r => {
     // 1. Category filter
@@ -400,7 +293,7 @@ export default function DashboardPage() {
             ) : (
               <>
                 <div className={styles.chartColSpan2}>
-                  <ExpenseChart receipts={uniqueReceipts} customCategories={customCategories} />
+                  <ExpenseChart receipts={uniqueReceipts} />
                 </div>
                 <RecentUploads
                   receipts={uniqueReceipts.filter(r => r.source === 'line')}
