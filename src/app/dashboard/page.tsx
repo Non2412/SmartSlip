@@ -31,7 +31,7 @@ export default function DashboardPage() {
   const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
-  const [budgets, setBudgets] = useState<any>(null);
+  const [showAiWidget, setShowAiWidget] = useState(true);
 
   const handleReceiptClick = (r: any) => setSelectedReceipt(r);
 
@@ -42,17 +42,7 @@ export default function DashboardPage() {
     }
   }, [session, fetchReceipts]);
 
-  // Load budgets settings
-  useEffect(() => {
-    fetch("/api/profile")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.error && data.budgets) {
-          setBudgets(data.budgets);
-        }
-      })
-      .catch(console.error);
-  }, []);
+  const filterCategories = ['ทั้งหมด', 'อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'];
 
   // Auto-open receipt detail sheet if openReceiptId is present in URL
   useEffect(() => {
@@ -93,74 +83,47 @@ export default function DashboardPage() {
     return receipts.filter(r => !duplicateIds.has(r._id || r.id || ''));
   }, [receipts]);
 
+  const aiDynamicInsight = useMemo(() => {
+    // 1. Check for duplicates first
+    const { duplicateIds } = identifyDuplicateReceipts(receipts);
+    if (duplicateIds.size > 0) {
+      return `สะกิดเตือนหน่อยน้า! พี่สแกนเจอใบเสร็จที่ข้อมูลซ้ำกันจำนวน ${duplicateIds.size} รายการในระบบ ลองเข้าไปตรวจสอบและลบออกแบบกลุ่มในหน้า "รูปภาพ" เพื่อให้สถิติถูกต้องนะครับผม`;
+    }
+
+    // 2. Category share warning
+
+    // 3. Category share warning
+    const categoryTotals: Record<string, number> = {};
+    uniqueReceipts.forEach(r => {
+      const amt = Number(r.amount !== undefined ? r.amount : (r.totalAmount || 0));
+      const cat = r.extractedData?.category || 'อื่นๆ';
+      categoryTotals[cat] = (categoryTotals[cat] || 0) + amt;
+    });
+
+    const total = Object.values(categoryTotals).reduce((sum, v) => sum + v, 0);
+    if (total > 0) {
+      const sortedCategories = Object.keys(categoryTotals).sort((a, b) => categoryTotals[b] - categoryTotals[a]);
+      const topCat = sortedCategories[0];
+      const topPct = ((categoryTotals[topCat] / total) * 100).toFixed(0);
+      if (topCat === 'อาหาร' && parseFloat(topPct) > 40) {
+        return `ดูเหมือนเดือนนี้เราจะหมดงบกับหมวด "อาหาร" เยอะที่สุด คิดเป็น ${topPct}% ของค่าใช้จ่ายทั้งหมดเลยน้า ถ้ามีเวลาลองหันมาทำอาหารทานเองบ้างเพื่อช่วยเซฟเงินในกระเป๋าเพิ่มขึ้นนะครับพี่เอาใจช่วย!`;
+      }
+      if (topCat === 'ช้อปปิ้ง' && parseFloat(topPct) > 30) {
+        return `หมวด "${topCat}" พุ่งสูงขึ้นเป็น ${topPct}% ของรายจ่ายทั้งหมดแล้วนะครับ! ก่อนจะกดจ่ายชิ้นถัดไป ลองถามตัวเองว่าจำเป็นจริงๆ หรือเปล่าดูน้า หรือถ้าชอบช้อป ลองคุยปรึกษาขอวิธีคุมงบจากพี่ได้นะครับ`;
+      }
+      return `ยอดใช้จ่ายสะสมของเราตอนนี้อยู่ที่ ฿${total.toLocaleString('th-TH', { minimumFractionDigits: 2 })} โดยหมวด "${topCat}" ถือเป็นรายจ่ายก้อนใหญ่สุด (${topPct}%) รักษาความสมดุลของการใช้จ่ายไว้แบบนี้ทำได้ดีแล้วครับ!`;
+    }
+
+    return `ยินดีต้อนรับเข้าสู่ SmartSlip ครับผม! พี่เป็นเพื่อนคู่คิดการเงินคอยช่วยสแกนประเมินรายจ่ายของเราให้ปลอดภัยและวางแผนคุมรายจ่ายได้มีประสิทธิภาพมากขึ้น ลองทักมาพิมพ์คุยแชทปรึกษาเงินได้ตลอดเวลานะครับ!`;
+  }, [receipts, uniqueReceipts]);
+
   const { totalAmount, pendingCount, approvedCount } = useMemo(() => ({
     totalAmount: uniqueReceipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0),
     pendingCount: uniqueReceipts.filter(r => !r.extractedData).length,
     approvedCount: uniqueReceipts.filter(r => r.extractedData).length,
   }), [uniqueReceipts]);
 
-  const budgetAlerts = useMemo(() => {
-    if (!budgets || uniqueReceipts.length === 0) return [];
-
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-
-    const currentMonthUniqueReceipts = uniqueReceipts.filter(r => {
-      const dateStr = r.extractedData?.date || r.createdAt;
-      if (!dateStr) return false;
-      const d = new Date(dateStr);
-      return !isNaN(d.getTime()) && d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-    });
-
-    let foodSpent = 0;
-    let travelSpent = 0;
-    let shoppingSpent = 0;
-    let otherSpent = 0;
-    let totalSpent = 0;
-
-    currentMonthUniqueReceipts.forEach(r => {
-      const amt = Number(r.amount !== undefined ? r.amount : (r.totalAmount || 0));
-      totalSpent += amt;
-      
-      const cat = r.extractedData?.category || 'อื่นๆ';
-      if (cat === 'อาหาร') {
-        foodSpent += amt;
-      } else if (cat === 'เดินทาง') {
-        travelSpent += amt;
-      } else if (cat === 'ช้อปปิ้ง') {
-        shoppingSpent += amt;
-      } else {
-        otherSpent += amt;
-      }
-    });
-
-    const alerts: any[] = [];
-    const checkBudget = (spent: number, limit: number, name: string) => {
-      if (limit > 0) {
-        const percent = (spent / limit) * 100;
-        if (percent >= 100) {
-          alerts.push({
-            type: 'danger',
-            message: `งบประมาณสำหรับหมวดหมู่ "${name}" เกินกำหนด 100% แล้ว (ใช้ไป ฿${spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} จากงบ ฿${limit.toLocaleString('th-TH')})`
-          });
-        } else if (percent >= 80) {
-          alerts.push({
-            type: 'warning',
-            message: `งบประมาณสำหรับหมวดหมู่ "${name}" เกินเกณฑ์ 80% แล้ว (ใช้ไป ฿${spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} จากงบ ฿${limit.toLocaleString('th-TH')})`
-          });
-        }
-      }
-    };
-
-    checkBudget(foodSpent, budgets.food, 'อาหาร');
-    checkBudget(travelSpent, budgets.travel, 'เดินทาง');
-    checkBudget(shoppingSpent, budgets.shopping, 'ช้อปปิ้ง');
-    checkBudget(otherSpent, budgets.other, 'อื่นๆ');
-    checkBudget(totalSpent, budgets.total, 'ยอดรวมทั้งหมด');
-
-    return alerts;
-  }, [budgets, uniqueReceipts]);
+  const budgetAlerts: any[] = [];
 
   const filteredReceipts = useMemo(() => uniqueReceipts.filter(r => {
     // 1. Category filter
@@ -281,6 +244,43 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* AI Coach Insights Card */}
+          {!loading && showAiWidget && (
+            <div className={styles.aiInsightCard}>
+              <div className={styles.aiInsightAvatar} style={{ overflow: 'visible', background: 'none', boxShadow: 'none', padding: 0 }}>
+                <img
+                  src="/BOT.png"
+                  alt="SmartSlip AI"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+                <div className={styles.aiAvatarPing}></div>
+              </div>
+              <div className={styles.aiInsightContent}>
+                <span className={styles.aiInsightTag}>💬 คำแนะนำจากพี่ SmartSlip AI:</span>
+                <p className={styles.aiInsightText}>{aiDynamicInsight}</p>
+              </div>
+              <div className={styles.aiInsightActions}>
+                <button 
+                  onClick={() => window.location.href = '/ai-advisor'}
+                  className={styles.aiInsightBtn}
+                >
+                  คุยแชทปรึกษาเรื่องเงิน
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
+                </button>
+                <button 
+                  className={styles.aiInsightClose} 
+                  onClick={() => setShowAiWidget(false)}
+                  title="ปิดข้อความ"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Charts Row */}
           <div className={styles.chartsRow}>
             {loading ? (
@@ -316,6 +316,7 @@ export default function DashboardPage() {
             onMonthChange={setFilterMonth}
             filterYear={filterYear}
             onYearChange={setFilterYear}
+            categories={filterCategories}
           />
           <ReceiptTable loading={loading} receipts={filteredReceipts} recentlyEditedId={recentlyEditedId} />
         </div>

@@ -127,6 +127,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
     const [isSaving, setIsSaving] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+
     // Populate form when currentReceipt changes
     useEffect(() => {
         if (currentReceipt && isOpen) {

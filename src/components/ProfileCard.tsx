@@ -40,28 +40,15 @@ export default function ProfileCard({ refreshTrigger }: { refreshTrigger?: numbe
         <span>เบอร์โทร:</span>
         <strong>{data.phone || "-"}</strong>
       </div>
-      {data.budgets && (
+      {data.customCategories && data.customCategories.length > 0 && (
         <>
-          <div style={{ marginTop: '20px', fontWeight: 'bold', fontSize: '0.95rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', color: 'var(--text-main)' }}>เป้าหมายงบประมาณรายเดือน</div>
-          <div className={styles.row}>
-            <span>งบอาหาร:</span>
-            <strong>{data.budgets.food ? `฿${data.budgets.food.toLocaleString('th-TH')}` : "-"}</strong>
-          </div>
-          <div className={styles.row}>
-            <span>งบเดินทาง:</span>
-            <strong>{data.budgets.travel ? `฿${data.budgets.travel.toLocaleString('th-TH')}` : "-"}</strong>
-          </div>
-          <div className={styles.row}>
-            <span>งบช้อปปิ้ง:</span>
-            <strong>{data.budgets.shopping ? `฿${data.budgets.shopping.toLocaleString('th-TH')}` : "-"}</strong>
-          </div>
-          <div className={styles.row}>
-            <span>งบอื่นๆ:</span>
-            <strong>{data.budgets.other ? `฿${data.budgets.other.toLocaleString('th-TH')}` : "-"}</strong>
-          </div>
-          <div className={styles.row} style={{ borderTop: '2.5px double var(--border-color)', fontWeight: 'bold' }}>
-            <span>งบรวมทั้งหมด:</span>
-            <strong>{data.budgets.total ? `฿${data.budgets.total.toLocaleString('th-TH')}` : "-"}</strong>
+          <div style={{ marginTop: '20px', fontWeight: 'bold', fontSize: '0.95rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', color: 'var(--text-main)' }}>หมวดหมู่รายจ่ายส่วนตัว</div>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
+            {data.customCategories.map((cat: string, idx: number) => (
+              <span key={idx} style={{ padding: '4px 10px', borderRadius: '12px', background: 'var(--input-bg)', border: '1px solid var(--border-color)', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                🏷️ {cat}
+              </span>
+            ))}
           </div>
         </>
       )}

@@ -109,3 +109,48 @@
     min-width: 100%;
   }
 }
+
+.customCategoryRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.addCategoryRow {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.addButton {
+  padding: 10px 16px;
+  background: var(--primary-color, #10b981);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.addButton:hover {
+  background: #059669;
+}
+
+.deleteButton {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+
+.deleteButton:hover {
+  transform: scale(1.1);
+}

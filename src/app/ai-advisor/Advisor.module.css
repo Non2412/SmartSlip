@@ -591,217 +591,280 @@
   }
 }
 
-/* ──────────────────────────────────────────────────
-   Mobile-only overrides (desktop/PC layout untouched)
-   ────────────────────────────────────────────────── */
-@media (max-width: 768px) {
-  .container {
-    gap: 14px;
-  }
+/* Chat Input Menu Button & Dropdown Styles */
+.menuBtn {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--surface-color);
+  border: 1.5px solid var(--border-color);
+  color: var(--text-main);
+  font-size: 1.25rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
 
-  .headerSection {
-    margin-bottom: 0;
-  }
+.menuBtn:hover {
+  background: var(--border-color);
+}
 
-  .title {
-    font-size: 1.3rem;
-    margin-bottom: 4px;
-  }
+.menuBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 
-  .subtitle {
-    font-size: 0.82rem;
-    line-height: 1.45;
-  }
+.suggestionsDropdown {
+  position: absolute;
+  bottom: 58px;
+  left: 0;
+  z-index: 100;
+  min-width: 260px;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border-color);
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
 
-  /* Fixed 580px overflowed shorter phone viewports, forcing an outer
-     page scroll before the input box was even visible. */
-  .chatContainer {
-    height: min(580px, calc(100dvh - 235px));
-    border-radius: 18px;
-  }
+.dropdownHeader {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 12px 4px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 4px;
+}
 
-  /* Open, borderless "Gemini-style" welcome state instead of a boxed card */
-  .welcomeWrap {
-    max-width: 300px;
-    padding: 28px 16px 4px;
-  }
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+  width: 100%;
+}
 
-  .welcomeAvatar {
-    width: 88px;
-    height: 88px;
-    margin: 0 auto 20px;
-    border: none;
-    background: transparent;
-    box-shadow: none;
-  }
+.dropdownItem:hover {
+  background: var(--sidebar-item-hover);
+  color: var(--primary-color);
+}
 
-  .welcomeAvatar svg {
-    width: 46px;
-    height: 46px;
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95) translateY(10px);
+    opacity: 0;
   }
-
-  .welcomeHeading {
-    font-size: 1.3rem;
-    margin-bottom: 10px;
-  }
-
-  .welcomeSubtext {
-    font-size: 0.85rem;
-    line-height: 1.7;
-    margin-bottom: 12px;
-  }
-
-  .chatHeader {
-    padding: 14px 16px;
-  }
-
-  .chatHeaderInfo h3 {
-    font-size: 0.95rem;
-  }
-
-  .clearBtn {
-    padding: 5px 10px;
-    font-size: 0.75rem;
-  }
-
-  .chatMessages {
-    padding: 16px;
-    gap: 16px;
-  }
-
-  .avatarWrapper {
-    width: 32px;
-    height: 32px;
-    margin-right: 8px;
-  }
-
-  .messageBubble {
-    max-width: 85%;
-    padding: 12px 16px;
-    font-size: 0.88rem;
-  }
-
-  .suggestionsWrapper {
-    padding: 0 16px;
-    margin-bottom: 12px;
-  }
-
-  /* Suggested topics are opened on demand via the ••• button next to the
-     input, instead of permanently taking up space above it. */
-  .suggestionsCollapsed {
-    display: none;
-  }
-
-  .suggestionsToggleBtn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 1.5px solid var(--border-color);
-    background: var(--surface-color);
-    color: var(--text-muted);
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: all 0.2s;
-  }
-
-  .suggestionsToggleBtn:hover,
-  .suggestionsToggleBtn:active {
-    color: var(--primary-color);
-    border-color: var(--primary-color);
-  }
-
-  /* Fade the trailing edge so the horizontally-scrollable chip row
-     doesn't look like it's abruptly cut off. */
-  .suggestionsRow {
-    mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
-  }
-
-  /* Soft, borderless capsule chips instead of outlined boxes */
-  .suggestionChip {
-    padding: 8px 15px;
-    font-size: 0.78rem;
-    border: none;
-    background: rgba(16, 185, 129, 0.08);
-    color: var(--primary-color);
-    box-shadow: none;
-  }
-
-  .suggestionChip:hover {
-    background: rgba(16, 185, 129, 0.14);
-  }
-
-  /* Floating pill input bar, no boxed toolbar divider */
-  .chatInputForm {
-    padding: 8px 16px calc(14px + env(safe-area-inset-bottom, 0px));
-    gap: 8px;
-    border-top: none;
-    background: transparent;
-  }
-
-  .chatInput {
-    padding: 12px 16px;
-    border-radius: 999px;
-    /* 16px prevents iOS Safari from auto-zooming the page on focus */
-    font-size: 16px;
-    /* Flex items default to min-width:auto, which kept the input from
-       shrinking below its content size and pushed the send button
-       outside the card on narrow phones. */
-    min-width: 0;
-  }
-
-  .sendBtn {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
   }
 }
 
-/* Very small phones (Galaxy Fold, older/compact devices) */
-@media (max-width: 360px) {
-  .chatContainer {
-    height: min(580px, calc(100dvh - 215px));
+/* Chat History Sessions Sidebar Layout */
+.chatLayoutContainer {
+  display: flex;
+  height: 600px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 24px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+[data-theme="dark"] .chatLayoutContainer {
+  background: linear-gradient(135deg, rgba(20, 27, 44, 0.75), rgba(11, 15, 25, 0.75));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.sessionsSidebar {
+  width: 260px;
+  background: rgba(255, 255, 255, 0.02);
+  border-right: 1.5px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100%;
+}
+
+[data-theme="dark"] .sessionsSidebar {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.sidebarHeader {
+  padding: 18px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.newChatBtn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.newChatBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+}
+
+.sessionsList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Custom scrollbar for sessions list */
+.sessionsList::-webkit-scrollbar {
+  width: 4px;
+}
+.sessionsList::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.sessionItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background: none;
+  text-align: left;
+  width: 100%;
+  color: var(--text-muted);
+}
+
+.sessionItem:hover {
+  background: var(--sidebar-item-hover);
+  color: var(--text-main);
+}
+
+.sessionItemActive {
+  background: rgba(16, 185, 129, 0.08) !important;
+  color: var(--primary-color) !important;
+  font-weight: 700;
+}
+
+.sessionMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sessionTitle {
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sessionDeleteBtn {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.sessionItem:hover .sessionDeleteBtn {
+  opacity: 0.6;
+}
+
+.sessionDeleteBtn:hover {
+  opacity: 1 !important;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.chatMainArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .chatLayoutContainer {
+    flex-direction: column;
+    height: 640px;
+  }
+  
+  .sessionsSidebar {
+    width: 100%;
+    height: 140px;
+    border-right: none;
+    border-bottom: 1.5px solid var(--border-color);
   }
 
-  .welcomeWrap {
-    max-width: 260px;
-    padding: 20px 8px 4px;
-  }
-
-  .welcomeAvatar {
-    width: 72px;
-    height: 72px;
-  }
-
-  .welcomeAvatar svg {
-    width: 38px;
-    height: 38px;
-  }
-
-  .welcomeHeading {
-    font-size: 1.1rem;
-  }
-
-  .welcomeSubtext {
-    font-size: 0.8rem;
-  }
-
-  .chatInputForm {
-    padding: 6px 12px calc(12px + env(safe-area-inset-bottom, 0px));
-    gap: 6px;
-  }
-
-  .chatInput {
+  .sidebarHeader {
     padding: 10px 14px;
   }
 
-  .suggestionsToggleBtn,
-  .sendBtn {
-    width: 36px;
-    height: 36px;
+  .sessionsList {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 6px 14px 10px;
+    gap: 8px;
+  }
+
+  .sessionItem {
+    width: auto;
+    flex-shrink: 0;
+    max-width: 160px;
+    padding: 8px 12px;
+  }
+
+  .sessionDeleteBtn {
+    opacity: 0.6;
+    margin-left: 6px;
   }
 }
 

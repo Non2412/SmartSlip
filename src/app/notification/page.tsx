@@ -94,30 +94,6 @@ export default function NotificationPage() {
   });
 
   const budgetAlerts: any[] = [];
-  if (budgets) {
-    const checkBudget = (spent: number, limit: number, name: string) => {
-      if (limit > 0) {
-        const percent = (spent / limit) * 100;
-        if (percent >= 100) {
-          budgetAlerts.push({
-            type: 'danger',
-            message: `งบประมาณสำหรับหมวดหมู่ "${name}" เกินกำหนด 100% แล้ว (ใช้ไป ฿${spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} จากงบ ฿${limit.toLocaleString('th-TH')})`
-          });
-        } else if (percent >= 80) {
-          budgetAlerts.push({
-            type: 'warning',
-            message: `งบประมาณสำหรับหมวดหมู่ "${name}" สูงเกิน 80% แล้ว (ใช้ไป ฿${spent.toLocaleString('th-TH', { minimumFractionDigits: 2 })} จากงบ ฿${limit.toLocaleString('th-TH')})`
-          });
-        }
-      }
-    };
-
-    checkBudget(foodSpent, budgets.food, 'อาหาร');
-    checkBudget(travelSpent, budgets.travel, 'เดินทาง');
-    checkBudget(shoppingSpent, budgets.shopping, 'ช้อปปิ้ง');
-    checkBudget(otherSpent, budgets.other, 'อื่นๆ');
-    checkBudget(totalSpent, budgets.total, 'ยอดรวมทั้งหมด');
-  }
 
   return (
     <div className="dashboard-layout">

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useSession } from 'next-auth/react';
 import styles from './DashboardItems.module.css';
 import { TableRowSkeleton } from './Skeleton';
 import { cleanAndProxyImageUrl } from '@/lib/apiClient';
@@ -66,6 +67,7 @@ interface FilterBarProps {
     onMonthChange: (m: number) => void;
     filterYear: number;
     onYearChange: (y: number) => void;
+    categories?: string[];
 }
 
 export const FilterBar = ({
@@ -78,10 +80,12 @@ export const FilterBar = ({
     filterMonth,
     onMonthChange,
     filterYear,
-    onYearChange
+    onYearChange,
+    categories
 }: FilterBarProps) => {
     const currentYearVal = new Date().getFullYear();
     const availableYears = [currentYearVal, currentYearVal - 1, currentYearVal - 2, currentYearVal - 3];
+    const categoriesList = categories || CATEGORIES;
 
     return (
         <div className={styles.filterBar}>
@@ -102,7 +106,7 @@ export const FilterBar = ({
             <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
                 <span className={styles.filterLabel}>หมวดหมู่:</span>
                 <div className={styles.filterChips}>
-                    {CATEGORIES.map(cat => (
+                    {categoriesList.map(cat => (
                         <div
                             key={cat}
                             className={`${styles.filterChip} ${activeCategory === cat ? styles.filterChipActive : ''}`}
@@ -187,7 +191,7 @@ export const FilterBar = ({
                     value={activeCategory}
                     onChange={e => onCategoryChange(e.target.value)}
                 >
-                    {CATEGORIES.map(cat => (
+                    {categoriesList.map(cat => (
                         <option key={cat} value={cat}>หมวดหมู่: {cat}</option>
                     ))}
                 </select>
@@ -667,12 +671,12 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
     const gridLines = [0, 0.25, 0.5, 0.75, 1];
 
     // Compute category breakdown for the selected period
-    const categoryAmounts: Record<string, number> = {
-        'อาหาร': 0,
-        'เดินทาง': 0,
-        'ช้อปปิ้ง': 0,
-        'อื่นๆ': 0
-    };
+    const categoriesList = ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'];
+
+    const categoryAmounts: Record<string, number> = {};
+    categoriesList.forEach(cat => {
+        categoryAmounts[cat] = 0;
+    });
 
     receipts.forEach(receipt => {
         const amountVal = receipt.amount !== undefined ? receipt.amount : receipt.totalAmount;
@@ -703,21 +707,31 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
 
         if (isInPeriod) {
             const rawCat = receipt.extractedData?.category || 'อื่นๆ';
-            const category = ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง'].includes(rawCat) ? rawCat : 'อื่นๆ';
-            categoryAmounts[category] += amountVal;
+            const category = categoriesList.includes(rawCat) ? rawCat : 'อื่นๆ';
+            categoryAmounts[category] = (categoryAmounts[category] || 0) + amountVal;
         }
     });
 
     const totalCategoryAmount = Object.values(categoryAmounts).reduce((sum, val) => sum + val, 0);
     const circumference = 2 * Math.PI * 50; // ≈ 314.159
 
-    const categoriesList = ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'];
-    const sliceColors = {
-        'อาหาร': '#f59e0b',    // Amber
-        'เดินทาง': '#3b82f6',   // Blue
-        'ช้อปปิ้ง': '#ec4899',   // Pink
-        'อื่นๆ': '#10b981'      // Emerald green
+    const palette = [
+        '#f59e0b', // Amber
+        '#3b82f6', // Blue
+        '#ec4899', // Pink
+        '#a855f7', // Purple
+        '#06b6d4', // Cyan
+        '#f43f5e', // Rose
+        '#10b981'  // Emerald (used for อื่นๆ)
+    ];
+
+    const sliceColors: Record<string, string> = {
+        'อาหาร': '#f59e0b',
+        'เดินทาง': '#3b82f6',
+        'ช้อปปิ้ง': '#ec4899',
+        'อื่นๆ': '#10b981'
     };
+
 
     let accumulatedPercentage = 0;
     const slices = categoriesList.map(cat => {
@@ -735,6 +749,152 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
             color: sliceColors[cat as keyof typeof sliceColors]
         };
     });
+
+    const { data: session } = useSession();
+    const [aiResponse, setAiResponse] = useState<string | null>(null);
+    const [aiLoading, setAiLoading] = useState<boolean>(false);
+    const [aiError, setAiError] = useState<string | null>(null);
+
+    // Reset AI response when switching parameters
+    useEffect(() => {
+        setAiResponse(null);
+        setAiError(null);
+    }, [viewType, selectedMonth, selectedYear]);
+
+    // Safe helper function to parse Gemini Markdown output into HTML
+    const parseMarkdownToHtml = (md: string) => {
+        if (!md) return '';
+        
+        let html = md
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        // Headings (H2)
+        html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
+
+        // Headings (H3)
+        html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
+
+        // Blockquotes
+        html = html.replace(/^&gt; (.*?)$/gm, '<blockquote>$1</blockquote>');
+
+        // Bold
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+        // Bullet lists
+        html = html.replace(/^[-\*] (.*?)$/gm, '<li>$1</li>');
+
+        // Paragraph split (by double newlines)
+        const segments = html.split(/\n\n+/);
+        const parsed = segments.map(seg => {
+            const trimmed = seg.trim();
+            if (trimmed.startsWith('<h') || trimmed.startsWith('<blockquote') || trimmed.startsWith('<li')) {
+                return trimmed;
+            }
+            return `<p>${trimmed.replace(/\n/g, '<br />')}</p>`;
+        }).join('\n');
+
+        return parsed;
+    };
+
+    const localAnalysisText = (() => {
+        if (totalCategoryAmount === 0) {
+            return `ช่วงเวลานี้ยังไม่มีบันทึกรายจ่ายในแผนภูมิเลยครับ ลองอัปโหลดสลิปใบเสร็จเพิ่มเติมเข้ามา เพื่อให้พี่บอทช่วยสแกนและคำนวณแนวโน้มให้ได้น้า!`;
+        }
+
+        const periodStr = viewType === 'week' 
+            ? 'สัปดาห์นี้ (จ.-อา.)' 
+            : viewType === 'month' 
+                ? `เดือน${monthNames[selectedMonth]}` 
+                : `ปี พ.ศ. ${selectedYear + 543}`;
+
+        // Find top category
+        const activeSlices = slices.filter(s => s.value > 0);
+        const sortedSlices = [...activeSlices].sort((a, b) => b.value - a.value);
+        const topSlice = sortedSlices[0];
+        
+        // Find peak period
+        let peakIdx = 0;
+        let peakVal = 0;
+        amounts.forEach((amt, idx) => {
+            if (amt > peakVal) {
+                peakVal = amt;
+                peakIdx = idx;
+            }
+        });
+        const peakLabel = labels[peakIdx];
+
+        let trendSpeech = `ภาพรวม${periodStr} คุณมียอดใช้จ่ายสะสมรวมทั้งหมด **฿${totalCategoryAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}** `;
+
+        if (topSlice) {
+            trendSpeech += `โดยใช้จ่ายมากที่สุดในหมวด **"${topSlice.category}"** คิดเป็น **฿${topSlice.value.toLocaleString('th-TH', { minimumFractionDigits: 2 })} (${topSlice.percentage}%)** ของค่าใช้จ่ายทั้งหมดครับ `;
+        }
+
+        if (peakVal > 0) {
+            if (viewType === 'week') {
+                trendSpeech += `และมีจุดที่มียอดใช้จ่ายสูงที่สุดใน **วัน${peakLabel}** อยู่ที่ **฿${peakVal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}** ครับ`;
+            } else if (viewType === 'month') {
+                trendSpeech += `และจุดที่ใช้จ่ายสูงสุดคือในช่วง **${peakLabel}** อยู่ที่ **฿${peakVal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}** ครับ`;
+            } else {
+                trendSpeech += `และจุดที่มียอดการจ่ายสะสมสูงสุดคือ **เดือน${peakLabel}** เป็นจำนวนเงิน **฿${peakVal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}** ครับ`;
+            }
+        }
+
+        // Warnings and Advice
+        const adviceList: string[] = [];
+        if (topSlice?.category === 'ช้อปปิ้ง' && topSlice.percentage > 30) {
+            adviceList.push(`สัดส่วนหมวดช้อปปิ้งแอบพุ่งสูง (${topSlice.percentage}%) ลองคัดกรองเฉพาะสิ่งของที่จำเป็นจริงๆ ดูก่อนกดสั่งซื้อนะครับ`);
+        } else if (topSlice?.category === 'อาหาร' && topSlice.percentage > 45) {
+            adviceList.push(`สัดส่วนหมวดอาหารค่อนข้างเยอะ (${topSlice.percentage}%) ลองลดการสั่งเดลิเวอรี่หรือทำอาหารทานเองในบางมื้อเพื่อเซฟงบเพิ่มดูน้า`);
+        } else if (topSlice?.category === 'เดินทาง' && topSlice.percentage > 25) {
+            adviceList.push(`ค่าเดินทางพุ่งสูงเกินไป (${topSlice.percentage}%) ลองพิจารณาวางแผนเดินทางร่วมกันหรือเลือกช่องทางที่ประหยัดขึ้นดูนะครับ`);
+        }
+
+        if (adviceList.length > 0) {
+            trendSpeech += `\n\n💡 **คำแนะนำเพิ่มเติมจากพี่บอท:** ${adviceList.join(' และ ')}`;
+        } else {
+            trendSpeech += `\n\n💡 **คำแนะนำเพิ่มเติมจากพี่บอท:** ภาพรวมสัดส่วนรายจ่ายยังอยู่ในเกณฑ์ที่สมดุลดีครับ ทำได้เยี่ยมมากๆ รักษาพฤติกรรมทางการเงินที่ดีแบบนี้ต่อไปน้า!`;
+        }
+
+        return trendSpeech;
+    })();
+
+    const handleFetchAiInsight = async () => {
+        setAiLoading(true);
+        setAiError(null);
+        try {
+            const periodText = viewType === 'week' 
+                ? 'สัปดาห์นี้ (จ.-อา.)' 
+                : viewType === 'month' 
+                    ? `เดือน${monthNames[selectedMonth]}` 
+                    : `ปี พ.ศ. ${selectedYear + 543}`;
+
+            const response = await fetch('/api/ai-advisor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: session?.user?.id,
+                    messages: [
+                        {
+                            role: 'user',
+                            content: `วิเคราะห์ข้อมูลสถิติของฉันสำหรับ ${periodText}: ยอดรวม ฿${totalCategoryAmount.toLocaleString()}, หมวดหมู่สูงสุดคือ ${slices.map(s => `${s.category} ${s.percentage}%`).join(', ')}. กรุณาให้คำแนะนำแนวทางลดค่าใช้จ่ายและคำท้าทายสั้นๆ สำหรับรอบนี้`
+                        }
+                    ]
+                })
+            });
+            const result = await response.json();
+            if (result.success) {
+                setAiResponse(result.data);
+            } else {
+                throw new Error(result.error || 'เกิดข้อผิดพลาดในการวิเคราะห์ข้อมูล');
+            }
+        } catch (err: any) {
+            setAiError(err.message || 'ไม่สามารถดึงคำแนะนำจาก AI ได้ในขณะนี้');
+        } finally {
+            setAiLoading(false);
+        }
+    };
 
     return (
         <div className={styles.chartCard}>
@@ -1014,6 +1174,74 @@ export const ExpenseChart = ({ receipts = [] }: { receipts?: any[] }) => {
                     </div>
                 </div>
             </div>
+
+            {/* Divider */}
+            <div className={styles.botDivider} />
+
+            {/* AI Advisor Analysis Section */}
+            <div className={styles.botSection}>
+                <div className={styles.botHeader}>
+                    <div className={styles.botAvatarWrapper}>
+                        <img src="/BOT.png" alt="SmartSlip AI Bot" className={styles.botAvatar} />
+                        <div className={styles.botAvatarPulse} />
+                    </div>
+                    <div className={styles.botInfo}>
+                        <div className={styles.botName}>พี่ SmartSlip AI Advisor</div>
+                        <div className={styles.botStatus}>
+                            <span className={styles.botStatusDot} />
+                            วิเคราะห์ข้อมูลแนวโน้มและสัดส่วนเรียลไทม์
+                        </div>
+                    </div>
+                </div>
+
+                <div className={styles.botContent}>
+                    {/* Local dynamic analysis (Instant) */}
+                    <div className={styles.botMessageBubble}>
+                        <div className={styles.botMessageText}>
+                            {localAnalysisText}
+                        </div>
+                    </div>
+
+                    {/* AI Advisor response */}
+                    {aiResponse && (
+                        <div className={`${styles.botMessageBubble} ${styles.aiResponseBubble}`}>
+                            <div className={styles.aiResponseHeader}>
+                                <span>✨ ผลวิเคราะห์เชิงลึกจาก AI (Gemini)</span>
+                                <button className={styles.clearAiBtn} onClick={() => setAiResponse(null)}>ล้างข้อความ</button>
+                            </div>
+                            <div 
+                                className={styles.aiMarkdownContent}
+                                dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(aiResponse) }}
+                            />
+                        </div>
+                    )}
+
+                    {aiError && (
+                        <div className={styles.botError}>
+                            ⚠️ {aiError}
+                        </div>
+                    )}
+
+                    {/* Action buttons */}
+                    <div className={styles.botActions}>
+                        {!aiResponse && !aiLoading && (
+                            <button className={styles.botActionBtn} onClick={handleFetchAiInsight}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '6px'}}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                วิเคราะห์เจาะลึกความคุ้มค่าด้วย AI
+                            </button>
+                        )}
+                        {aiLoading && (
+                            <button className={`${styles.botActionBtn} ${styles.botActionBtnLoading}`} disabled>
+                                <span className={styles.spinner} />
+                                กำลังขอคำปรึกษาจาก AI...
+                            </button>
+                        )}
+                        <Link href="/ai-advisor" className={styles.chatLinkBtn}>
+                            คุยแชทปรึกษาเงินต่อ 💬
+                        </Link>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
@@ -1033,7 +1261,7 @@ export const RecentUploads = ({
 }) => {
     const recentReceipts = [...receipts]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 5);
+        .slice(0, 6);
 
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);

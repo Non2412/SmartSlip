@@ -258,6 +258,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [formTab, setFormTab] = useState<'info' | 'items'>('info');
     const [creationMethod, setCreationMethod] = useState<CreationMethod>('manual');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
     const manualImageRef = useRef<HTMLInputElement>(null);
     const extraFileInputRef = useRef<HTMLInputElement>(null);
     const [extraFiles, setExtraFiles] = useState<{name: string, data: string, type: string}[]>([]);
