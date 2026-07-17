@@ -25,6 +25,7 @@ export default function AIAdvisorPage() {
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -111,6 +112,7 @@ export default function AIAdvisorPage() {
   };
 
   const handleSuggestionClick = (suggestionText: string) => {
+    setShowSuggestions(false);
     handleSendMessage(suggestionText);
   };
 
@@ -209,8 +211,8 @@ export default function AIAdvisorPage() {
               <div className={styles.chatMessages}>
                 {messages.length === 0 ? (
                   // Initial welcome intro view
-                  <div style={{ margin: 'auto', textAlign: 'center', maxWidth: '440px', padding: '20px' }}>
-                    <div className={styles.aiAvatarWrapper} style={{ margin: '0 auto 16px' }}>
+                  <div className={styles.welcomeWrap}>
+                    <div className={`${styles.aiAvatarWrapper} ${styles.welcomeAvatar}`}>
                       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M12 8V4H9" />
                         <rect width="16" height="12" x="4" y="8" rx="2" />
@@ -219,10 +221,10 @@ export default function AIAdvisorPage() {
                         <path d="M9 17h6" />
                       </svg>
                     </div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '8px' }}>
+                    <h3 className={styles.welcomeHeading}>
                       สวัสดีครับ! ผมคือที่ปรึกษาการเงิน AI
                     </h3>
-                    <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '24px' }}>
+                    <p className={styles.welcomeSubtext}>
                       พิมพ์ทักทายหรือเลือกหัวข้อแนะนำด้านล่างนี้ เพื่อเริ่มปรึกษาการเงิน แนะนำวิธีเก็บออม หรือประเมินพฤติกรรมการจ่ายเงินจริงของคุณได้ทันทีครับ
                     </p>
                   </div>
@@ -288,7 +290,7 @@ export default function AIAdvisorPage() {
 
               {/* Suggestions Row */}
               {!loading && (
-                <div className={styles.suggestionsWrapper}>
+                <div className={`${styles.suggestionsWrapper} ${!showSuggestions ? styles.suggestionsCollapsed : ''}`}>
                   <span className={styles.suggestionsLabel}>หัวข้อสนทนาแนะนำ:</span>
                   <div className={styles.suggestionsRow}>
                     {suggestionChips.map((chip, idx) => (
@@ -312,6 +314,18 @@ export default function AIAdvisorPage() {
                 }}
                 className={styles.chatInputForm}
               >
+                <button
+                  type="button"
+                  onClick={() => setShowSuggestions((prev) => !prev)}
+                  className={styles.suggestionsToggleBtn}
+                  aria-label="หัวข้อสนทนาแนะนำ"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="5" cy="12" r="2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <circle cx="19" cy="12" r="2" />
+                  </svg>
+                </button>
                 <input
                   type="text"
                   placeholder="พิมพ์คุยปรึกษาหรือถามเรื่องเงิน..."
