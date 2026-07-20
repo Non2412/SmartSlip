@@ -475,3 +475,221 @@
     font-size: 0.875rem;
   }
 }
+
+/* Notifications Dropdown Wrapper */
+.notificationWrapper {
+  position: relative;
+  display: inline-block;
+}
+
+/* Dropdown Container */
+.dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 360px;
+  max-height: 520px;
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 12px 28px 0 rgba(0, 0, 0, 0.12), 0 2px 4px 0 rgba(0, 0, 0, 0.08);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header Section */
+.dropdownHeader {
+  padding: 16px 16px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dropdownTitle {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0;
+}
+
+/* Tabs Section */
+.dropdownTabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tabButton {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  background-color: var(--border-color);
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+
+.tabButtonActive {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  color: var(--primary-color) !important;
+}
+
+/* Items List Section */
+.dropdownList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.dropdownSectionTitle {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 6px 16px;
+  margin: 0;
+}
+
+/* Dropdown Item */
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.2s;
+  position: relative;
+  cursor: pointer;
+}
+
+.dropdownItem:hover {
+  background-color: var(--surface-hover);
+}
+
+.itemImageWrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: var(--border-color);
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.itemImage {
+  object-fit: cover;
+}
+
+.itemIconCircle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: rgba(245, 158, 11, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f59e0b;
+  flex-shrink: 0;
+}
+
+.itemContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemTitle {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itemTime {
+  font-size: 0.76rem;
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.itemTimeMuted {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.itemIndicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Empty State */
+.emptyState {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.emptyTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: var(--text-main);
+}
+
+.emptySubtitle {
+  font-size: 0.8rem;
+}
+
+/* Footer Button */
+.dropdownFooter {
+  padding: 8px 16px;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--surface-color);
+}
+
+.footerButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px;
+  border-radius: 12px;
+  background-color: var(--border-color);
+  color: var(--text-main);
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.footerButton:hover {
+  background-color: var(--surface-hover);
+  color: var(--primary-color);
+}

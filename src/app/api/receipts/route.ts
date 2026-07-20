@@ -43,13 +43,18 @@ export async function GET(request: Request) {
         doc.source = 'line';
       }
       // Normalize extractedData from backend flat fields
-      if (!doc.extractedData && (doc.extractedSender || doc.extractedReceiver || doc.customerName)) {
-        doc.extractedData = {
-          date: doc.issueDate ? new Date(doc.issueDate).toISOString() : undefined,
-          receiver: doc.extractedReceiver || doc.storeName,
-          method: doc.extractedSender || doc.customerName,
-          items: doc.items || [],
-        };
+      if (!doc.extractedData) {
+        doc.isPending = true;
+        if (doc.extractedSender || doc.extractedReceiver || doc.customerName) {
+          doc.extractedData = {
+            date: doc.issueDate ? new Date(doc.issueDate).toISOString() : undefined,
+            receiver: doc.extractedReceiver || doc.storeName,
+            method: doc.extractedSender || doc.customerName,
+            items: doc.items || [],
+          };
+        }
+      } else {
+        doc.isPending = false;
       }
 
       return doc;

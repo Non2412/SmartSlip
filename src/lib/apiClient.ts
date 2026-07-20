@@ -18,6 +18,7 @@ export interface Receipt {
   updatedAt: string;
   transactionId?: string;
   imageHash?: string;
+  isPending?: boolean;
   extractedData?: {
     date?: string;
     time?: string;
@@ -172,6 +173,20 @@ export const receiptApi = {
         };
       });
   },
+};
+
+/**
+ * ฟังก์ชันประวัติกิจกรรมการใช้งาน (Activity Logs)
+ */
+export const activityLogApi = {
+  getAll: (userId: string, lineUserId?: string) =>
+    apiRequest<any[]>(`/activity-logs?userId=${userId}${lineUserId ? `&lineUserId=${encodeURIComponent(lineUserId)}` : ''}`),
+
+  create: (userId: string, action: string, details: string, receiptId?: string) =>
+    apiRequest<any>('/activity-logs', {
+      method: 'POST',
+      body: JSON.stringify({ userId, action, details, receiptId }),
+    }),
 };
 
 /**
