@@ -49,7 +49,7 @@ export async function processGeminiImage(image: string) {
   "paymentMethod": "วิธีชำระเงิน เช่น Mobile Banking, PromptPay, Cash, Credit Card, Debit Card",
   "totalAmount":   ยอดชำระสุทธิทั้งหมด (ตัวเลขเท่านั้น เช่น 533.93),
   "subtotal":      ยอดก่อนหักส่วนลดและ VAT (ตัวเลข หรือ null),
-  "discount":      ส่วนลดรวม (ตัวเลข หรือ 0),
+  "discount":      ส่วนลดรวม (ตัวเลข หรือ 0 - ค้นหาจากคำว่า ส่วนลด, Discount, Disc, ลด, หักส่วนลด, คูปองส่วนลด, ส่วนลดสมาชิก),
   "vat":           ภาษีมูลค่าเพิ่มรวม (ตัวเลข หรือ 0),
   "taxId":         "เลขประจำตัวผู้เสียภาษีของผู้รับเงิน (null ถ้าไม่มี)",
   "receiptNo":     "เลขที่ใบเสร็จหรือเลขอ้างอิงธุรกรรม (null ถ้าไม่มี)",
@@ -67,7 +67,7 @@ export async function processGeminiImage(image: string) {
 1. ตอบเฉพาะ JSON เท่านั้น ห้ามมีข้อความ Markdown หรืออธิบายใดๆ นำหน้าหรือตามหลัง
 2. ถ้าหาค่าไม่ได้ให้ใส่ null (ยกเว้น discount/vat ให้ใส่ 0)
 3. items ต้องเป็น array เสมอ — ถ้าไม่มีรายการย่อย ให้สร้าง 1 รายการจาก storeName และ totalAmount
-4. totalAmount คือยอดที่ลูกค้าจ่ายจริง (หลังหักส่วนลด รวม VAT แล้ว) ซึ่งสอดคล้องกับสูตร: totalAmount = subtotal - discount + vat (หากมีส่วนลดแสดงในใบเสร็จ ให้ดึงค่าส่วนลดนั้นออกมาใส่ใน discount และคำนวณ subtotal เป็นยอดก่อนหักส่วนลดให้สอดคล้องกัน)
+4. totalAmount คือยอดที่ลูกค้าจ่ายจริง (หลังหักส่วนลด รวม VAT แล้ว) ซึ่งสอดคล้องกับสูตร: totalAmount = subtotal - discount + vat (หากมีส่วนลด เช่น Discount, Disc, ส่วนลด, หักส่วนลด, ลด, หัก, คูปอง หรือส่วนลดอื่นๆ ปรากฏในใบเสร็จ ให้ดึงค่าส่วนลดนั้นออกมาเป็นจำนวนบวก และใส่ในช่อง discount พร้อมคำนวณ subtotal ให้เป็นยอดรวมก่อนหักส่วนลดให้สอดคล้องกัน)
 5. สำหรับสลิปธนาคาร: storeName คือชื่อผู้รับโอน, paymentMethod คือ PromptPay หรือ Mobile Banking
 6. อ่านตัวเลขภาษาไทย (๐-๙) ได้โดยตรง อย่าแปลงเป็น 0
 `.trim();

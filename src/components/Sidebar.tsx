@@ -35,6 +35,8 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
     };
   }, []);
 
+
+
   const userId = user?.id || 'guest';
   
   // Show LINE user info as primary account, fallback to current user
@@ -61,10 +63,17 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
         </div>
         <ul className={styles.navList}>
           <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="ภาพรวม" icon={<ListIcon />} />
-          <SidebarItem href="/history" active={pathname === '/history'} label="ประวัติใบเสร็จ" icon={<HistoryIcon />} />
           <SidebarItem href="/line-receipts" active={pathname === '/line-receipts'} label="รูปภาพ" icon={<ImageIcon />} badge={unreadCount} />
           <SidebarItem href="/export" active={pathname === '/export'} label="ส่งออกข้อมูล" icon={<ExportIcon />} />
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<PlusIcon />} onClick={onAddReceipt} />
+        </ul>
+
+        <div className={styles.navSection}>
+          ประวัติการใช้งาน
+        </div>
+        <ul className={styles.navList}>
+          <SidebarItem href="/history" active={pathname === '/history'} label="ประวัติใบเสร็จ" icon={<HistoryIcon />} />
+          <SidebarItem href="/activity-logs" active={pathname === '/activity-logs'} label="ประวัติกิจกรรม" icon={<ActivityIcon />} />
         </ul>
 
         <div className={styles.navSection}>
@@ -257,6 +266,14 @@ function RobotIcon() {
       <circle cx="9" cy="13" r="1" />
       <circle cx="15" cy="13" r="1" />
       <path d="M9 17h6" />
+    </svg>
+  );
+}
+
+function ActivityIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
     </svg>
   );
 }

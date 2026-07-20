@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useReceipts } from '@/hooks/useReceipts';
 import Image from 'next/image';
 import { cleanAndProxyImageUrl } from '@/lib/apiClient';
+import { useSession } from 'next-auth/react';
 
 const formatToInputDate = (dateStr: string): string => {
     if (!dateStr) return '';
@@ -61,7 +62,8 @@ const darkLabelStyle: React.CSSProperties = {
 };
 
 const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, initialIndex = 0 }: ReceiptDetailSheetProps) => {
-    const { updateReceipt } = useReceipts();
+    const { updateReceipt, extractFromImage } = useReceipts();
+    const { data: session } = useSession();
     const isQueueMode = !!(allReceipts && allReceipts.length > 0);
 
     const [currentIdx, setCurrentIdx] = useState(initialIndex);
@@ -126,6 +128,64 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
     const [vat, setVat] = useState(0);
     const [isSaving, setIsSaving] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+    const [isProcessingOCR, setIsProcessingOCR] = useState(false);
+
+    const handleRecalculate = async () => {
+        if (!imageData) return;
+        setIsProcessingOCR(true);
+        setErrorMsg(null);
+        try {
+            const proxiedUrl = cleanAndProxyImageUrl(imageData);
+            const res = await fetch(proxiedUrl);
+            if (!res.ok) {
+                throw new Error(`Failed to download image: ${res.statusText}`);
+            }
+            const blob = await res.blob();
+            const file = new File([blob], 'receipt.jpg', { type: blob.type || 'image/jpeg' });
+
+            const userId = session?.user?.id || currentReceipt?.userId || 'user123';
+            const result = await extractFromImage(file, userId) as any;
+
+            if (result) {
+                const ocrStore = result.store || result.vendor || '';
+                const ocrDate = formatToInputDate(result.date || new Date().toISOString());
+                const ocrTime = formatToInputTime(result.time || '');
+                const ocrCategory = result.category || 'อื่นๆ';
+                const ocrPayment = result.method || result.paymentMethod || '';
+                const ocrDiscount = typeof result.discount === 'number' ? result.discount : 0;
+                const ocrVat = typeof result.vat === 'number' ? result.vat : 0;
+                const ocrTaxId = result.taxId || result.tax_id || '';
+                const rawItems = result.items;
+
+                setStore(ocrStore);
+                setCategory(ocrCategory);
+                setDate(ocrDate);
+                setTime(ocrTime);
+                setPaymentMethod(ocrPayment);
+                setTaxId(ocrTaxId);
+                setDiscount(ocrDiscount);
+                setVat(ocrVat);
+
+                if (Array.isArray(rawItems) && rawItems.length > 0) {
+                    setItems(rawItems.map((it: any, idx: number) => ({
+                        id: (idx + 1).toString(),
+                        description: it.description || '',
+                        quantity: it.quantity || 1,
+                        unitPrice: it.unitPrice ?? it.unit_price ?? it.amount ?? it.total ?? 0,
+                    })));
+                } else {
+                    const fallbackAmt = parseFloat(result.amount) || 0;
+                    setItems([{ id: '1', description: ocrStore, quantity: 1, unitPrice: fallbackAmt }]);
+                }
+            }
+        } catch (err: any) {
+            console.error('Recalculate OCR failed:', err);
+            setErrorMsg('การคำนวณด้วย AI ล้มเหลว: ' + (err?.message || err));
+        } finally {
+            setIsProcessingOCR(false);
+        }
+    };
 
 
     // Populate form when currentReceipt changes
@@ -317,6 +377,33 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                             </div>
                         )}
                     </div>
+                    {imageData && (
+                        <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0, marginTop: '4px' }}>
+                            <button
+                                onClick={handleRecalculate}
+                                disabled={isProcessingOCR}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '8px',
+                                    padding: '9px 24px', borderRadius: '999px',
+                                    border: 'none', cursor: isProcessingOCR ? 'not-allowed' : 'pointer',
+                                    background: isProcessingOCR ? '#e2e8f0' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                                    color: isProcessingOCR ? '#94a3b8' : 'white',
+                                    fontSize: '0.85rem', fontWeight: '700',
+                                    boxShadow: isProcessingOCR ? 'none' : '0 4px 14px rgba(99,102,241,0.4)',
+                                    transition: 'all 0.2s',
+                                }}
+                            >
+                                {isProcessingOCR ? (
+                                    <div style={{ width: '14px', height: '14px', border: '2px solid #94a3b8', borderTop: '2px solid #cbd5e1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                ) : (
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                                    </svg>
+                                )}
+                                {isProcessingOCR ? 'กำลังวิเคราะห์...' : 'วิเคราะห์ใหม่ด้วย AI'}
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* RIGHT: Editable form */}

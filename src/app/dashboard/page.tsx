@@ -9,7 +9,7 @@ const ReceiptDetailSheet = dynamic(() => import('@/components/ReceiptDetailSheet
 
 import { StatCard, ReceiptTable, FilterBar, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
 import { useState, useEffect, useMemo } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
 import { StatCardSkeleton, ChartSkeleton, RecentUploadsSkeleton } from '@/components/Skeleton';
@@ -18,6 +18,7 @@ import styles from './Dashboard.module.css';
 
 export default function DashboardPage() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
@@ -46,9 +47,8 @@ export default function DashboardPage() {
 
   // Auto-open receipt detail sheet if openReceiptId is present in URL
   useEffect(() => {
-    if (typeof window !== 'undefined' && receipts.length > 0) {
-      const params = new URLSearchParams(window.location.search);
-      const openReceiptId = params.get('openReceiptId');
+    if (receipts.length > 0) {
+      const openReceiptId = searchParams.get('openReceiptId');
       if (openReceiptId) {
         const matched = receipts.find(r => (r._id || r.id) === openReceiptId);
         if (matched) {
@@ -59,7 +59,7 @@ export default function DashboardPage() {
         }
       }
     }
-  }, [receipts]);
+  }, [receipts, searchParams]);
 
   useEffect(() => {
     setIsSidebarOpen(false);
@@ -119,8 +119,8 @@ export default function DashboardPage() {
 
   const { totalAmount, pendingCount, approvedCount } = useMemo(() => ({
     totalAmount: uniqueReceipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0),
-    pendingCount: uniqueReceipts.filter(r => !r.extractedData).length,
-    approvedCount: uniqueReceipts.filter(r => r.extractedData).length,
+    pendingCount: uniqueReceipts.filter(r => r.isPending || !r.extractedData).length,
+    approvedCount: uniqueReceipts.filter(r => !r.isPending && r.extractedData).length,
   }), [uniqueReceipts]);
 
   const budgetAlerts: any[] = [];

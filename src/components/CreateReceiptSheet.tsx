@@ -845,6 +845,70 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         }
     };
 
+    const handleRecalculate = async () => {
+        if (!image || !selectedFile) return;
+        setIsProcessing(true);
+        setErrorMsg(null);
+        try {
+            let fileToProcess = selectedFile;
+            let base64ToProcess = image;
+
+            const normalizedRotation = ((rotation % 360) + 360) % 360;
+            if (normalizedRotation !== 0 && !selectedFile.type.includes('pdf')) {
+                const imgEl = new Image();
+                imgEl.src = image;
+                await new Promise((resolve, reject) => {
+                    imgEl.onload = resolve;
+                    imgEl.onerror = reject;
+                });
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    const angleRad = (normalizedRotation * Math.PI) / 180;
+                    const sin = Math.abs(Math.sin(angleRad));
+                    const cos = Math.abs(Math.cos(angleRad));
+                    const width = imgEl.width;
+                    const height = imgEl.height;
+                    
+                    const newWidth = width * cos + height * sin;
+                    const newHeight = width * sin + height * cos;
+
+                    canvas.width = newWidth;
+                    canvas.height = newHeight;
+
+                    ctx.translate(newWidth / 2, newHeight / 2);
+                    ctx.rotate(angleRad);
+                    ctx.drawImage(imgEl, -width / 2, -height / 2);
+
+                    const rotatedBase64 = canvas.toDataURL('image/jpeg', 0.9);
+                    
+                    const res = await fetch(rotatedBase64);
+                    const blob = await res.blob();
+                    const rotatedFile = new File([blob], selectedFile.name || 'rotated-receipt.jpg', { type: 'image/jpeg' });
+
+                    fileToProcess = rotatedFile;
+                    base64ToProcess = rotatedBase64;
+                    
+                    setImage(rotatedBase64);
+                    setSelectedFile(rotatedFile);
+                    setRotation(0);
+                    setZoom(1);
+                    setPosition({ x: 0, y: 0 });
+                }
+            }
+
+            ocrGenerationRef.current += 1;
+            const currentGen = ocrGenerationRef.current;
+            await runOCR(fileToProcess, currentGen);
+        } catch (err: any) {
+            console.error('Recalculate failed', err);
+            setErrorMsg('การคำนวณใหม่ล้มเหลว: ' + (err?.message || err));
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     const handleVerificationSave = async () => {
         if (!verStore || !verDate) {
             setErrorMsg('กรุณาระบุร้านค้าและวันที่');
@@ -1216,6 +1280,28 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                     <button onClick={() => setRotation(r => r + 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: txMuted }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg></button>
                                     <div style={{ width: '1px', height: '20px', backgroundColor: bdColor }} />
                                     <button onClick={() => { setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: txMuted, display: 'flex', alignItems: 'center', gap: '5px' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><span style={{ fontSize: '0.82rem' }}>รีเซ็ต</span></button>
+                                    <div style={{ width: '1px', height: '20px', backgroundColor: bdColor }} />
+                                    <button
+                                        onClick={handleRecalculate}
+                                        disabled={isProcessing}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            cursor: isProcessing ? 'not-allowed' : 'pointer',
+                                            color: isProcessing ? txMuted : '#6366f1',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '5px',
+                                            fontWeight: '700'
+                                        }}
+                                    >
+                                        {isProcessing ? (
+                                            <div style={{ width: '14px', height: '14px', border: '2px solid #94a3b8', borderTop: '2px solid #cbd5e1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                        ) : (
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg>
+                                        )}
+                                        <span style={{ fontSize: '0.82rem' }}>{isProcessing ? 'กำลังวิเคราะห์...' : 'คำนวณใหม่'}</span>
+                                    </button>
                                 </div>
                             </div>
 
@@ -1649,6 +1735,32 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                 <button onClick={() => setRotation(r => r + 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: txMuted }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg></button>
                                 <div style={{ width: '1px', height: '20px', backgroundColor: bdColor }} />
                                 <button onClick={() => { setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: txMuted, display: 'flex', alignItems: 'center', gap: '6px' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><span style={{ fontSize: '0.85rem' }}>รีเซ็ต</span></button>
+                                {activeDocIndex === -1 && (
+                                    <>
+                                        <div style={{ width: '1px', height: '20px', backgroundColor: bdColor }} />
+                                        <button
+                                            onClick={handleRecalculate}
+                                            disabled={isProcessing}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: isProcessing ? 'not-allowed' : 'pointer',
+                                                color: isProcessing ? txMuted : '#6366f1',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                fontWeight: '700'
+                                            }}
+                                        >
+                                            {isProcessing ? (
+                                                <div style={{ width: '14px', height: '14px', border: '2px solid #94a3b8', borderTop: '2px solid #cbd5e1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                            ) : (
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg>
+                                            )}
+                                            <span style={{ fontSize: '0.85rem' }}>{isProcessing ? 'กำลังวิเคราะห์...' : 'คำนวณใหม่'}</span>
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </div>
 

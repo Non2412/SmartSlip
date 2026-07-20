@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from 'react';
-import { Receipt, CreateReceiptData, receiptApi } from '@/lib/apiClient';
+import { Receipt, CreateReceiptData, receiptApi, activityLogApi } from '@/lib/apiClient';
 
 export interface UseReceiptsReturn {
   receipts: Receipt[];
@@ -44,6 +44,18 @@ export const useReceipts = (): UseReceiptsReturn => {
       const result = await receiptApi.create(data) as any;
       if (result.success && result.data) {
         setReceipts(prev => [result.data as Receipt, ...prev]);
+        try {
+          const storeName = result.data.storeName || 'ไม่ระบุร้านค้า';
+          const amt = (result.data.amount !== undefined ? result.data.amount : result.data.totalAmount || 0);
+          await activityLogApi.create(
+            data.userId || 'user123',
+            'add',
+            `เพิ่มใบเสร็จร้าน "${storeName}" ยอดเงิน ฿${parseFloat(amt.toString()).toFixed(2)} บาท`,
+            result.data._id || result.data.id
+          );
+        } catch (logErr) {
+          console.error('Failed to log activity:', logErr);
+        }
         return { success: true, data: result.data };
       } else {
         return { success: false, error: result.error || 'Failed to create receipt' };
@@ -60,6 +72,18 @@ export const useReceipts = (): UseReceiptsReturn => {
       const result = await receiptApi.update(id, data) as any;
       if (result.success && result.data) {
         setReceipts(prev => prev.map(r => (r._id === id || r.id === id) ? (result.data as Receipt) : r));
+        try {
+          const storeName = result.data.storeName || 'ไม่ระบุร้านค้า';
+          const amt = (result.data.amount !== undefined ? result.data.amount : result.data.totalAmount || 0);
+          await activityLogApi.create(
+            result.data.userId || 'user123',
+            'edit',
+            `แก้ไขใบเสร็จร้าน "${storeName}" ยอดเงิน ฿${parseFloat(amt.toString()).toFixed(2)} บาท`,
+            result.data._id || result.data.id
+          );
+        } catch (logErr) {
+          console.error('Failed to log activity:', logErr);
+        }
         return { success: true, data: result.data };
       } else {
         return { success: false, error: result.error || 'Failed to update receipt' };
