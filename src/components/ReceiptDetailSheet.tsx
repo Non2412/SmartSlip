@@ -60,6 +60,12 @@ const darkInputStyle: React.CSSProperties = {
 const darkLabelStyle: React.CSSProperties = {
     fontSize: '0.8rem', fontWeight: '800', color: '#64748b', marginBottom: '6px', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em'
 };
+const zoomBtnStyle: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: '30px', height: '30px', borderRadius: '8px',
+    border: '1px solid var(--border-color)', backgroundColor: 'var(--surface-color)', color: 'var(--text-main)',
+    cursor: 'pointer', transition: 'all 0.15s',
+};
 
 const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, initialIndex = 0 }: ReceiptDetailSheetProps) => {
     const { updateReceipt, extractFromImage } = useReceipts();
@@ -359,16 +365,32 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
             {/* ── Two-column body ── */}
             <div style={{ display: 'flex', flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflow: isMobile ? 'auto' : 'hidden', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
                 {/* Top (mobile) / Left (desktop): Image */}
-                <div style={{ flexGrow: 0, flexShrink: 0, flexBasis: isMobile ? 'auto' : '38%', width: isMobile ? '100%' : undefined, height: isMobile ? '240px' : undefined, borderRight: isMobile ? 'none' : '1px solid #e2e8f0', borderBottom: isMobile ? '1px solid #e2e8f0' : 'none', backgroundColor: '#f8fafc', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
-                    <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: '0%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative', width: '100%', height: '100%', minHeight: isMobile ? '208px' : '300px' }}>
+                <div style={{ flexGrow: 0, flexShrink: 0, flexBasis: isMobile ? 'auto' : '38%', width: isMobile ? '100%' : undefined, height: isMobile ? 'auto' : undefined, borderRight: isMobile ? 'none' : '1px solid #e2e8f0', borderBottom: isMobile ? '1px solid #e2e8f0' : 'none', backgroundColor: '#f8fafc', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', overflow: isMobile ? 'visible' : 'hidden' }}>
+                    <div
+                        style={{
+                            flexGrow: 1, flexShrink: 1, flexBasis: '0%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            overflow: 'hidden', position: 'relative', width: '100%', height: '100%', minHeight: isMobile ? '208px' : '300px',
+                            cursor: imageData ? (isDragging ? 'grabbing' : 'grab') : 'default', touchAction: 'none',
+                        }}
+                        onWheel={imageData ? handleWheel : undefined}
+                        onMouseDown={imageData ? handleMouseDown : undefined}
+                        onMouseMove={imageData ? handleMouseMove : undefined}
+                        onMouseUp={imageData ? handleMouseUp : undefined}
+                        onMouseLeave={imageData ? handleMouseUp : undefined}
+                    >
                         {imageData ? (
                             <Image
                                 src={imageData}
                                 alt="Receipt"
                                 fill
                                 unoptimized
+                                draggable={false}
                                 sizes="(max-width: 768px) 100vw, 38vw"
-                                style={{ objectFit: 'contain', borderRadius: '8px' }}
+                                style={{
+                                    objectFit: 'contain', borderRadius: '8px', userSelect: 'none',
+                                    transform: `translate(${position.x}px, ${position.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+                                    transition: isDragging ? 'none' : 'transform 0.15s ease-out',
+                                }}
                             />
                         ) : (
                             <div style={{ color: '#94a3b8', textAlign: 'center', fontSize: '0.9rem' }}>
@@ -377,6 +399,42 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                             </div>
                         )}
                     </div>
+                    {imageData && (
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                            <button
+                                type="button"
+                                onClick={() => setZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))}
+                                title="ซูมออก"
+                                style={zoomBtnStyle}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={resetView}
+                                title="รีเซ็ตมุมมอง"
+                                style={{ ...zoomBtnStyle, width: 'auto', padding: '0 10px', fontSize: '0.75rem', fontWeight: 700 }}
+                            >
+                                {Math.round(zoom * 100)}%
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setZoom(z => Math.min(5, +(z + 0.25).toFixed(2)))}
+                                title="ซูมเข้า"
+                                style={zoomBtnStyle}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setRotation(r => (r + 90) % 360)}
+                                title="หมุนภาพ"
+                                style={zoomBtnStyle}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+                            </button>
+                        </div>
+                    )}
                     {imageData && (
                         <div style={{ display: 'flex', justifyContent: 'center', flexShrink: 0, marginTop: '4px' }}>
                             <button
