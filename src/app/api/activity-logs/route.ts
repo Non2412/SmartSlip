@@ -101,7 +101,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { userId, action, details, receiptId } = body;
+    const { userId, action, details, receiptId, metadata } = body;
 
     if (!userId || !action || !details) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
@@ -115,7 +115,8 @@ export async function POST(request: Request) {
       action,
       details,
       timestamp: new Date().toISOString(),
-      receiptId: receiptId || undefined
+      receiptId: receiptId || undefined,
+      metadata: metadata || undefined
     };
 
     const result = await db.collection('activity_logs').insertOne(newLog);

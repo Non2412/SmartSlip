@@ -313,7 +313,13 @@ export default function ExportPage() {
       activityLogApi.create(
         session.user.id,
         'export',
-        `ส่งออกข้อมูลใบเสร็จรับเงินจำนวน ${filteredItems.length} รายการเป็นไฟล์ ${fileFormat === 'excel' ? 'Excel' : 'CSV'}`
+        `ส่งออกข้อมูลใบเสร็จรับเงินจำนวน ${filteredItems.length} รายการเป็นไฟล์ ${fileFormat === 'excel' ? 'Excel' : 'CSV'}`,
+        undefined,
+        {
+          startDate: formatDateToYYYYMMDD(startDate),
+          endDate: formatDateToYYYYMMDD(endDate),
+          fileFormat: fileFormat === 'excel' ? 'Excel' : 'CSV',
+        }
       ).catch(err => console.error('Failed to log activity:', err));
     }
   };

@@ -182,10 +182,10 @@ export const activityLogApi = {
   getAll: (userId: string, lineUserId?: string) =>
     apiRequest<any[]>(`/activity-logs?userId=${userId}${lineUserId ? `&lineUserId=${encodeURIComponent(lineUserId)}` : ''}`),
 
-  create: (userId: string, action: string, details: string, receiptId?: string) =>
+  create: (userId: string, action: string, details: string, receiptId?: string, metadata?: Record<string, any>) =>
     apiRequest<any>('/activity-logs', {
       method: 'POST',
-      body: JSON.stringify({ userId, action, details, receiptId }),
+      body: JSON.stringify({ userId, action, details, receiptId, metadata }),
     }),
 };
 
