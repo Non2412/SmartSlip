@@ -450,6 +450,7 @@
     padding-left: max(12px, env(safe-area-inset-left, 0px));
     padding-right: max(12px, env(safe-area-inset-right, 0px));
   }
+
 }
 
 /* Very small phones (360px) — ลด gap เพิ่มเติม */
@@ -692,4 +693,22 @@
 .footerButton:hover {
   background-color: var(--surface-hover);
   color: var(--primary-color);
+}
+
+/* The desktop bell button (.iconButton) that .dropdown normally
+   anchors to is hidden on mobile, which collapses .notificationWrapper
+   to zero size and leaves the dropdown positioned off-screen. Anchor it
+   to the viewport and center it instead when opened from the 3-dot menu.
+   This must stay below the base .dropdown rule in the file so it wins
+   the cascade (equal specificity, later source order). */
+@media (max-width: 768px) {
+  .dropdown {
+    position: fixed;
+    top: calc(var(--header-height, 4rem) + 8px);
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(360px, calc(100vw - 24px));
+    max-height: 70vh;
+  }
 }
