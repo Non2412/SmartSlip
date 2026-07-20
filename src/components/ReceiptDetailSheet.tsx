@@ -47,11 +47,6 @@ interface LineItem {
     unitPrice: number;
 }
 
-const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0',
-    fontSize: '0.92rem', outline: 'none', backgroundColor: '#ffffff', color: '#1e293b',
-    boxSizing: 'border-box' as const,
-};
 const darkInputStyle: React.CSSProperties = {
     width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)',
     fontSize: '0.92rem', outline: 'none', backgroundColor: 'var(--input-bg)', color: 'var(--text-main)',
@@ -111,6 +106,21 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
         setPosition({ x: dragStart.current.px + e.clientX - dragStart.current.x, y: dragStart.current.py + e.clientY - dragStart.current.y });
     }, [isDragging]);
     const handleMouseUp = useCallback(() => setIsDragging(false), []);
+
+    // Touch equivalents — mobile browsers don't reliably fire mouse events,
+    // so drag-to-pan needs its own touch handlers to work on real phones.
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+        if (e.touches.length !== 1) return;
+        const t = e.touches[0];
+        setIsDragging(true);
+        dragStart.current = { x: t.clientX, y: t.clientY, px: position.x, py: position.y };
+    }, [position]);
+    const handleTouchMove = useCallback((e: React.TouchEvent) => {
+        if (!isDragging || e.touches.length !== 1) return;
+        const t = e.touches[0];
+        setPosition({ x: dragStart.current.px + t.clientX - dragStart.current.x, y: dragStart.current.py + t.clientY - dragStart.current.y });
+    }, [isDragging]);
+    const handleTouchEnd = useCallback(() => setIsDragging(false), []);
 
     // Mobile description edit
     const [editingDescId, setEditingDescId] = useState<string | null>(null);
@@ -294,7 +304,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
             <style dangerouslySetInnerHTML={{ __html: css }} />
 
             {/* ── Header ── */}
-            <div style={{ padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--card-bg)', borderBottom: '1px solid var(--border-color)', flexShrink: 0, minHeight: '60px', gap: '12px' }}>
+            <div style={{ padding: isMobile ? '0 14px' : '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--card-bg)', borderBottom: '1px solid var(--border-color)', flexShrink: 0, minHeight: '60px', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
                     {isQueueMode && (
                         <button
@@ -333,7 +343,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
 
             {/* Queue thumbnail strip */}
             {isQueueMode && (
-                <div style={{ background: 'var(--main-bg)', borderBottom: '1px solid var(--border-color)', padding: '8px 24px', display: 'flex', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
+                <div style={{ background: 'var(--main-bg)', borderBottom: '1px solid var(--border-color)', padding: isMobile ? '8px 14px' : '8px 24px', display: 'flex', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
                     {allReceipts!.map((r, idx) => {
                         const img = getImageUrl(r.extractedData?.imageData) || getImageUrl(r.imageURL || r.imageUrl) || null;
                         const isActive = idx === currentIdx;
@@ -357,7 +367,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
             )}
 
             {errorMsg && (
-                <div style={{ padding: '10px 24px', backgroundColor: '#fef2f2', borderBottom: '1px solid #fee2e2', color: '#991b1b', fontSize: '0.85rem', fontWeight: '600', flexShrink: 0 }}>
+                <div style={{ padding: isMobile ? '10px 14px' : '10px 24px', backgroundColor: '#fef2f2', borderBottom: '1px solid #fee2e2', color: '#991b1b', fontSize: '0.85rem', fontWeight: '600', flexShrink: 0 }}>
                     {errorMsg}
                 </div>
             )}
@@ -377,6 +387,9 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                         onMouseMove={imageData ? handleMouseMove : undefined}
                         onMouseUp={imageData ? handleMouseUp : undefined}
                         onMouseLeave={imageData ? handleMouseUp : undefined}
+                        onTouchStart={imageData ? handleTouchStart : undefined}
+                        onTouchMove={imageData ? handleTouchMove : undefined}
+                        onTouchEnd={imageData ? handleTouchEnd : undefined}
                     >
                         {imageData ? (
                             <Image
@@ -465,7 +478,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                 </div>
 
                 {/* RIGHT: Editable form */}
-                <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflowY: 'auto', padding: '16px 20px', backgroundColor: 'var(--main-bg)' }}>
+                <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflowY: 'auto', padding: isMobile ? '14px' : '16px 20px', backgroundColor: 'var(--main-bg)' }}>
 
                     {/* AI Success Banner */}
                     <div style={{ background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.25)', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -530,7 +543,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                                     />
                                 )}
                             </div>
-                            <div>
+                            <div style={{ gridColumn: isMobile ? '1 / -1' : 'auto' }}>
                                 <label style={darkLabelStyle}>สกุลเงิน</label>
                                 <select value={currency} onChange={e => setCurrency(e.target.value)} style={{ ...darkInputStyle, cursor: 'pointer' }}>
                                     {['THB', 'USD', 'EUR', 'JPY', 'CNY', 'SGD'].map(c => <option key={c} value={c}>{c}</option>)}
@@ -800,9 +813,9 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
         {/* Mobile description edit modal */}
         {isMobile && editingDescId && (
             <div onClick={closeDescModal} style={{ position: 'fixed', inset: 0, zIndex: 2000, backgroundColor: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-                <div onClick={e => e.stopPropagation()} style={{ width: '100%', background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-                    <p style={{ fontSize: '0.8rem', fontWeight: '700', color: '#64748b', margin: '0 0 10px' }}>ชื่อสินค้า / บริการ</p>
-                    <input autoFocus value={editingDescValue} onChange={e => setEditingDescValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && closeDescModal()} placeholder="ชื่อสินค้า/บริการ" style={{ ...inputStyle, fontSize: '1rem', padding: '12px 14px' }} />
+                <div onClick={e => e.stopPropagation()} style={{ width: '100%', background: 'var(--card-bg)', borderRadius: '16px', padding: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                    <p style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-muted)', margin: '0 0 10px' }}>ชื่อสินค้า / บริการ</p>
+                    <input autoFocus value={editingDescValue} onChange={e => setEditingDescValue(e.target.value)} onKeyDown={e => e.key === 'Enter' && closeDescModal()} placeholder="ชื่อสินค้า/บริการ" style={{ ...darkInputStyle, fontSize: '1rem', padding: '12px 14px' }} />
                     <button onClick={closeDescModal} style={{ marginTop: '14px', width: '100%', padding: '12px', borderRadius: '10px', background: '#7c3aed', color: 'white', fontWeight: '800', border: 'none', fontSize: '0.95rem', cursor: 'pointer' }}>ยืนยัน</button>
                 </div>
             </div>
