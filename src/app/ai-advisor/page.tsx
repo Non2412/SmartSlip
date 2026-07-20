@@ -194,7 +194,6 @@ export default function AIAdvisorPage() {
   };
 
   const handleSuggestionClick = (suggestionText: string) => {
-    setShowSuggestions(false);
     handleSendMessage(suggestionText);
   };
 
