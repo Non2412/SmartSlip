@@ -155,3 +155,39 @@
   font-weight: 600;
   margin: 0;
 }
+
+/* Mobile-only overrides (desktop/PC layout untouched) */
+@media (max-width: 768px) {
+  .titleSection {
+    margin-bottom: 4px;
+  }
+
+  .pageTitle {
+    font-size: 1.2rem;
+  }
+
+  .pageDesc {
+    font-size: 0.8rem;
+    line-height: 1.45;
+  }
+
+  .logItem {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .iconWrapper {
+    width: 34px;
+    height: 34px;
+  }
+
+  .logMessage {
+    font-size: 0.85rem;
+  }
+
+  .logMeta {
+    flex-wrap: wrap;
+    gap: 8px;
+    row-gap: 4px;
+  }
+}

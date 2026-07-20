@@ -265,8 +265,11 @@ export default function AIAdvisorPage() {
           <div className={styles.container}>
             <div className={styles.headerSection}>
               <h1 className={styles.title}>SmartSlip AI Chatbot</h1>
-              <p className={styles.subtitle}>
+              <p className={`${styles.subtitle} ${styles.subtitleFull}`}>
                 ปรึกษา วางแผน และสนทนาการเงินแบบเป็นกันเอง โดย AI อัจฉริยะจะอ้างอิงจากข้อมูลรายจ่ายจริงของคุณ
+              </p>
+              <p className={`${styles.subtitle} ${styles.subtitleShort}`}>
+                ปรึกษาการเงินกับ AI อ้างอิงจากรายจ่ายจริงของคุณ
               </p>
             </div>
 
@@ -335,17 +338,10 @@ export default function AIAdvisorPage() {
                   {messages.length === 0 ? (
                     // Initial welcome intro view
                     <div style={{ margin: 'auto', textAlign: 'center', maxWidth: '440px', padding: '20px' }}>
-                      <div className={styles.aiAvatarWrapper} style={{ margin: '0 auto 16px', overflow: 'visible', background: 'none', border: 'none', padding: 0 }}>
-                        <img
-                          src="/BOT.png"
-                          alt="SmartSlip AI"
-                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                        />
-                      </div>
                       <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-main)', marginBottom: '8px' }}>
                         สวัสดีครับ! ผมคือที่ปรึกษาการเงิน AI
                       </h3>
-                      <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '24px' }}>
+                      <p className={styles.welcomeSubtext} style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '24px' }}>
                         พิมพ์ทักทายหรือเลือกหัวข้อแนะนำด้านล่างนี้ เพื่อเริ่มปรึกษาการเงิน แนะนำวิธีลดรายจ่าย หรือประเมินพฤติกรรมการจ่ายเงินจริงของคุณได้ทันทีครับ
                       </p>
                     </div>

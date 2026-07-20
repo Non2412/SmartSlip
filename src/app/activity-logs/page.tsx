@@ -140,7 +140,7 @@ export default function ActivityLogsPage() {
           onCreateNew={openCreateSheet}
         />
 
-        <div className="dashboard-container">
+        <div className="page-container">
           <div className={styles.container}>
             
             <div className={styles.titleSection}>
