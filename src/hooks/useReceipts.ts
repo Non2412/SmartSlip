@@ -8,6 +8,7 @@ export interface UseReceiptsReturn {
   fetchReceipts: (userId: string, lineUserId?: string) => Promise<void>;
   createReceipt: (data: CreateReceiptData) => Promise<{ success: boolean; data?: Receipt; error?: string }>;
   updateReceipt: (id: string, data: Partial<Receipt>) => Promise<{ success: boolean; data?: Receipt; error?: string }>;
+  updateMultipleReceipts: (ids: string[], updates: { category?: string; storeName?: string; paymentMethod?: string; date?: string; notes?: string }) => Promise<{ success: boolean; error?: string }>;
   deleteReceipt: (id: string) => Promise<{ success: boolean; error?: string }>;
   deleteMultipleReceipts: (ids: string[]) => Promise<{ success: boolean; error?: string }>;
   extractFromImage: (file: File, userId: string) => Promise<any>;
@@ -107,6 +108,88 @@ export const useReceipts = (): UseReceiptsReturn => {
     }
   }, []);
 
+  const updateMultipleReceipts = useCallback(async (
+    ids: string[],
+    updates: { category?: string; storeName?: string; paymentMethod?: string; date?: string; notes?: string }
+  ) => {
+    try {
+      const updatePromises = ids.map(id => {
+        const targetReceipt = receipts.find(r => (r._id === id || r.id === id));
+        if (!targetReceipt) return Promise.resolve({ success: true });
+
+        const patchData: Partial<Receipt> = {};
+        if (updates.storeName !== undefined && updates.storeName.trim() !== '') {
+          patchData.storeName = updates.storeName;
+        }
+
+        const newExtracted = {
+          ...(targetReceipt.extractedData || {}),
+        };
+        if (updates.category !== undefined && updates.category.trim() !== '') {
+          newExtracted.category = updates.category;
+        }
+        if (updates.paymentMethod !== undefined && updates.paymentMethod.trim() !== '') {
+          newExtracted.paymentMethod = updates.paymentMethod;
+          newExtracted.method = updates.paymentMethod;
+        }
+        if (updates.date !== undefined && updates.date.trim() !== '') {
+          newExtracted.date = updates.date;
+        }
+        if (updates.notes !== undefined && updates.notes.trim() !== '') {
+          newExtracted.notes = updates.notes;
+        }
+
+        patchData.extractedData = newExtracted;
+        return receiptApi.update(id, patchData);
+      });
+
+      const results = await Promise.all(updatePromises);
+      const hasError = results.some(res => !res.success);
+
+      if (!hasError) {
+        const idSet = new Set(ids);
+        setReceipts(prev => prev.map(r => {
+          const rId = r._id || r.id || '';
+          if (!idSet.has(rId)) return r;
+
+          const updatedStore = (updates.storeName !== undefined && updates.storeName.trim() !== '') ? updates.storeName : r.storeName;
+          const updatedExtracted = {
+            ...(r.extractedData || {}),
+            ...(updates.category !== undefined && updates.category.trim() !== '' ? { category: updates.category } : {}),
+            ...(updates.paymentMethod !== undefined && updates.paymentMethod.trim() !== '' ? { paymentMethod: updates.paymentMethod, method: updates.paymentMethod } : {}),
+            ...(updates.date !== undefined && updates.date.trim() !== '' ? { date: updates.date } : {}),
+            ...(updates.notes !== undefined && updates.notes.trim() !== '' ? { notes: updates.notes } : {}),
+          };
+
+          return {
+            ...r,
+            storeName: updatedStore,
+            extractedData: updatedExtracted,
+            updatedAt: new Date().toISOString(),
+          };
+        }));
+
+        try {
+          const firstId = ids[0];
+          const sampleReceipt = receipts.find(r => r._id === firstId || r.id === firstId);
+          await activityLogApi.create(
+            sampleReceipt?.userId || 'user123',
+            'edit',
+            `แก้ไขใบเสร็จแบบกลุ่มจำนวน ${ids.length} รายการ`
+          );
+        } catch (logErr) {
+          console.error('Failed to log activity:', logErr);
+        }
+
+        return { success: true };
+      } else {
+        return { success: false, error: 'เกิดข้อผิดพลาดในการอัปเดตใบเสร็จบางรายการ' };
+      }
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
+    }
+  }, [receipts]);
+
   const deleteMultipleReceipts = useCallback(async (ids: string[]) => {
     try {
       const result = await receiptApi.deleteMultiple(ids) as any;
@@ -148,6 +231,7 @@ export const useReceipts = (): UseReceiptsReturn => {
     fetchReceipts,
     createReceipt,
     updateReceipt,
+    updateMultipleReceipts,
     deleteReceipt,
     deleteMultipleReceipts,
     extractFromImage,

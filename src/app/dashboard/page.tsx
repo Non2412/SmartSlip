@@ -8,7 +8,7 @@ const CreateReceiptSheet = dynamic(() => import('@/components/CreateReceiptSheet
 const ReceiptDetailSheet = dynamic(() => import('@/components/ReceiptDetailSheet'), { ssr: false });
 
 import { StatCard, ReceiptTable, FilterBar, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
@@ -16,7 +16,7 @@ import { StatCardSkeleton, ChartSkeleton, RecentUploadsSkeleton } from '@/compon
 import { identifyDuplicateReceipts } from '@/lib/ocr-utils';
 import styles from './Dashboard.module.css';
 
-export default function DashboardPage() {
+function DashboardContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
@@ -395,5 +395,17 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main, #0f172a)', color: 'var(--text-muted, #94a3b8)', fontFamily: 'sans-serif' }}>
+        กำลังโหลด Dashboard...
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }

@@ -907,7 +907,7 @@
   bottom: 24px;
   left: 55%; /* Offsets sidebar slightly on desktop */
   transform: translateX(-50%);
-  width: min(580px, 85vw);
+  width: min(680px, 92vw);
   background: rgba(15, 23, 42, 0.88);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -945,19 +945,22 @@
 @media (max-width: 1024px) {
   .floatingActionBar {
     left: 50%;
-    width: min(540px, 92vw);
-    padding: 14px 20px;
+    width: min(600px, 94vw);
+    padding: 14px 16px;
+    gap: 10px;
   }
 }
 
 .actionBarInfo {
   font-size: 0.9rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .actionBarButtons {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .actionBarBtn {
@@ -990,14 +993,32 @@
   background: #e2e8f0;
 }
 
+.actionBarBtnPrimary {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+.actionBarBtnPrimary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
+}
+
 .actionBarBtnDanger {
   background: linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
 }
 
-.actionBarBtnDanger:hover {
+.actionBarBtnDanger:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(239, 68, 68, 0.3);
+}
+
+.actionBarBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 

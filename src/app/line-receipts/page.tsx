@@ -6,6 +6,7 @@ import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
 import CreateReceiptSheet from '@/components/CreateReceiptSheet';
+import BulkEditModal, { BulkEditData } from '@/components/BulkEditModal';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
 import { Receipt, cleanAndProxyImageUrl } from '@/lib/apiClient';
@@ -40,6 +41,8 @@ function LineReceiptsContent() {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+  const [queueReceiptsList, setQueueReceiptsList] = useState<Receipt[] | undefined>(undefined);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 769);
@@ -59,7 +62,7 @@ function LineReceiptsContent() {
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
-  const { receipts, fetchReceipts, deleteReceipt, deleteMultipleReceipts, loading } = useReceipts();
+  const { receipts, fetchReceipts, deleteReceipt, deleteMultipleReceipts, updateMultipleReceipts, loading } = useReceipts();
 
   useEffect(() => {
     setViewedIds(getViewedIds());
@@ -196,6 +199,7 @@ function LineReceiptsContent() {
 
   const handleReceiptClick = (receipt: Receipt) => {
     markAsViewed(receipt._id || receipt.id || '');
+    setQueueReceiptsList(undefined);
     setSelectedReceipt(receipt);
   };
 
@@ -246,6 +250,20 @@ function LineReceiptsContent() {
     setSelectedIds(new Set());
     setIsSelectMode(false);
     setShowBulkDeleteConfirm(false);
+  };
+
+  const handleBulkEditConfirmed = async (updates: BulkEditData) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    const res = await updateMultipleReceipts(ids, updates);
+    if (res.success) {
+      setToastMsg(`แก้ไขข้อมูลใบเสร็จสำเร็จจำนวน ${ids.length} รายการ`);
+      setTimeout(() => setToastMsg(null), 4000);
+    } else {
+      alert(res.error || 'เกิดข้อผิดพลาดในการแก้ไขใบเสร็จ');
+    }
+    setShowBulkEditModal(false);
   };
 
   // Proxy GCS images through local API to bypass public access restrictions
@@ -887,6 +905,19 @@ function LineReceiptsContent() {
               {selectedIds.size === filteredReceipts.length ? 'ยกเลิกทั้งหมด' : 'เลือกทั้งหมด'}
             </button>
             <button 
+              className={`${styles.actionBarBtn} ${styles.actionBarBtnPrimary}`}
+              disabled={selectedIds.size === 0}
+              onClick={() => {
+                const selectedList = lineReceipts.filter(r => selectedIds.has(r._id || r.id || ''));
+                if (selectedList.length > 0) {
+                  setQueueReceiptsList(selectedList);
+                  setSelectedReceipt(selectedList[0]);
+                }
+              }}
+            >
+              แก้ไขที่เลือก ({selectedIds.size})
+            </button>
+            <button 
               className={`${styles.actionBarBtn} ${styles.actionBarBtnDanger}`}
               disabled={selectedIds.size === 0}
               onClick={() => setShowBulkDeleteConfirm(true)}
@@ -896,6 +927,14 @@ function LineReceiptsContent() {
           </div>
         </div>
       )}
+
+      {/* ── Bulk Edit Modal ── */}
+      <BulkEditModal
+        isOpen={showBulkEditModal}
+        selectedCount={selectedIds.size}
+        onClose={() => setShowBulkEditModal(false)}
+        onSave={handleBulkEditConfirmed}
+      />
 
       {/* ── Bulk Delete Confirmation Dialog ── */}
       {showBulkDeleteConfirm && (
@@ -939,11 +978,15 @@ function LineReceiptsContent() {
         userId={session?.user?.id}
       />
 
-      {/* ── Receipt Detail Sheet ── */}
+      {/* ── Receipt Detail Sheet (Queue Mode for selected items) ── */}
       <ReceiptDetailSheet
         isOpen={!!selectedReceipt}
         receipt={selectedReceipt ?? undefined}
-        onClose={() => setSelectedReceipt(null)}
+        allReceipts={queueReceiptsList}
+        onClose={() => {
+          setSelectedReceipt(null);
+          setQueueReceiptsList(undefined);
+        }}
         onSuccess={(id) => {
           if (session?.user?.id) {
             const lineUserId = (session as any)?.lineUserId as string | undefined;
@@ -958,6 +1001,7 @@ function LineReceiptsContent() {
             setTimeout(() => setToastMsg(null), 8000);
           }
           setSelectedReceipt(null);
+          setQueueReceiptsList(undefined);
         }}
       />
 
