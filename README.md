@@ -4,7 +4,6 @@
 [![React Version](https://img.shields.io/badge/React-19.2.3-blue?style=for-the-badge&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/)
-[![Docker](https://img.shields.io/badge/Docker-Enabled-blue?style=for-the-badge&logo=docker)](https://www.docker.com/)
 [![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?style=for-the-badge&logo=vercel)](https://vercel.com/)
 [![LINE Login](https://img.shields.io/badge/LINE_Login-Integrated-00c300?style=for-the-badge&logo=line)](https://developers.line.biz/)
 [![Gemini OCR](https://img.shields.io/badge/Gemini_AI-OCR_Engine-8e75e5?style=for-the-badge&logo=google-gemini)](https://deepmind.google/technologies/gemini/)
@@ -70,19 +69,6 @@ User (LINE OA / Web Browser)
    └──► [MongoDB Atlas] (Database)
 ```
 
-### 🐳 Containerization Architecture
-```text
-+──────────────────────────────────────────────────+
-│                 Docker Compose                   │
-│                                                  │
-│  +─────────────────────+   +──────────────────+  │
-│  │   Next.js Web App   │   │     MongoDB      │  │
-│  │      Container      │──►│    Container     │  │
-│  │ (Turbopack Runtime) │   │ (Local database) │  │
-│  +─────────────────────+   +──────────────────+  │
-+──────────────────────────────────────────────────+
-```
-
 ---
 
 ## 💾 5. Database Design (MongoDB Schema)
@@ -110,7 +96,6 @@ User (LINE OA / Web Browser)
 *   **Authentication**: Auth.js v5 (NextAuth.js) - LINE Login Provider, Google OAuth, Credentials Provider (bcryptjs)
 *   **AI Integration**: Google Gemini Developer API (Gemini Flash Model)
 *   **File Storage**: Google Drive API & Google Cloud Storage Integration
-*   **DevOps / Container**: Docker, Docker Compose
 *   **Deployment**: Vercel (Production) & Local Environment
 
 ---
@@ -197,22 +182,6 @@ GCS_BUCKET_NAME=your-gcs-bucket-name
 
 ---
 
-## 🐳 10. Docker Support
-
-โปรเจกต์นี้รองรับการรันผ่าน Docker เพื่อความสะดวกในการตั้งค่า Environment สำหรับการทำงานร่วมกัน:
-
-*   **สั่งเปิดใช้งาน Container ทั้งหมด (Next.js App + Local MongoDB)**
-    ```bash
-    docker compose up -d --build
-    ```
-
-*   **สั่งปิดใช้งาน Container**
-    ```bash
-    docker compose down
-    ```
-
----
-
 ## 🔮 11. Future Improvements
 
 *   **📱 Mobile Application**: พัฒนาแอปพลิเคชันเวอร์ชันเนทีฟบนมือถือ (iOS / Android) เพื่อความสะดวกรวดเร็วในการกดถ่ายภาพใบเสร็จ
@@ -248,6 +217,5 @@ Backend          : Next.js API
 Database         : MongoDB
 Authentication   : LINE OAuth + Google OAuth
 Deployment       : Vercel
-Containerization : Docker
 AI OCR Engine    : Gemini API
 ```
