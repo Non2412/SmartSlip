@@ -1,10 +1,9 @@
 # 🧾 SmartSlip: ระบบจัดการใบเสร็จอิเล็กทรอนิกส์ (Electronic Receipt Management System)
 
-[![Next.js Version](https://img.shields.io/badge/Next.js-15.0-black?style=for-the-badge&logo=nextdotjs)](https://nextjs.org/)
-[![React Version](https://img.shields.io/badge/React-19.0-blue?style=for-the-badge&logo=react)](https://react.dev/)
+[![Next.js Version](https://img.shields.io/badge/Next.js-16.1.6-black?style=for-the-badge&logo=nextdotjs)](https://nextjs.org/)
+[![React Version](https://img.shields.io/badge/React-19.2.3-blue?style=for-the-badge&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/)
-[![Docker](https://img.shields.io/badge/Docker-Enabled-blue?style=for-the-badge&logo=docker)](https://www.docker.com/)
 [![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?style=for-the-badge&logo=vercel)](https://vercel.com/)
 [![LINE Login](https://img.shields.io/badge/LINE_Login-Integrated-00c300?style=for-the-badge&logo=line)](https://developers.line.biz/)
 [![Gemini OCR](https://img.shields.io/badge/Gemini_AI-OCR_Engine-8e75e5?style=for-the-badge&logo=google-gemini)](https://deepmind.google/technologies/gemini/)
@@ -41,13 +40,16 @@ SmartSlip เป็นเว็บแอปพลิเคชันระดั�
 ## ✨ 3. Features
 
 *   **🔐 Auth Integration**: เข้าสู่ระบบผ่าน LINE OAuth, Google OAuth และ Credentials (ความปลอดภัยรหัสผ่านด้วย bcrypt)
-*   **🤖 AI OCR Engine**: สแกนประมวลผลใบเสร็จด้วย Google Gemini API ดึง ยอดเงินรวม, ชื่อร้าน, และวันที่ แบบเรียลไทม์
-*   **📁 Cloud Storage**: อัปโหลดข้อมูลและภาพใบเสร็จสำรองขึ้นระบบคลาวด์ Google Drive ปลอดภัยสูงสุด
+*   **🤖 AI OCR Engine**: สแกนประมวลผลใบเสร็จด้วย Google Gemini API ดึง ยอดเงินรวม, ชื่อร้าน, วันที่ และรายการสินค้า แบบเรียลไทม์
+*   **📁 Cloud Storage**: อัปโหลดข้อมูลและภาพใบเสร็จสำรองขึ้นระบบคลาวด์ Google Drive / Google Cloud Storage ปลอดภัยสูงสุด
 *   **📊 Interactive Dashboard**: วิเคราะห์แนวโน้มยอดรายจ่าย (Line Chart) และสัดส่วนค่าใช้จ่ายตามหมวดหมู่ (Donut Pie Chart) ที่โต้ตอบได้อย่างแม่นยำ
 *   **🔎 Smart Filter & Search**: ค้นหาตามคำสำคัญและสลับเปิด-ปิด (Toggle) ตัวกรองช่วงเวลา (7 วัน, รายเดือน, รายปี) โดยเริ่มต้นไม่กรองข้อมูลใด ๆ
 *   **🚫 Duplicate Detection**: ระบบคัดกรองอัจฉริยะ ตรวจหาและแจ้งเตือนใบเสร็จที่ซ้ำซ้อน (Duplicate) ป้องกันการลงบัญชีเบิ้ล
 *   **📃 Pagination System**: ตารางรายงานแบบแบ่งหน้า (5, 10, หรือ 25 รายการ) ลดภาระการโหลดข้อมูลหน้าเว็บ
 *   **📱 Responsive Web Design**: ปรับแต่งมาเป็นอย่างดีสำหรับทุกขนาดหน้าจอ ทั้ง Desktop, Tablet และ Mobile
+*   **📑 Queue & Bulk Edit Mode (ฟีเจอร์ใหม่)**: โหมดแก้ไขสลิปทั้งหมดแบบต่อเนื่อง มีระบบพรีวิวรูปภาพฝั่งซ้าย (Zoom In/Out/Rotate) พร้อมแถบรูปภาพย่อ (Thumbnail Strip) แบบโปร่งใส (Transparent) รองรับทั้ง Light/Dark Mode
+*   **📋 Pre-Save Summary Modal (ฟีเจอร์ใหม่)**: หน้าต่างป๊อปอัปสรุปรายการใบเสร็จรอดำเนินการทั้งหมดและสรุปยอดเงินรวมสุทธิ (Grand Total Sum) ก่อนกดบันทึกจริง เพื่อให้ผู้ใช้ตรวจสอบความถูกต้องของยอดเงินอีกครั้ง
+*   **⚡ Live Dynamic Recalculation (ฟีเจอร์ใหม่)**: ระบบคำนวณยอดเงินรวมแบบเรียลไทม์ทันทีที่มีการลบ/แก้ไขรายการสินค้า ส่วนลด หรือ VAT เพื่อให้ยอดการใช้จ่ายอัปเดตตรงตามจริงเสมอ
 
 ---
 
@@ -63,21 +65,8 @@ User (LINE OA / Web Browser)
    ▼
 [Next.js API Routes] (Backend)
    ├──► [Google Gemini API] (AI OCR Extraction Engine)
-   ├──► [Google Drive API] (Image Cloud Storage Backup)
+   ├──► [Google Drive / Cloud Storage API] (Image Cloud Backup)
    └──► [MongoDB Atlas] (Database)
-```
-
-### 🐳 Containerization Architecture
-```text
-+──────────────────────────────────────────────────+
-│                 Docker Compose                   │
-│                                                  │
-│  +─────────────────────+   +──────────────────+  │
-│  │   Next.js Web App   │   │     MongoDB      │  │
-│  │      Container      │──►│    Container     │  │
-│  │ (Turbopack Runtime) │   │ (Local database) │  │
-│  +─────────────────────+   +──────────────────+  │
-+──────────────────────────────────────────────────+
 ```
 
 ---
@@ -91,7 +80,7 @@ User (LINE OA / Web Browser)
     *   `storeName` (ชื่อร้านค้า)
     *   `totalAmount` / `amount` (ยอดเงินรวม)
     *   `extractedData` (ข้อมูลดิบที่วิเคราะห์ผ่าน OCR)
-    *   `imageURL` / `imageUrl` (ลิงก์ภาพบน Google Drive)
+    *   `imageURL` / `imageUrl` (ลิงก์ภาพบน Google Drive / Cloud Storage)
     *   `source` (`line` หรือ `web` เพื่อระบุช่องทางการนำเข้า)
     *   `isDuplicate` (แฟล็กตรวจสอบความซ้ำซ้อน)
     *   `createdAt` & `updatedAt`
@@ -106,8 +95,7 @@ User (LINE OA / Web Browser)
 *   **Database**: MongoDB (MongoDB Atlas & Mongoose) + `@auth/mongodb-adapter`
 *   **Authentication**: Auth.js v5 (NextAuth.js) - LINE Login Provider, Google OAuth, Credentials Provider (bcryptjs)
 *   **AI Integration**: Google Gemini Developer API (Gemini Flash Model)
-*   **File Storage**: Google Drive API (Service Account & OAuth 2.0 Integration)
-*   **DevOps / Container**: Docker, Docker Compose
+*   **File Storage**: Google Drive API & Google Cloud Storage Integration
 *   **Deployment**: Vercel (Production) & Local Environment
 
 ---
@@ -125,6 +113,10 @@ User (LINE OA / Web Browser)
 ### 🚀 Challenge 3: Real-time Synchronized Dual-Chart Dashboard
 *   **ปัญหา**: การแสดงกราฟ 2 ตัว (Line Chart และ Donut Pie Chart) ที่ต้องการประสิทธิภาพสูงและโต้ตอบได้เรียลไทม์ตามช่วงเวลาตัวกรองที่สลับไปมา โดยไม่ต้องการพึ่งพา Lib กราฟขนาดใหญ่ที่ส่งผลกระทบต่อประสิทธิภาพการโหลดเว็บ
 *   **แนวทางแก้ไข**: ออกแบบและพัฒนา Component กราฟแบบ Pure SVG ดึงข้อมูลและคำนวณสัดส่วนมุมและระยะความยาววงกลม (Circumference) ด้วยวงกลมสูตรทางคณิตศาสตร์ในโค้ด React โดยตรง ทำให้ได้แผนภูมิที่โหลดเร็ว คมชัด และรองรับ Responsive
+
+### 🚀 Challenge 4: Real-time Queue State & Pre-Save Confirmation Summary (ฟีเจอร์ใหม่)
+*   **ปัญหา**: ในการแก้ไขใบเสร็จหลายรายการในโหมดคิว (Queue Mode) หากผู้ใช้แก้ไขราคาสินค้า ปรับส่วนลด/VAT หรือลบรายการสินค้าในแต่ละสลิป ยอดเงินรวมทั้งหมดที่แสดงอาจไม่อัปเดตทันทีหากยังไม่ได้ถูกบันทึกลงฐานข้อมูล
+*   **แนวทางแก้ไข**: พัฒนาระบบจัดการสถานะแบบ Live Queue State Tracking พร้อมสร้างหน้าต่าง `SummaryConfirmModal` เพื่อรวบรวมรายการสลิปและคำนวณยอดเงินรวมสุทธิ (Grand Total) ใหม่แบบ Real-time ให้ผู้ใช้ตรวจสอบยอดเงินถูกต้องตรงตามจริงก่อนกดยืนยันบันทึกทั้งหมดลงฐานข้อมูล
 
 ---
 
@@ -185,23 +177,8 @@ GOOGLE_PRIVATE_KEY_ID=your-google-private-key-id
 GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 GOOGLE_SERVICE_ACCOUNT_EMAIL=your-service-account-email
 GOOGLE_DRIVE_FOLDER_ID=your-google-drive-folder-id
+GCS_BUCKET_NAME=your-gcs-bucket-name
 ```
-
----
-
-## 🐳 10. Docker Support
-
-โปรเจกต์นี้รองรับการรันผ่าน Docker เพื่อความสะดวกในการตั้งค่า Environment สำหรับการทำงานร่วมกัน:
-
-*   **สั่งเปิดใช้งาน Container ทั้งหมด (Next.js App + Local MongoDB)**
-    ```bash
-    docker compose up -d --build
-    ```
-
-*   **สั่งปิดใช้งาน Container**
-    ```bash
-    docker compose down
-    ```
 
 ---
 
@@ -243,6 +220,5 @@ Backend          : Next.js API
 Database         : MongoDB
 Authentication   : LINE OAuth + Google OAuth
 Deployment       : Vercel
-Containerization : Docker
 AI OCR Engine    : Gemini API
 ```
