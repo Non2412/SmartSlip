@@ -24,6 +24,10 @@
   font-weight: 500;
 }
 
+.subtitleShort {
+  display: none;
+}
+
 .card {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
@@ -54,26 +58,6 @@
     text-align: center;
     gap: 16px;
   }
-}
-
-.aiAvatarWrapper {
-  width: 72px;
-  height: 72px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(52, 211, 153, 0.05));
-  border: 1.5px solid rgba(16, 185, 129, 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary-color);
-  flex-shrink: 0;
-  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.1);
-  animation: float 3s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
 }
 
 .introText {
@@ -248,24 +232,6 @@
 }
 
 /* AI Chatbot Conversational Layout Styles */
-.chatContainer {
-  display: flex;
-  flex-direction: column;
-  height: 580px;
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 24px;
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-[data-theme="dark"] .chatContainer {
-  background: linear-gradient(135deg, rgba(20, 27, 44, 0.75), rgba(11, 15, 25, 0.75));
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-
 .chatHeader {
   display: flex;
   justify-content: space-between;
@@ -421,54 +387,6 @@
   border-radius: 0 8px 8px 0;
   margin: 10px 0;
   font-style: italic;
-}
-
-.suggestionsWrapper {
-  padding: 0 24px;
-  margin-bottom: 12px;
-}
-
-.suggestionsLabel {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  margin-bottom: 8px;
-  letter-spacing: 0.05em;
-  display: block;
-}
-
-.suggestionsRow {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  scrollbar-width: none; /* Hide scrollbar for clean UI */
-}
-
-.suggestionsRow::-webkit-scrollbar {
-  display: none;
-}
-
-.suggestionChip {
-  white-space: nowrap;
-  background: var(--surface-color);
-  border: 1.5px solid var(--border-color);
-  color: var(--text-main);
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
-.suggestionChip:hover {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
-  background: rgba(16, 185, 129, 0.04);
-  transform: translateY(-1px);
 }
 
 .chatInputForm {
@@ -799,13 +717,59 @@
   min-width: 0;
 }
 
-/* Mobile responsive adjustments */
+/* Mobile responsive adjustments (desktop/PC layout untouched) */
 @media (max-width: 768px) {
+  .container {
+    gap: 16px;
+  }
+
+  .headerSection {
+    margin-bottom: 0;
+  }
+
+  .title {
+    font-size: 1.3rem;
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  /* Swap in the shorter one-line subtitle on mobile instead of the
+     full two-line desktop copy. */
+  .subtitleFull {
+    display: none;
+  }
+
+  .welcomeSubtext {
+    display: none;
+  }
+
+  .subtitleShort {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Fixed 640px overflowed shorter phone viewports, forcing an outer
+     page scroll before the input box was even visible. */
   .chatLayoutContainer {
     flex-direction: column;
-    height: 640px;
+    height: min(640px, calc(100dvh - 235px));
+    border-radius: 18px;
   }
-  
+
+  /* Without min-height:0, chatMainArea's automatic minimum size was
+     based on its content, so it refused to shrink to fit the capped
+     container height — pushing chatInputForm past the clipped bottom
+     edge and making the input box disappear entirely. */
+  .chatMainArea {
+    min-height: 0;
+  }
+
   .sessionsSidebar {
     width: 100%;
     height: 140px;
@@ -815,6 +779,11 @@
 
   .sidebarHeader {
     padding: 10px 14px;
+    flex-shrink: 0;
+  }
+
+  .newChatBtn {
+    flex-shrink: 0;
   }
 
   .sessionsList {
@@ -823,6 +792,7 @@
     overflow-y: hidden;
     padding: 6px 14px 10px;
     gap: 8px;
+    min-height: 0;
   }
 
   .sessionItem {
@@ -835,6 +805,87 @@
   .sessionDeleteBtn {
     opacity: 0.6;
     margin-left: 6px;
+  }
+
+  .chatHeader {
+    padding: 14px 16px;
+  }
+
+  .chatHeaderInfo h3 {
+    font-size: 0.95rem;
+  }
+
+  .clearBtn {
+    padding: 5px 10px;
+    font-size: 0.75rem;
+  }
+
+  .chatMessages {
+    padding: 16px;
+    gap: 16px;
+    min-height: 0;
+  }
+
+  .avatarWrapper {
+    width: 32px;
+    height: 32px;
+    margin-right: 8px;
+  }
+
+  .messageBubble {
+    max-width: 85%;
+    padding: 12px 16px;
+    font-size: 0.88rem;
+  }
+
+  .chatInputForm {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    gap: 8px;
+  }
+
+  .chatInput {
+    padding: 11px 14px;
+    /* 16px prevents iOS Safari from auto-zooming the page on focus */
+    font-size: 16px;
+    /* Flex items default to min-width:auto, which kept the input from
+       shrinking below its content size and pushed the send button
+       outside the card on narrow phones. */
+    min-width: 0;
+  }
+
+  .menuBtn,
+  .sendBtn {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+  }
+
+  /* Keep the suggestions popover inside the viewport on narrow phones */
+  .suggestionsDropdown {
+    min-width: 220px;
+    max-width: calc(100vw - 48px);
+  }
+}
+
+/* Very small phones (Galaxy Fold, older/compact devices) */
+@media (max-width: 360px) {
+  .chatLayoutContainer {
+    height: min(640px, calc(100dvh - 215px));
+  }
+
+  .sessionsSidebar {
+    height: 112px;
+  }
+
+  .chatInputForm {
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    gap: 6px;
+  }
+
+  .menuBtn,
+  .sendBtn {
+    width: 36px;
+    height: 36px;
   }
 }
 

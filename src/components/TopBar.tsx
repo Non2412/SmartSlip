@@ -330,17 +330,17 @@ const TopBar = ({
                                     {isDark ? <SunIcon /> : <MoonIcon />}
                                     <span>{isDark ? 'โหมดสว่าง' : 'โหมดมืด'}</span>
                                 </button>
-                                <Link
-                                    href="/notification"
+                                <button
+                                    type="button"
                                     className={styles.mobileDropdownItem}
-                                    onClick={() => setMobileMenuOpen(false)}
+                                    onClick={() => { setMobileMenuOpen(false); setIsDropdownOpen(true); }}
                                 >
                                     <BellIcon />
                                     <span>การแจ้งเตือน</span>
                                     {pendingCount > 0 && (
                                         <span className={styles.dropdownBadge}>{pendingCount}</span>
                                     )}
-                                </Link>
+                                </button>
                                 <Link
                                     href="/export"
                                     className={styles.mobileDropdownItem}

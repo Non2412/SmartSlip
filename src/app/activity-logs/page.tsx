@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
@@ -18,6 +18,29 @@ export default function ActivityLogsPage() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)');
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const sortMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) {
+        setShowSortMenu(false);
+      }
+    };
+    if (showSortMenu) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSortMenu]);
 
   const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
   const closeSidebar = () => setIsSidebarOpen(false);
@@ -47,6 +70,11 @@ export default function ActivityLogsPage() {
       fetchLogs(session.user.id, lineUserId);
     }
   }, [session]);
+
+  const sortedLogs = [...logs].sort((a, b) => {
+    const diff = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+    return sortOrder === 'newest' ? -diff : diff;
+  });
 
   const formatDate = (isoString: string) => {
     try {
@@ -140,7 +168,7 @@ export default function ActivityLogsPage() {
           onCreateNew={openCreateSheet}
         />
 
-        <div className="dashboard-container">
+        <div className="page-container">
           <div className={styles.container}>
             
             <div className={styles.titleSection}>
@@ -148,6 +176,79 @@ export default function ActivityLogsPage() {
                 <h1 className={styles.pageTitle}>ประวัติกิจกรรม</h1>
                 <p className={styles.pageDesc}>ติดตามประวัติการเพิ่ม แก้ไข และส่งออกข้อมูลใบเสร็จของคุณ</p>
               </div>
+
+              {isMobile ? (
+                <div className={styles.sortMenuWrap} ref={sortMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowSortMenu(v => !v)}
+                    className={styles.sortMenuBtn}
+                    title="เรียงลำดับ"
+                    aria-label="เรียงลำดับ"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="8" y1="4" x2="8" y2="20" />
+                      <polyline points="5 7 8 4 11 7" />
+                      <line x1="16" y1="20" x2="16" y2="4" />
+                      <polyline points="19 17 16 20 13 17" />
+                    </svg>
+                  </button>
+
+                  {showSortMenu && (
+                    <div className={styles.sortMenuDropdown}>
+                      <button
+                        type="button"
+                        onClick={() => { setSortOrder('oldest'); setShowSortMenu(false); }}
+                        className={`${styles.sortMenuItem} ${sortOrder === 'oldest' ? styles.sortMenuItemActive : ''}`}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="12" y1="5" x2="12" y2="19" />
+                          <polyline points="19 12 12 19 5 12" />
+                        </svg>
+                        เก่าสุดไปใหม่สุด
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setSortOrder('newest'); setShowSortMenu(false); }}
+                        className={`${styles.sortMenuItem} ${sortOrder === 'newest' ? styles.sortMenuItemActive : ''}`}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="12" y1="19" x2="12" y2="5" />
+                          <polyline points="5 12 12 5 19 12" />
+                        </svg>
+                        ใหม่สุดไปเก่าสุด
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className={styles.sortButtonGroup}>
+                  <button
+                    type="button"
+                    onClick={() => setSortOrder('oldest')}
+                    className={`${styles.sortButton} ${sortOrder === 'oldest' ? styles.sortButtonActive : ''}`}
+                    title="เรียงจากเก่าสุด"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <polyline points="19 12 12 19 5 12" />
+                    </svg>
+                    เก่าสุดไปใหม่สุด
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSortOrder('newest')}
+                    className={`${styles.sortButton} ${sortOrder === 'newest' ? styles.sortButtonActive : ''}`}
+                    title="เรียงจากใหม่สุด"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="19" x2="12" y2="5" />
+                      <polyline points="5 12 12 5 19 12" />
+                    </svg>
+                    ใหม่สุดไปเก่าสุด
+                  </button>
+                </div>
+              )}
             </div>
 
             {error && (
@@ -164,19 +265,86 @@ export default function ActivityLogsPage() {
                 </div>
               ) : logs.length > 0 ? (
                 <div className={styles.logsList}>
-                  {logs.map((log) => (
-                    <div key={log.id} className={styles.logItem}>
-                      {getActionIcon(log.action)}
-                      
-                      <div className={styles.logDetails}>
-                        <p className={styles.logMessage}>{log.details}</p>
-                        <div className={styles.logMeta}>
-                          {getActionBadge(log.action)}
-                          <span className={styles.logTime}>{formatDate(log.timestamp)}</span>
+                  {sortedLogs.map((log) => {
+                    const isExportLog = log.action === 'export';
+                    // Older export logs (created before start/end date + file format
+                    // were tracked) don't have metadata — recover the file format from
+                    // the details text as a best-effort fallback; the date range was
+                    // never recorded for these and can't be reconstructed.
+                    const inferredFileFormat = !log.metadata?.fileFormat && isExportLog
+                      ? log.details?.match(/เป็นไฟล์ (Excel|CSV)/)?.[1]
+                      : null;
+                    const displayMeta = log.metadata?.fileFormat
+                      ? log.metadata
+                      : (inferredFileFormat ? { fileFormat: inferredFileFormat } : log.metadata);
+                    const hasExtraDetails = !!(displayMeta && (displayMeta.startDate || displayMeta.endDate || displayMeta.fileFormat));
+                    const isExpanded = expandedId === log.id;
+                    return (
+                      <div key={log.id} className={styles.logItem}>
+                        {getActionIcon(log.action)}
+
+                        <div className={styles.logDetails}>
+                          <p className={styles.logMessage}>{log.details}</p>
+                          <div className={styles.logMeta}>
+                            {getActionBadge(log.action)}
+                            <span className={styles.logTime}>{formatDate(log.timestamp)}</span>
+                          </div>
+
+                          {isExpanded && (
+                            <div className={styles.logExpandPanel}>
+                              {hasExtraDetails ? (
+                                <>
+                                  {displayMeta.startDate ? (
+                                    <div className={styles.logExpandRow}>
+                                      <span className={styles.logExpandLabel}>วันที่เริ่มต้น</span>
+                                      <span className={styles.logExpandValue}>{displayMeta.startDate}</span>
+                                    </div>
+                                  ) : (
+                                    <div className={styles.logExpandRow}>
+                                      <span className={styles.logExpandLabel}>วันที่เริ่มต้น</span>
+                                      <span className={styles.logExpandEmpty}>ไม่มีข้อมูลบันทึกไว้</span>
+                                    </div>
+                                  )}
+                                  {displayMeta.endDate ? (
+                                    <div className={styles.logExpandRow}>
+                                      <span className={styles.logExpandLabel}>วันที่สิ้นสุด</span>
+                                      <span className={styles.logExpandValue}>{displayMeta.endDate}</span>
+                                    </div>
+                                  ) : (
+                                    <div className={styles.logExpandRow}>
+                                      <span className={styles.logExpandLabel}>วันที่สิ้นสุด</span>
+                                      <span className={styles.logExpandEmpty}>ไม่มีข้อมูลบันทึกไว้</span>
+                                    </div>
+                                  )}
+                                  {displayMeta.fileFormat && (
+                                    <div className={styles.logExpandRow}>
+                                      <span className={styles.logExpandLabel}>รูปแบบไฟล์</span>
+                                      <span className={styles.logExpandValue}>{displayMeta.fileFormat}</span>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <span className={styles.logExpandEmpty}>ไม่มีข้อมูลบันทึกไว้สำหรับรายการนี้</span>
+                              )}
+                            </div>
+                          )}
                         </div>
+
+                        {isExportLog && (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedId(isExpanded ? null : log.id)}
+                            className={`${styles.expandBtn} ${isExpanded ? styles.expandBtnOpen : ''}`}
+                            aria-label={isExpanded ? 'ซ่อนรายละเอียด' : 'แสดงรายละเอียด'}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className={styles.noLogs}>

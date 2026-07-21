@@ -47,9 +47,9 @@ function LineReceiptsContent() {
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
-  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'duplicate'>(() => {
+  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'pending' | 'duplicate'>(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'line' || tab === 'web' || tab === 'duplicate') return tab;
+    if (tab === 'line' || tab === 'web' || tab === 'pending' || tab === 'duplicate') return tab;
     return 'all';
   });
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,6 +82,8 @@ function LineReceiptsContent() {
     
     // For other tabs, exclude duplicates
     if (isSubsequentDuplicate) return false;
+
+    if (filterTab === 'pending') return Boolean(r.isPending || !r.extractedData);
 
     const isLine = r.source === 'line' || r.transactionId?.startsWith('LINE-');
     if (filterTab === 'line') return isLine;
@@ -318,6 +320,19 @@ function LineReceiptsContent() {
                   activeBadge: '#1d4ed8',
                 },
                 {
+                  key: 'pending',
+                  label: 'รอตรวจสอบ',
+                  count: allImageReceipts.filter(r => (r.isPending || !r.extractedData) && !duplicateIds.has(r._id || r.id || '')).length,
+                  icon: (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                  ),
+                  activeColor: '#f59e0b',
+                  activeBg: '#f59e0b',
+                  activeBadge: '#d97706',
+                },
+                {
                   key: 'duplicate',
                   label: 'ซ้ำกัน',
                   count: allImageReceipts.filter(r => allDuplicateIds.has(r._id || r.id || '')).length,
@@ -362,31 +377,36 @@ function LineReceiptsContent() {
                   </button>
                 );
               })}
-              
-              <button
-                onClick={toggleSelectMode}
-                className={`${styles.actionButtonSecondary} ${isSelectMode ? styles.actionButtonActive : ''}`}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                  fontWeight: '700',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  marginLeft: 'auto', // push to the right end of the tabs row
-                  border: isSelectMode ? 'none' : '1.5px solid var(--border-color)',
-                  height: 'fit-content'
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect width="18" height="18" x="3" y="3" rx="2" />
-                  <path d="m9 12 2 2 4-4" />
-                </svg>
-                {isSelectMode ? 'ยกเลิกโหมดเลือก' : 'เลือกหลายรายการ'}
-              </button>
+
+              {/* Desktop only — on mobile this button moves below the
+                  filter bar (see block right after filterBar closes). */}
+              {!isMobile && (
+                <button
+                  onClick={toggleSelectMode}
+                  className={`${styles.actionButtonSecondary} ${isSelectMode ? styles.actionButtonActive : ''}`}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '700',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    marginLeft: 'auto', // push to the right end of the tabs row
+                    border: isSelectMode ? 'none' : '1.5px solid var(--border-color)',
+                    height: 'fit-content'
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="18" height="18" x="3" y="3" rx="2" />
+                    <path d="m9 12 2 2 4-4" />
+                  </svg>
+                  {isSelectMode ? 'ยกเลิกโหมดเลือก' : 'เลือกหลายรายการ'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -555,6 +575,15 @@ function LineReceiptsContent() {
                   <h3 style={{ color: '#1e293b', marginTop: '16px' }}>ไม่พบสลิปที่ซ้ำกัน</h3>
                   <p>ยอดเยี่ยมมาก! ไม่มีสลิปโอนเงินที่ซ้ำกันในระบบของคุณเลย</p>
                 </>
+              ) : filterTab === 'pending' ? (
+                <>
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                  <h3 style={{ color: '#1e293b', marginTop: '16px' }}>ไม่มีรายการรอตรวจสอบ</h3>
+                  <p>ใบเสร็จทั้งหมดของคุณผ่านการตรวจสอบแล้ว</p>
+                </>
               ) : (
                 <>
                   <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
@@ -602,6 +631,37 @@ function LineReceiptsContent() {
                     }}
                   >
                     {isMobile ? 'ดู →' : 'ดูรายการซ้ำ →'}
+                  </button>
+                </div>
+              )}
+
+              {/* Mobile only — moved here, right above the results grid */}
+              {isMobile && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+                  <button
+                    onClick={toggleSelectMode}
+                    className={`${styles.actionButtonSecondary} ${isSelectMode ? styles.actionButtonActive : ''}`}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      fontWeight: '700',
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      width: 'fit-content',
+                      border: isSelectMode ? 'none' : '1.5px solid var(--border-color)',
+                      height: 'fit-content'
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="18" height="18" x="3" y="3" rx="2" />
+                      <path d="m9 12 2 2 4-4" />
+                    </svg>
+                    {isSelectMode ? 'ยกเลิกโหมดเลือก' : 'เลือกหลายรายการ'}
                   </button>
                 </div>
               )}
