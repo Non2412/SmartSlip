@@ -205,7 +205,7 @@ export default function ActivityLogsPage() {
                           <line x1="12" y1="5" x2="12" y2="19" />
                           <polyline points="19 12 12 19 5 12" />
                         </svg>
-                        เก่าสุด
+                        เก่าสุดไปใหม่สุด
                       </button>
                       <button
                         type="button"
@@ -216,7 +216,7 @@ export default function ActivityLogsPage() {
                           <line x1="12" y1="19" x2="12" y2="5" />
                           <polyline points="5 12 12 5 19 12" />
                         </svg>
-                        ใหม่สุด
+                        ใหม่สุดไปเก่าสุด
                       </button>
                     </div>
                   )}
@@ -233,7 +233,7 @@ export default function ActivityLogsPage() {
                       <line x1="12" y1="5" x2="12" y2="19" />
                       <polyline points="19 12 12 19 5 12" />
                     </svg>
-                    เก่าสุด
+                    เก่าสุดไปใหม่สุด
                   </button>
                   <button
                     type="button"
@@ -245,7 +245,7 @@ export default function ActivityLogsPage() {
                       <line x1="12" y1="19" x2="12" y2="5" />
                       <polyline points="5 12 12 5 19 12" />
                     </svg>
-                    ใหม่สุด
+                    ใหม่สุดไปเก่าสุด
                   </button>
                 </div>
               )}

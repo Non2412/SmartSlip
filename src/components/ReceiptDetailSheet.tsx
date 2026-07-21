@@ -764,15 +764,9 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
             </div>
 
             {/* ── Footer ── */}
-            <div style={{ padding: isMobile ? '12px 16px' : '14px 24px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--card-bg)', flexShrink: 0, display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: isMobile ? 'stretch' : 'space-between', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? '10px' : '12px' }}>
-                {/* Total badge — full width on mobile */}
-                <div style={{ padding: '10px 16px', background: 'rgba(124,58,237,0.12)', borderRadius: '10px', border: '1px solid rgba(124,58,237,0.25)', display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'space-between' : 'center', gap: '8px', order: isMobile ? 0 : 1 }}>
-                    <span style={{ fontSize: '0.8rem', color: '#a78bfa', fontWeight: '700' }}>ยอดสุทธิ</span>
-                    <span style={{ fontSize: isMobile ? '1.1rem' : '1rem', fontWeight: '900', color: '#7c3aed' }}>฿{calcTotal().toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
-                </div>
-
+            <div style={{ padding: isMobile ? '12px 16px' : '14px 24px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--card-bg)', flexShrink: 0, display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'flex-end', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? '10px' : '12px' }}>
                 {/* Action buttons row */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', order: isMobile ? 1 : 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button onClick={onClose} style={{ padding: isMobile ? '11px 0' : '10px 22px', width: isMobile ? '100%' : 'auto', flex: isMobile ? '1' : 'none', border: '1.5px solid var(--border-color)', borderRadius: '10px', background: 'var(--surface-hover)', fontWeight: '700', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
                         ยกเลิก
                     </button>

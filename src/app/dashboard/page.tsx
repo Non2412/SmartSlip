@@ -84,38 +84,14 @@ export default function DashboardPage() {
   }, [receipts]);
 
   const aiDynamicInsight = useMemo(() => {
-    // 1. Check for duplicates first
     const { duplicateIds } = identifyDuplicateReceipts(receipts);
     if (duplicateIds.size > 0) {
       return `สะกิดเตือนหน่อยน้า! พี่สแกนเจอใบเสร็จที่ข้อมูลซ้ำกันจำนวน ${duplicateIds.size} รายการในระบบ ลองเข้าไปตรวจสอบและลบออกแบบกลุ่มในหน้า "รูปภาพ" เพื่อให้สถิติถูกต้องนะครับผม`;
     }
+    return `ตอนนี้พี่สแกนตรวจแล้วยังไม่พบใบเสร็จที่ข้อมูลซ้ำกันในระบบเลยครับ ยอดเยี่ยมมาก! ลองกดดูรายการเพื่อตรวจสอบซ้ำได้ตลอดเวลานะครับผม`;
+  }, [receipts]);
 
-    // 2. Category share warning
-
-    // 3. Category share warning
-    const categoryTotals: Record<string, number> = {};
-    uniqueReceipts.forEach(r => {
-      const amt = Number(r.amount !== undefined ? r.amount : (r.totalAmount || 0));
-      const cat = r.extractedData?.category || 'อื่นๆ';
-      categoryTotals[cat] = (categoryTotals[cat] || 0) + amt;
-    });
-
-    const total = Object.values(categoryTotals).reduce((sum, v) => sum + v, 0);
-    if (total > 0) {
-      const sortedCategories = Object.keys(categoryTotals).sort((a, b) => categoryTotals[b] - categoryTotals[a]);
-      const topCat = sortedCategories[0];
-      const topPct = ((categoryTotals[topCat] / total) * 100).toFixed(0);
-      if (topCat === 'อาหาร' && parseFloat(topPct) > 40) {
-        return `ดูเหมือนเดือนนี้เราจะหมดงบกับหมวด "อาหาร" เยอะที่สุด คิดเป็น ${topPct}% ของค่าใช้จ่ายทั้งหมดเลยน้า ถ้ามีเวลาลองหันมาทำอาหารทานเองบ้างเพื่อช่วยเซฟเงินในกระเป๋าเพิ่มขึ้นนะครับพี่เอาใจช่วย!`;
-      }
-      if (topCat === 'ช้อปปิ้ง' && parseFloat(topPct) > 30) {
-        return `หมวด "${topCat}" พุ่งสูงขึ้นเป็น ${topPct}% ของรายจ่ายทั้งหมดแล้วนะครับ! ก่อนจะกดจ่ายชิ้นถัดไป ลองถามตัวเองว่าจำเป็นจริงๆ หรือเปล่าดูน้า หรือถ้าชอบช้อป ลองคุยปรึกษาขอวิธีคุมงบจากพี่ได้นะครับ`;
-      }
-      return `ยอดใช้จ่ายสะสมของเราตอนนี้อยู่ที่ ฿${total.toLocaleString('th-TH', { minimumFractionDigits: 2 })} โดยหมวด "${topCat}" ถือเป็นรายจ่ายก้อนใหญ่สุด (${topPct}%) รักษาความสมดุลของการใช้จ่ายไว้แบบนี้ทำได้ดีแล้วครับ!`;
-    }
-
-    return `ยินดีต้อนรับเข้าสู่ SmartSlip ครับผม! พี่เป็นเพื่อนคู่คิดการเงินคอยช่วยสแกนประเมินรายจ่ายของเราให้ปลอดภัยและวางแผนคุมรายจ่ายได้มีประสิทธิภาพมากขึ้น ลองทักมาพิมพ์คุยแชทปรึกษาเงินได้ตลอดเวลานะครับ!`;
-  }, [receipts, uniqueReceipts]);
+  const aiInsightAction = { label: 'ดูใบเสร็จซ้ำกัน', href: '/line-receipts?tab=duplicate' };
 
   const { totalAmount, pendingCount, approvedCount } = useMemo(() => ({
     totalAmount: uniqueReceipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0),
@@ -260,11 +236,11 @@ export default function DashboardPage() {
                 <p className={styles.aiInsightText}>{aiDynamicInsight}</p>
               </div>
               <div className={styles.aiInsightActions}>
-                <button 
-                  onClick={() => window.location.href = '/ai-advisor'}
+                <button
+                  onClick={() => window.location.href = aiInsightAction.href}
                   className={styles.aiInsightBtn}
                 >
-                  คุยแชทปรึกษาเรื่องเงิน
+                  {aiInsightAction.label}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="5" y1="12" x2="19" y2="12"></line>
                     <polyline points="12 5 19 12 12 19"></polyline>

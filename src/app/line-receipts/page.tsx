@@ -47,9 +47,9 @@ function LineReceiptsContent() {
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
-  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'duplicate'>(() => {
+  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'pending' | 'duplicate'>(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'line' || tab === 'web' || tab === 'duplicate') return tab;
+    if (tab === 'line' || tab === 'web' || tab === 'pending' || tab === 'duplicate') return tab;
     return 'all';
   });
   const [searchQuery, setSearchQuery] = useState('');
@@ -82,6 +82,8 @@ function LineReceiptsContent() {
     
     // For other tabs, exclude duplicates
     if (isSubsequentDuplicate) return false;
+
+    if (filterTab === 'pending') return Boolean(r.isPending || !r.extractedData);
 
     const isLine = r.source === 'line' || r.transactionId?.startsWith('LINE-');
     if (filterTab === 'line') return isLine;
@@ -316,6 +318,19 @@ function LineReceiptsContent() {
                   activeColor: '#2563eb',
                   activeBg: '#2563eb',
                   activeBadge: '#1d4ed8',
+                },
+                {
+                  key: 'pending',
+                  label: 'รอตรวจสอบ',
+                  count: allImageReceipts.filter(r => (r.isPending || !r.extractedData) && !duplicateIds.has(r._id || r.id || '')).length,
+                  icon: (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                  ),
+                  activeColor: '#f59e0b',
+                  activeBg: '#f59e0b',
+                  activeBadge: '#d97706',
                 },
                 {
                   key: 'duplicate',
@@ -559,6 +574,15 @@ function LineReceiptsContent() {
                   </svg>
                   <h3 style={{ color: '#1e293b', marginTop: '16px' }}>ไม่พบสลิปที่ซ้ำกัน</h3>
                   <p>ยอดเยี่ยมมาก! ไม่มีสลิปโอนเงินที่ซ้ำกันในระบบของคุณเลย</p>
+                </>
+              ) : filterTab === 'pending' ? (
+                <>
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                  <h3 style={{ color: '#1e293b', marginTop: '16px' }}>ไม่มีรายการรอตรวจสอบ</h3>
+                  <p>ใบเสร็จทั้งหมดของคุณผ่านการตรวจสอบแล้ว</p>
                 </>
               ) : (
                 <>
