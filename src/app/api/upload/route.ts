@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { uploadToGCS } from '@/lib/gcs';
+import crypto from 'crypto';
 
 /**
  * POST /api/upload
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
     }
 
     const imageBuffer = Buffer.from(base64Data, 'base64');
+    const imageHash = crypto.createHash('sha256').update(imageBuffer).digest('hex');
 
     // Generate unique filename
     const timestamp = Date.now();
@@ -54,7 +56,8 @@ export async function POST(request: Request) {
       data: {
         imageUrl: uploadResult.publicUrl,
         fileName: finalFileName,
-        mimeType
+        mimeType,
+        imageHash
       }
     });
   } catch (error: any) {

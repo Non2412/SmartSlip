@@ -35,6 +35,8 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
     };
   }, []);
 
+
+
   const userId = user?.id || 'guest';
   
   // Show LINE user info as primary account, fallback to current user
@@ -61,16 +63,24 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
         </div>
         <ul className={styles.navList}>
           <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="ภาพรวม" icon={<ListIcon />} />
-          <SidebarItem href="/history" active={pathname === '/history'} label="ประวัติใบเสร็จ" icon={<HistoryIcon />} />
           <SidebarItem href="/line-receipts" active={pathname === '/line-receipts'} label="รูปภาพ" icon={<ImageIcon />} badge={unreadCount} />
           <SidebarItem href="/export" active={pathname === '/export'} label="ส่งออกข้อมูล" icon={<ExportIcon />} />
           <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<PlusIcon />} onClick={onAddReceipt} />
         </ul>
 
         <div className={styles.navSection}>
+          ประวัติการใช้งาน
+        </div>
+        <ul className={styles.navList}>
+          <SidebarItem href="/history" active={pathname === '/history'} label="ประวัติใบเสร็จ" icon={<HistoryIcon />} />
+          <SidebarItem href="/activity-logs" active={pathname === '/activity-logs'} label="ประวัติกิจกรรม" icon={<ActivityIcon />} />
+        </ul>
+
+        <div className={styles.navSection}>
           ช่วยเหลือ
         </div>
         <ul className={styles.navListNoMargin}>
+          <SidebarItem href="/ai-advisor" active={pathname === '/ai-advisor'} label="ที่ปรึกษาการเงิน (AI)" icon={<RobotIcon />} />
           <SidebarItem
             href="/how-to-use"
             active={pathname === '/how-to-use'}
@@ -130,10 +140,12 @@ const SidebarItem = ({
       {badge > 0 && (
         <span style={{
           marginLeft: 'auto', minWidth: '20px', height: '20px',
-          background: '#ef4444', color: 'white', borderRadius: '10px',
-          fontSize: '0.7rem', fontWeight: '800',
+          background: 'linear-gradient(135deg, #ff4e50, #f93d3d)',
+          color: 'white', borderRadius: '10px',
+          fontSize: '0.68rem', fontWeight: '800',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '0 5px', lineHeight: 1,
+          padding: '0 6px', lineHeight: 1,
+          boxShadow: '0 2px 8px rgba(249, 61, 61, 0.4)',
         }}>
           {badge > 99 ? '99+' : badge}
         </span>
@@ -242,6 +254,26 @@ function HistoryIcon() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function RobotIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 8V4H9" />
+      <rect width="16" height="12" x="4" y="8" rx="2" />
+      <circle cx="9" cy="13" r="1" />
+      <circle cx="15" cy="13" r="1" />
+      <path d="M9 17h6" />
+    </svg>
+  );
+}
+
+function ActivityIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
     </svg>
   );
 }

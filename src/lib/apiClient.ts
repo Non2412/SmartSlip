@@ -17,6 +17,8 @@ export interface Receipt {
   createdAt: string;
   updatedAt: string;
   transactionId?: string;
+  imageHash?: string;
+  isPending?: boolean;
   extractedData?: {
     date?: string;
     time?: string;
@@ -43,6 +45,7 @@ export interface CreateReceiptData {
   userId: string;
   extractedData?: unknown;
   imageFileId?: string;
+  imageHash?: string;
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
@@ -131,6 +134,12 @@ export const receiptApi = {
     return apiRequest(`/receipts?id=${id}`, { method: 'DELETE' });
   },
 
+  // ลบหลายใบเสร็จ
+  deleteMultiple: (ids: string[]) => {
+    const idsStr = ids.join(',');
+    return apiRequest(`/receipts?ids=${encodeURIComponent(idsStr)}`, { method: 'DELETE' });
+  },
+
   // ประมวลผล OCR และอัปโหลดขึ้น Drive
   extract: (file: File, userId: string) => {
     const formData = new FormData();
@@ -164,6 +173,20 @@ export const receiptApi = {
         };
       });
   },
+};
+
+/**
+ * ฟังก์ชันประวัติกิจกรรมการใช้งาน (Activity Logs)
+ */
+export const activityLogApi = {
+  getAll: (userId: string, lineUserId?: string) =>
+    apiRequest<any[]>(`/activity-logs?userId=${userId}${lineUserId ? `&lineUserId=${encodeURIComponent(lineUserId)}` : ''}`),
+
+  create: (userId: string, action: string, details: string, receiptId?: string, metadata?: Record<string, any>) =>
+    apiRequest<any>('/activity-logs', {
+      method: 'POST',
+      body: JSON.stringify({ userId, action, details, receiptId, metadata }),
+    }),
 };
 
 /**

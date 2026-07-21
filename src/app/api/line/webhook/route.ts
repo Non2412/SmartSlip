@@ -175,6 +175,7 @@ export async function POST(req: NextRequest) {
             extractedData: data || null,
             imageFileId: driveFileId,
             imageUrl: gcsUrl,
+            imageHash: crypto.createHash('sha256').update(imageBuffer).digest('hex'),
             createdAt: new Date().toISOString(),
           };
           const insertResult = await targetDb.collection('receipts').insertOne(newReceipt);
@@ -195,7 +196,12 @@ export async function POST(req: NextRequest) {
                 }).join('\n')
               : '';
 
-            const successMsg = `✅ ประมวลผลสำเร็จ!\n\n💰 จำนวนเงิน: ฿${newReceipt.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n👤 ผู้ส่ง: ${data.method || 'Unknown'}\n🏢 ผู้รับ: ${newReceipt.storeName}\n📅 วันที่: ${data.date || new Date().toISOString().split('T')[0]}\n${itemsText}\n\n🎯 ความแม่นยำ: ✅ high${gcsUrl ? '\n☁️ บันทึกลง Cloud Storage แล้ว' : driveErrorMsg}`;
+            const discountVal = parseFloat(data.discount?.toString() || '0') || 0;
+            const discountText = discountVal > 0 
+              ? `\n🧧 ส่วนลด: ฿${discountVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+              : '';
+
+            const successMsg = `✅ ประมวลผลสำเร็จ!\n\n💰 จำนวนเงิน: ฿${newReceipt.totalAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}${discountText}\n👤 ผู้ส่ง: ${data.method || 'Unknown'}\n🏢 ผู้รับ: ${newReceipt.storeName}\n📅 วันที่: ${data.date || new Date().toISOString().split('T')[0]}\n${itemsText}\n\n🎯 ความแม่นยำ: ✅ high${gcsUrl ? '\n☁️ บันทึกลง Cloud Storage แล้ว' : driveErrorMsg}`;
 
             await replyMessage(replyToken, successMsg);
           }

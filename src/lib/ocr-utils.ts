@@ -51,65 +51,113 @@ export function identifyDuplicateReceipts(receipts: any[]): { duplicateIds: Set<
   const duplicateIds = new Set<string>();
   const allDuplicateIds = new Set<string>();
   const seenReceiptNos = new Map<string, string>(); // cleanRef -> originalId
+  const seenImageHashes = new Map<string, string>(); // hash -> originalId
   
   // Sort receipts by createdAt ascending (oldest first) so the oldest remains as original
   const sorted = [...receipts].sort((a, b) => 
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
-  // Keep track of receipts without receiptNo to check for duplicates based on amount, time, and store
-  const processedNoRef: { id: string; amount: number; time: number; store: string }[] = [];
+  // Keep track of receipts without receiptNo/imageHash to check for fallback duplicates
+  const processedNoRef: { id: string; amount: number; txDate: string; store: string; createdAtTime: number }[] = [];
+
+  const getTransactionDateString = (r: any): string => {
+    const rawDate = r.extractedData?.date || r.date || r.issueDate;
+    if (!rawDate) return '';
+    try {
+      const d = new Date(rawDate);
+      if (!isNaN(d.getTime())) {
+        return d.toISOString().split('T')[0];
+      }
+    } catch {}
+    return String(rawDate).split('T')[0].trim();
+  };
 
   sorted.forEach(r => {
     const id = r._id || r.id || '';
     const receiptNo = r.extractedData?.receiptNo || r.receiptNo;
+    const imageHash = r.imageHash;
     const amount = r.amount !== undefined ? r.amount : r.totalAmount;
     const time = new Date(r.createdAt).getTime();
     const store = (r.storeName || '').toLowerCase().trim();
 
+    let isDuplicate = false;
+    let matchedOriginalId: string | null = null;
+
+    // 1. Check by receiptNo (if present)
     if (receiptNo && receiptNo.trim() !== '') {
       const cleanRef = receiptNo.trim();
       if (seenReceiptNos.has(cleanRef)) {
-        duplicateIds.add(id);
-        allDuplicateIds.add(id);
-        const originalId = seenReceiptNos.get(cleanRef);
-        if (originalId) allDuplicateIds.add(originalId);
+        isDuplicate = true;
+        matchedOriginalId = seenReceiptNos.get(cleanRef) || null;
       } else {
         seenReceiptNos.set(cleanRef, id);
       }
-    } else if (amount !== undefined && !isNaN(time)) {
-      // Fallback heuristic: same amount, created within 10 minutes, and similar store name
+    }
+
+    // 2. Check by imageHash (if present and not already marked duplicate)
+    if (!isDuplicate && imageHash && imageHash.trim() !== '') {
+      const cleanHash = imageHash.trim();
+      if (seenImageHashes.has(cleanHash)) {
+        isDuplicate = true;
+        matchedOriginalId = seenImageHashes.get(cleanHash) || null;
+      } else {
+        seenImageHashes.set(cleanHash, id);
+      }
+    }
+
+    // 3. Fallback check (amount, store, transaction date / createdAt time)
+    if (!isDuplicate && amount !== undefined) {
       const numericAmount = parseFloat(amount.toString());
+      const txDate = getTransactionDateString(r);
       
       let matchedPrev: any = null;
       for (const prev of processedNoRef) {
-        const timeDiff = Math.abs(time - prev.time);
         const amountMatch = Math.abs(numericAmount - prev.amount) < 0.01;
         
-        // Normalize store names to match e.g. "wedrink" vs "WEDRINK", "inthanin" vs "Inthanin Patched Path", "BIg c" vs "BIGC SISAKET"
+        // Normalize store names to match e.g. "wedrink" vs "WEDRINK"
         const cleanStore1 = store.replace(/\s+/g, '');
         const cleanStore2 = prev.store.replace(/\s+/g, '');
-        const storeMatch = cleanStore1.includes(cleanStore2) || 
-                           cleanStore2.includes(cleanStore1) ||
-                           cleanStore1.substring(0, 4) === cleanStore2.substring(0, 4);
+        const storeMatch = cleanStore1 !== '' && cleanStore2 !== '' && (
+          cleanStore1.includes(cleanStore2) || 
+          cleanStore2.includes(cleanStore1) ||
+          cleanStore1.substring(0, 4) === cleanStore2.substring(0, 4)
+        );
 
-        if (amountMatch && timeDiff <= 10 * 60 * 1000 && storeMatch) {
+        let timeOrDateMatch = false;
+        if (txDate !== '' && prev.txDate !== '') {
+          // If both have transaction dates, compare them directly (upload time doesn't matter)
+          timeOrDateMatch = (txDate === prev.txDate);
+        } else {
+          // Fallback if transaction dates are not available: upload time within 10 minutes
+          timeOrDateMatch = (Math.abs(time - prev.createdAtTime) <= 10 * 60 * 1000);
+        }
+
+        if (amountMatch && storeMatch && timeOrDateMatch) {
           matchedPrev = prev;
           break;
         }
       }
 
       if (matchedPrev) {
-        duplicateIds.add(id);
-        allDuplicateIds.add(id);
-        allDuplicateIds.add(matchedPrev.id);
+        isDuplicate = true;
+        matchedOriginalId = matchedPrev.id;
       } else {
         processedNoRef.push({
           id: id,
           amount: numericAmount,
-          time: time,
-          store: store
+          txDate: txDate,
+          store: store,
+          createdAtTime: time
         });
+      }
+    }
+
+    if (isDuplicate) {
+      duplicateIds.add(id);
+      allDuplicateIds.add(id);
+      if (matchedOriginalId) {
+        allDuplicateIds.add(matchedOriginalId);
       }
     }
   });

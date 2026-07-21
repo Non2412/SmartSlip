@@ -258,6 +258,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [formTab, setFormTab] = useState<'info' | 'items'>('info');
     const [creationMethod, setCreationMethod] = useState<CreationMethod>('manual');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
     const manualImageRef = useRef<HTMLInputElement>(null);
     const extraFileInputRef = useRef<HTMLInputElement>(null);
     const [extraFiles, setExtraFiles] = useState<{name: string, data: string, type: string}[]>([]);
@@ -289,6 +290,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const [mainCategory, setMainCategory] = useState('อื่นๆ');
     const [notes, setNotes] = useState('');
     const [receiptNo, setReceiptNo] = useState('');
+    const [imageHash, setImageHash] = useState('');
     const [vendorTaxId, setVendorTaxId] = useState('');
     const [vendorAddress, setVendorAddress] = useState('');
     const [currency, setCurrency] = useState('THB');
@@ -377,6 +379,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 setSuccessMsg(null);
                 setFormTab('info');
                 setReceiptNo('');
+                setImageHash('');
                 setVendorTaxId('');
                 setVendorAddress('');
                 setCreationMethod('manual');
@@ -526,6 +529,8 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 const ocrVat      = typeof result.vat === 'number' ? result.vat : 0;
                 const ocrTaxId    = result.taxId || result.tax_id || '';
                 const ocrAmount   = result.amount?.toString() || '';
+                const ocrReceiptNo = result.receiptNo || '';
+                const ocrImageHash = result.imageHash || '';
                 const rawItems    = result.items;
                 let verItemsOcr: VerificationLineItem[] = [];
                 if (Array.isArray(rawItems) && rawItems.length > 0) {
@@ -543,7 +548,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     shopName: ocrStore, amount: ocrAmount, date: ocrDate,
                     paymentMethod: ocrPayment, mainCategory: ocrCategory, notes: '',
                     manualTime: ocrTime, manualDiscount: ocrDiscount, vendorTaxId: ocrTaxId,
-                    vendorAddress: '', currency: 'THB', receiptNo: '', taxInvoiceNo: '',
+                    vendorAddress: '', currency: 'THB', receiptNo: ocrReceiptNo, imageHash: ocrImageHash, taxInvoiceNo: '',
                     isTaxInvoice: false, paymentStatus: 'paid',
                     verStore: ocrStore, verCategory: ocrCategory, verDate: ocrDate, verTime: ocrTime,
                     verPaymentMethod: ocrPayment, verCurrency: 'THB', verTaxId: ocrTaxId,
@@ -566,7 +571,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const handleQueueNext = () => {
         const nextIdx = queueIndex + 1;
         if (nextIdx >= fileQueue.length) return;
-        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, imageHash, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
         setQueueSummaries(prev => {
             const updated = [...prev];
             updated[queueIndex] = { shopName: verStore || shopName, amount: String(amount), date: verDate || date, thumb: queueThumbnails[queueIndex] || '' };
@@ -577,7 +582,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
 
     // Save ALL queue items to DB at once
     const handleSaveAll = async () => {
-        const currentSnapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+        const currentSnapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, imageHash, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
         savedQueueStatesRef.current.set(queueIndex, currentSnapshot);
 
         setIsSaving(true);
@@ -588,6 +593,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 const st = savedQueueStatesRef.current.get(idx);
                 if (!st) continue;
                 let finalImageUrl = st.image;
+                let finalImageHash = st.imageHash;
                 if (st.image && st.image.startsWith('data:')) {
                     try {
                         const uploadRes = await fetch('/api/upload', {
@@ -596,27 +602,31 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                             body: JSON.stringify({ imageBase64: st.image, userId: userId ?? '' })
                         });
                         const uploadData = await uploadRes.json();
-                        if (uploadData.success && uploadData.data?.imageUrl) finalImageUrl = uploadData.data.imageUrl;
+                        if (uploadData.success) {
+                            if (uploadData.data?.imageUrl) finalImageUrl = uploadData.data.imageUrl;
+                            if (uploadData.data?.imageHash) finalImageHash = uploadData.data.imageHash;
+                        }
                     } catch {}
                 }
                 const storeName = st.verStore || st.shopName || '';
                 const entryDate = st.verDate || st.date || '';
                 const items     = (st.verItems && st.verItems.length > 0) ? st.verItems : [];
                 const subtotal  = items.length > 0
-                    ? items.reduce((s: number, it: any) => s + (it.unitPrice * it.quantity), 0)
-                    : parseFloat(st.amount) || 0;
+                     ? items.reduce((s: number, it: any) => s + (it.unitPrice * it.quantity), 0)
+                     : parseFloat(st.amount) || 0;
                 const grandTotal = subtotal - (st.verDiscount || 0) + (st.verVat || 0);
                 const payload = {
                     date: entryDate, time: st.verTime || st.manualTime || '',
                     paymentMethod: st.verPaymentMethod || st.paymentMethod || '',
                     category: st.verCategory || st.mainCategory || '',
                     currency: st.verCurrency || st.currency || 'THB',
+                    receiptNo: st.receiptNo || '',
                     imageData: finalImageUrl || undefined, items,
                     summary: { subtotal: grandTotal, vat: st.verVat || 0, wht: 0, total: grandTotal }
                 };
                 const result = st.extractedReceiptId
-                    ? await updateReceipt(st.extractedReceiptId, { userId: userId ?? '', imageUrl: finalImageUrl || undefined, source: 'web', storeName, totalAmount: grandTotal, extractedData: payload })
-                    : await createReceipt({ userId: userId ?? '', storeName, totalAmount: grandTotal, extractedData: payload }) as any;
+                    ? await updateReceipt(st.extractedReceiptId, { userId: userId ?? '', imageUrl: finalImageUrl || undefined, source: 'web', storeName, totalAmount: grandTotal, imageHash: finalImageHash || undefined, extractedData: payload })
+                    : await createReceipt({ userId: userId ?? '', storeName, totalAmount: grandTotal, imageHash: finalImageHash || undefined, extractedData: payload }) as any;
                 if (result?.success) savedCount++;
             }
             if (onSuccess) onSuccess();
@@ -670,6 +680,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
             setVendorAddress(nextState.vendorAddress ?? '');
             setCurrency(nextState.currency ?? 'THB');
             setReceiptNo(nextState.receiptNo ?? '');
+            setImageHash(nextState.imageHash ?? '');
             setTaxInvoiceNo(nextState.taxInvoiceNo ?? '');
             setIsTaxInvoice(nextState.isTaxInvoice ?? false);
             setPaymentStatus(nextState.paymentStatus ?? 'paid');
@@ -699,6 +710,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
             setVendorAddress('');
             setCurrency('THB');
             setReceiptNo('');
+            setImageHash('');
             setTaxInvoiceNo('');
             setIsTaxInvoice(false);
             setPaymentStatus('paid');
@@ -764,6 +776,8 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 const ocrVat      = typeof result.vat === 'number' ? result.vat : 0;
                 const ocrTaxId    = result.taxId || result.tax_id || '';
                 const ocrAmount   = result.amount?.toString() || '';
+                const ocrReceiptNo = result.receiptNo || '';
+                const ocrImageHash = result.imageHash || '';
                 const rawItems    = result.items;
 
                 // ── Populate Verification view ──
@@ -786,6 +800,8 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 setAmount(ocrAmount);
                 setManualDiscount(ocrDiscount);
                 setVendorTaxId(ocrTaxId);
+                setReceiptNo(ocrReceiptNo);
+                setImageHash(ocrImageHash);
 
                 // ── Build line items for both views ──
                 if (Array.isArray(rawItems) && rawItems.length > 0) {
@@ -824,6 +840,70 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
             }
         } catch (err: any) {
             setErrorMsg('ไม่สามารถวิเคราะห์รูปภาพได้ กรุณาลองใหม่อีกครั้ง');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleRecalculate = async () => {
+        if (!image || !selectedFile) return;
+        setIsProcessing(true);
+        setErrorMsg(null);
+        try {
+            let fileToProcess = selectedFile;
+            let base64ToProcess = image;
+
+            const normalizedRotation = ((rotation % 360) + 360) % 360;
+            if (normalizedRotation !== 0 && !selectedFile.type.includes('pdf')) {
+                const imgEl = new Image();
+                imgEl.src = image;
+                await new Promise((resolve, reject) => {
+                    imgEl.onload = resolve;
+                    imgEl.onerror = reject;
+                });
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    const angleRad = (normalizedRotation * Math.PI) / 180;
+                    const sin = Math.abs(Math.sin(angleRad));
+                    const cos = Math.abs(Math.cos(angleRad));
+                    const width = imgEl.width;
+                    const height = imgEl.height;
+                    
+                    const newWidth = width * cos + height * sin;
+                    const newHeight = width * sin + height * cos;
+
+                    canvas.width = newWidth;
+                    canvas.height = newHeight;
+
+                    ctx.translate(newWidth / 2, newHeight / 2);
+                    ctx.rotate(angleRad);
+                    ctx.drawImage(imgEl, -width / 2, -height / 2);
+
+                    const rotatedBase64 = canvas.toDataURL('image/jpeg', 0.9);
+                    
+                    const res = await fetch(rotatedBase64);
+                    const blob = await res.blob();
+                    const rotatedFile = new File([blob], selectedFile.name || 'rotated-receipt.jpg', { type: 'image/jpeg' });
+
+                    fileToProcess = rotatedFile;
+                    base64ToProcess = rotatedBase64;
+                    
+                    setImage(rotatedBase64);
+                    setSelectedFile(rotatedFile);
+                    setRotation(0);
+                    setZoom(1);
+                    setPosition({ x: 0, y: 0 });
+                }
+            }
+
+            ocrGenerationRef.current += 1;
+            const currentGen = ocrGenerationRef.current;
+            await runOCR(fileToProcess, currentGen);
+        } catch (err: any) {
+            console.error('Recalculate failed', err);
+            setErrorMsg('การคำนวณใหม่ล้มเหลว: ' + (err?.message || err));
         } finally {
             setIsProcessing(false);
         }
@@ -899,7 +979,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                         updated[queueIndex] = { shopName: verStore, amount: String(grandTotal), date: verDate, thumb: queueThumbnails[queueIndex] || '' };
                         return updated;
                     });
-                    const snapshot = { image, shopName: verStore, amount: String(grandTotal), date: verDate, paymentMethod: verPaymentMethod, mainCategory: verCategory, notes: '', manualTime: verTime, manualDiscount: verDiscount, vendorTaxId: verTaxId, vendorAddress: '', currency: verCurrency, receiptNo: '', taxInvoiceNo: '', isTaxInvoice: false, paymentStatus: 'paid' as const, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification: true };
+                    const snapshot = { image, shopName: verStore, amount: String(grandTotal), date: verDate, paymentMethod: verPaymentMethod, mainCategory: verCategory, notes: '', manualTime: verTime, manualDiscount: verDiscount, vendorTaxId: verTaxId, vendorAddress: '', currency: verCurrency, receiptNo: '', imageHash: '', taxInvoiceNo: '', isTaxInvoice: false, paymentStatus: 'paid' as const, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification: true };
                     navigateToQueueIndex(queueIndex, nextIdx, snapshot);
                 } else {
                     onClose();
@@ -924,6 +1004,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         setErrorMsg(null);
         try {
             let finalImageUrl = image;
+            let finalImageHash = imageHash;
             if (image && image.startsWith('data:')) {
                 try {
                     const uploadRes = await fetch('/api/upload', {
@@ -932,8 +1013,9 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                         body: JSON.stringify({ imageBase64: image, userId: userId ?? '' })
                     });
                     const uploadResData = await uploadRes.json();
-                    if (uploadResData.success && uploadResData.data?.imageUrl) {
-                        finalImageUrl = uploadResData.data.imageUrl;
+                    if (uploadResData.success) {
+                        if (uploadResData.data?.imageUrl) finalImageUrl = uploadResData.data.imageUrl;
+                        if (uploadResData.data?.imageHash) finalImageHash = uploadResData.data.imageHash;
                     }
                 } catch (e) {
                     console.error("Upload failed", e);
@@ -968,12 +1050,14 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                     source: 'web',
                     storeName: shopName,
                     totalAmount: finalTotal,
+                    imageHash: finalImageHash || undefined,
                     extractedData: payload
                   })
                 : await createReceipt({
                     userId: userId ?? '',
                     storeName: shopName,
                     totalAmount: finalTotal,
+                    imageHash: finalImageHash || undefined,
                     extractedData: payload
                   }) as any;
 
@@ -986,7 +1070,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                         updated[queueIndex] = { shopName, amount: String(finalTotal), date, thumb: queueThumbnails[queueIndex] || '' };
                         return updated;
                     });
-                    const snapshot = { image, shopName, amount: String(finalTotal), date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+                    const snapshot = { image, shopName, amount: String(finalTotal), date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, imageHash, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
                     navigateToQueueIndex(queueIndex, nextIdx, snapshot);
                 } else {
                     onClose();
@@ -1196,6 +1280,28 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                     <button onClick={() => setRotation(r => r + 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: txMuted }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg></button>
                                     <div style={{ width: '1px', height: '20px', backgroundColor: bdColor }} />
                                     <button onClick={() => { setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: txMuted, display: 'flex', alignItems: 'center', gap: '5px' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><span style={{ fontSize: '0.82rem' }}>รีเซ็ต</span></button>
+                                    <div style={{ width: '1px', height: '20px', backgroundColor: bdColor }} />
+                                    <button
+                                        onClick={handleRecalculate}
+                                        disabled={isProcessing}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            cursor: isProcessing ? 'not-allowed' : 'pointer',
+                                            color: isProcessing ? txMuted : '#6366f1',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '5px',
+                                            fontWeight: '700'
+                                        }}
+                                    >
+                                        {isProcessing ? (
+                                            <div style={{ width: '14px', height: '14px', border: '2px solid #94a3b8', borderTop: '2px solid #cbd5e1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                        ) : (
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg>
+                                        )}
+                                        <span style={{ fontSize: '0.82rem' }}>{isProcessing ? 'กำลังวิเคราะห์...' : 'คำนวณใหม่'}</span>
+                                    </button>
                                 </div>
                             </div>
 
@@ -1629,6 +1735,32 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                 <button onClick={() => setRotation(r => r + 90)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: txMuted }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg></button>
                                 <div style={{ width: '1px', height: '20px', backgroundColor: bdColor }} />
                                 <button onClick={() => { setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: txMuted, display: 'flex', alignItems: 'center', gap: '6px' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg><span style={{ fontSize: '0.85rem' }}>รีเซ็ต</span></button>
+                                {activeDocIndex === -1 && (
+                                    <>
+                                        <div style={{ width: '1px', height: '20px', backgroundColor: bdColor }} />
+                                        <button
+                                            onClick={handleRecalculate}
+                                            disabled={isProcessing}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: isProcessing ? 'not-allowed' : 'pointer',
+                                                color: isProcessing ? txMuted : '#6366f1',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                fontWeight: '700'
+                                            }}
+                                        >
+                                            {isProcessing ? (
+                                                <div style={{ width: '14px', height: '14px', border: '2px solid #94a3b8', borderTop: '2px solid #cbd5e1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                            ) : (
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38"/></svg>
+                                            )}
+                                            <span style={{ fontSize: '0.85rem' }}>{isProcessing ? 'กำลังวิเคราะห์...' : 'คำนวณใหม่'}</span>
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -1661,7 +1793,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                 key={idx}
                                                 onClick={() => {
                                                 if (idx === queueIndex) { setActiveDocIndex(-1); setZoom(1); setRotation(0); setPosition({ x: 0, y: 0 }); return; }
-                                                const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+                                                const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, imageHash, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
                                                 setActiveDocIndex(-1);
                                                 navigateToQueueIndex(queueIndex, idx, snapshot);
                                             }}
@@ -1760,7 +1892,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                             {!isMobile && fileQueue.length > 1 && queueIndex > 0 && (
                                 <button
                                     onClick={() => {
-                                        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+                                        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, imageHash, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
                                         navigateToQueueIndex(queueIndex, queueIndex - 1, snapshot);
                                     }}
                                     style={{ padding: '6px 14px', borderRadius: '8px', border: `1px solid ${bdColor}`, background: bgCard, color: txMuted, fontSize: '0.82rem', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
@@ -1772,7 +1904,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                             {!isMobile && fileQueue.length > 1 && queueIndex < fileQueue.length - 1 && (
                                 <button
                                     onClick={() => {
-                                        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
+                                        const snapshot = { image, shopName, amount, date, paymentMethod, mainCategory, notes, manualTime, manualDiscount, vendorTaxId, vendorAddress, currency, receiptNo, imageHash, taxInvoiceNo, isTaxInvoice, paymentStatus, verStore, verCategory, verDate, verTime, verPaymentMethod, verCurrency, verTaxId, verItems, verDiscount, verVat, extractedReceiptId, successMsg, showVerification };
                                         setQueueSummaries(prev => {
                                             const updated = [...prev];
                                             updated[queueIndex] = { shopName, amount, date, thumb: queueThumbnails[queueIndex] || '' };

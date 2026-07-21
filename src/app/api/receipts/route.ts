@@ -43,13 +43,18 @@ export async function GET(request: Request) {
         doc.source = 'line';
       }
       // Normalize extractedData from backend flat fields
-      if (!doc.extractedData && (doc.extractedSender || doc.extractedReceiver || doc.customerName)) {
-        doc.extractedData = {
-          date: doc.issueDate ? new Date(doc.issueDate).toISOString() : undefined,
-          receiver: doc.extractedReceiver || doc.storeName,
-          method: doc.extractedSender || doc.customerName,
-          items: doc.items || [],
-        };
+      if (!doc.extractedData) {
+        doc.isPending = true;
+        if (doc.extractedSender || doc.extractedReceiver || doc.customerName) {
+          doc.extractedData = {
+            date: doc.issueDate ? new Date(doc.issueDate).toISOString() : undefined,
+            receiver: doc.extractedReceiver || doc.storeName,
+            method: doc.extractedSender || doc.customerName,
+            items: doc.items || [],
+          };
+        }
+      } else {
+        doc.isPending = false;
       }
 
       return doc;
@@ -71,7 +76,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { storeName, totalAmount, userId, extractedData, imageFileId } = body;
+    const { storeName, totalAmount, userId, extractedData, imageFileId, imageHash } = body;
 
     if (!storeName || totalAmount === undefined) {
       return NextResponse.json(
@@ -89,6 +94,7 @@ export async function POST(request: Request) {
       userId: userId || 'user123',
       extractedData: extractedData || null,
       imageFileId: imageFileId || null,
+      imageHash: imageHash || null,
       transactionId: `web-${new ObjectId().toHexString()}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -120,7 +126,7 @@ export async function PATCH(request: Request) {
     if (!id) return NextResponse.json({ success: false, error: 'ID required' }, { status: 400 });
 
     const body = await request.json();
-    const { storeName, totalAmount, extractedData, imageUrl, imageURL } = body;
+    const { storeName, totalAmount, extractedData, imageUrl, imageURL, imageHash } = body;
 
     const client = await clientPromise;
     const db = client.db('smartslip_api');
@@ -131,6 +137,7 @@ export async function PATCH(request: Request) {
     if (extractedData !== undefined) updateFields.extractedData = extractedData;
     if (imageUrl !== undefined) updateFields.imageUrl = imageUrl;
     if (imageURL !== undefined) updateFields.imageURL = imageURL;
+    if (imageHash !== undefined) updateFields.imageHash = imageHash;
 
     const result = await db.collection('receipts').findOneAndUpdate(
       { _id: new ObjectId(id) },
@@ -151,18 +158,24 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE: ลบใบเสร็จ (ตัวอย่างสำหรับอนาคต)
+// DELETE: ลบใบเสร็จ (รองรับทีละใบ หรือ หลายใบผ่าน ?ids=)
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const idsParam = searchParams.get('ids');
 
-    if (!id) return NextResponse.json({ success: false, error: 'ID required' }, { status: 400 });
+    if (!id && !idsParam) return NextResponse.json({ success: false, error: 'ID or IDs required' }, { status: 400 });
 
     const client = await clientPromise;
     const db = client.db('smartslip_api');
 
-    await db.collection('receipts').deleteOne({ _id: new ObjectId(id) });
+    if (idsParam) {
+      const ids = idsParam.split(',').map(item => new ObjectId(item.trim()));
+      await db.collection('receipts').deleteMany({ _id: { $in: ids } });
+    } else if (id) {
+      await db.collection('receipts').deleteOne({ _id: new ObjectId(id) });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

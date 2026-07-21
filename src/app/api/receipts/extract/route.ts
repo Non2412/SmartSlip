@@ -47,6 +47,9 @@ export async function POST(request: Request) {
     }
     const buffer = Buffer.from(base64Data, 'base64');
     const blob = new Blob([buffer], { type: mimeType });
+    
+    const crypto = await import('crypto');
+    const imageHash = crypto.createHash('sha256').update(buffer).digest('hex');
 
     let result: any = null;
     const hasGeminiKey = Boolean(process.env.GEMINI_API_KEY);
@@ -97,6 +100,10 @@ export async function POST(request: Request) {
       }
 
       result = await backendRes.json();
+    }
+
+    if (result && result.data) {
+      result.data.imageHash = imageHash;
     }
 
     return NextResponse.json(result);

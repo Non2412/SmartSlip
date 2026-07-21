@@ -8,16 +8,17 @@ const CreateReceiptSheet = dynamic(() => import('@/components/CreateReceiptSheet
 const ReceiptDetailSheet = dynamic(() => import('@/components/ReceiptDetailSheet'), { ssr: false });
 
 import { StatCard, ReceiptTable, FilterBar, ExpenseChart, RecentUploads } from '@/components/DashboardItems';
-import { useState, useEffect, useMemo } from 'react';
-import { usePathname } from 'next/navigation';
+import { useState, useEffect, useMemo, Suspense } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
 import { StatCardSkeleton, ChartSkeleton, RecentUploadsSkeleton } from '@/components/Skeleton';
 import { identifyDuplicateReceipts } from '@/lib/ocr-utils';
 import styles from './Dashboard.module.css';
 
-export default function DashboardPage() {
+function DashboardContent() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
@@ -31,10 +32,9 @@ export default function DashboardPage() {
   const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
+  const [showAiWidget, setShowAiWidget] = useState(true);
 
   const handleReceiptClick = (r: any) => setSelectedReceipt(r);
-
-
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -43,11 +43,12 @@ export default function DashboardPage() {
     }
   }, [session, fetchReceipts]);
 
+  const filterCategories = ['ทั้งหมด', 'อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'];
+
   // Auto-open receipt detail sheet if openReceiptId is present in URL
   useEffect(() => {
-    if (typeof window !== 'undefined' && receipts.length > 0) {
-      const params = new URLSearchParams(window.location.search);
-      const openReceiptId = params.get('openReceiptId');
+    if (receipts.length > 0) {
+      const openReceiptId = searchParams.get('openReceiptId');
       if (openReceiptId) {
         const matched = receipts.find(r => (r._id || r.id) === openReceiptId);
         if (matched) {
@@ -58,7 +59,7 @@ export default function DashboardPage() {
         }
       }
     }
-  }, [receipts]);
+  }, [receipts, searchParams]);
 
   useEffect(() => {
     setIsSidebarOpen(false);
@@ -82,11 +83,23 @@ export default function DashboardPage() {
     return receipts.filter(r => !duplicateIds.has(r._id || r.id || ''));
   }, [receipts]);
 
+  const aiDynamicInsight = useMemo(() => {
+    const { duplicateIds } = identifyDuplicateReceipts(receipts);
+    if (duplicateIds.size > 0) {
+      return `สะกิดเตือนหน่อยน้า! พี่สแกนเจอใบเสร็จที่ข้อมูลซ้ำกันจำนวน ${duplicateIds.size} รายการในระบบ ลองเข้าไปตรวจสอบและลบออกแบบกลุ่มในหน้า "รูปภาพ" เพื่อให้สถิติถูกต้องนะครับผม`;
+    }
+    return `ตอนนี้พี่สแกนตรวจแล้วยังไม่พบใบเสร็จที่ข้อมูลซ้ำกันในระบบเลยครับ ยอดเยี่ยมมาก! ลองกดดูรายการเพื่อตรวจสอบซ้ำได้ตลอดเวลานะครับผม`;
+  }, [receipts]);
+
+  const aiInsightAction = { label: 'ดูใบเสร็จซ้ำกัน', href: '/line-receipts?tab=duplicate' };
+
   const { totalAmount, pendingCount, approvedCount } = useMemo(() => ({
     totalAmount: uniqueReceipts.reduce((acc, r) => acc + ((r.amount !== undefined ? r.amount : r.totalAmount) || 0), 0),
-    pendingCount: uniqueReceipts.filter(r => !r.extractedData).length,
-    approvedCount: uniqueReceipts.filter(r => r.extractedData).length,
+    pendingCount: uniqueReceipts.filter(r => r.isPending || !r.extractedData).length,
+    approvedCount: uniqueReceipts.filter(r => !r.isPending && r.extractedData).length,
   }), [uniqueReceipts]);
+
+  const budgetAlerts: any[] = [];
 
   const filteredReceipts = useMemo(() => uniqueReceipts.filter(r => {
     // 1. Category filter
@@ -140,6 +153,24 @@ export default function DashboardPage() {
         />
 
         <div className="page-container">
+          {/* Budget Warnings Banner */}
+          {!loading && budgetAlerts.length > 0 && (
+            <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {budgetAlerts.map((alert, idx) => (
+                <div key={idx} style={{
+                  padding: '12px 18px', borderRadius: '10px',
+                  background: alert.type === 'danger' ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)',
+                  border: alert.type === 'danger' ? '1px solid rgba(239,68,68,0.2)' : '1px solid rgba(245,158,11,0.2)',
+                  color: alert.type === 'danger' ? '#ef4444' : '#f59e0b',
+                  fontSize: '0.85rem', fontWeight: '600',
+                  display: 'flex', alignItems: 'center', gap: '8px'
+                }}>
+                  <span>{alert.type === 'danger' ? '🚨' : '⚠️'}</span>
+                  <span>{alert.message}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Summary Stats Row */}
           <div className={styles.summaryStatsRow}>
@@ -189,6 +220,43 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* AI Coach Insights Card */}
+          {!loading && showAiWidget && (
+            <div className={styles.aiInsightCard}>
+              <div className={styles.aiInsightAvatar} style={{ overflow: 'visible', background: 'none', boxShadow: 'none', padding: 0 }}>
+                <img
+                  src="/BOT.png"
+                  alt="SmartSlip AI"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+                <div className={styles.aiAvatarPing}></div>
+              </div>
+              <div className={styles.aiInsightContent}>
+                <span className={styles.aiInsightTag}>💬 คำแนะนำจากพี่ SmartSlip AI:</span>
+                <p className={styles.aiInsightText}>{aiDynamicInsight}</p>
+              </div>
+              <div className={styles.aiInsightActions}>
+                <button
+                  onClick={() => window.location.href = aiInsightAction.href}
+                  className={styles.aiInsightBtn}
+                >
+                  {aiInsightAction.label}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
+                </button>
+                <button 
+                  className={styles.aiInsightClose} 
+                  onClick={() => setShowAiWidget(false)}
+                  title="ปิดข้อความ"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Charts Row */}
           <div className={styles.chartsRow}>
             {loading ? (
@@ -224,6 +292,7 @@ export default function DashboardPage() {
             onMonthChange={setFilterMonth}
             filterYear={filterYear}
             onYearChange={setFilterYear}
+            categories={filterCategories}
           />
           <ReceiptTable loading={loading} receipts={filteredReceipts} recentlyEditedId={recentlyEditedId} />
         </div>
@@ -326,5 +395,17 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main, #0f172a)', color: 'var(--text-muted, #94a3b8)', fontFamily: 'sans-serif' }}>
+        กำลังโหลด Dashboard...
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }

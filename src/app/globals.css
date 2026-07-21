@@ -4,9 +4,9 @@
   --sidebar-text: #64748b;
   --sidebar-text-active: #059669;
   --sidebar-item-hover: #f1f5f9;
-  --sidebar-item-active: #d1fae5;
+  --sidebar-item-active: #e6fcf5;
 
-  --main-bg: #f8fafc;
+  --main-bg: #f4f6fa;
   --card-bg: #ffffff;
   --primary-color: #10b981;
   --primary-hover: #059669;
@@ -25,34 +25,34 @@
 
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
-  --radius-lg: 1rem;
+  --radius-lg: 1.25rem;
 
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
 
   /* Central UI Scaling Factor */
   --base-font-size: 15px;
 }
 
 [data-theme="dark"] {
-  --sidebar-bg: #0f172a;
+  --sidebar-bg: #0b0f19;
   --sidebar-text: #94a3b8;
   --sidebar-text-active: #34d399;
-  --sidebar-item-hover: #1e293b;
-  --sidebar-item-active: #064e3b;
+  --sidebar-item-hover: rgba(30, 41, 59, 0.6);
+  --sidebar-item-active: rgba(16, 185, 129, 0.15);
 
-  --main-bg: #0f172a;
-  --card-bg: #1e293b;
+  --main-bg: #090d16;
+  --card-bg: #141b2c;
   --primary-color: #10b981;
   --primary-hover: #059669;
 
   --text-main: #f1f5f9;
   --text-muted: #94a3b8;
-  --border-color: #334155;
+  --border-color: rgba(51, 65, 85, 0.45);
 
-  --surface-color: #1e293b;
-  --surface-hover: #334155;
-  --input-bg: #1e293b;
+  --surface-color: #121824;
+  --surface-hover: rgba(30, 41, 59, 0.8);
+  --input-bg: #101520;
 }
 
 @media (min-width: 800px) {
@@ -106,6 +106,16 @@ body {
 button, a, [role="button"], input, select, textarea {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+}
+
+/* Force native elements (such as datepicker icons and popups) to match the active app theme */
+input, select, textarea {
+  color-scheme: light;
+}
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  color-scheme: dark;
 }
 
 a {
@@ -294,6 +304,25 @@ body:has(.notification-banner) .dashboard-layout {
     padding-right: max(0.625rem, env(safe-area-inset-right, 0px));
     padding-bottom: max(4rem, calc(2.5rem + env(safe-area-inset-bottom, 0px)));
   }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.15);
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.35);
 }
 
 

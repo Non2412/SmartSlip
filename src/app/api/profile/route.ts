@@ -37,23 +37,27 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, company, email, phone } = body;
+    const { name, company, email, phone, budgets } = body;
 
     const client = await clientPromise;
     const db = client.db();
 
+    const updateFields: any = {
+      userId: session.user.id,
+      name,
+      company,
+      email,
+      phone,
+      updatedAt: new Date(),
+    };
+
+    if (budgets !== undefined) {
+      updateFields.budgets = budgets;
+    }
+
     await db.collection("profiles").updateOne(
       { userId: session.user.id },
-      {
-        $set: {
-          userId: session.user.id,
-          name,
-          company,
-          email,
-          phone,
-          updatedAt: new Date(),
-        },
-      },
+      { $set: updateFields },
       { upsert: true }
     );
 
