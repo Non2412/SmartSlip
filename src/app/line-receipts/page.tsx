@@ -396,35 +396,35 @@ function LineReceiptsContent() {
                 );
               })}
 
-              {/* Desktop only — on mobile this button moves below the
-                  filter bar (see block right after filterBar closes). */}
-              {!isMobile && (
-                <button
-                  onClick={toggleSelectMode}
-                  className={`${styles.actionButtonSecondary} ${isSelectMode ? styles.actionButtonActive : ''}`}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem',
-                    fontWeight: '700',
-                    transition: 'all 0.2s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    marginLeft: 'auto', // push to the right end of the tabs row
-                    border: isSelectMode ? 'none' : '1.5px solid var(--border-color)',
-                    height: 'fit-content'
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <rect width="18" height="18" x="3" y="3" rx="2" />
-                    <path d="m9 12 2 2 4-4" />
-                  </svg>
-                  {isSelectMode ? 'ยกเลิกโหมดเลือก' : 'เลือกหลายรายการ'}
-                </button>
-              )}
+              <button
+                onClick={toggleSelectMode}
+                className={`${styles.actionButtonSecondary} ${isSelectMode ? styles.actionButtonActive : ''}`}
+                style={{
+                  padding: isMobile ? '9px 10px' : '8px 16px',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  fontSize: isMobile ? '0.8rem' : '0.875rem',
+                  fontWeight: '700',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  marginLeft: isMobile ? '0' : 'auto',
+                  border: isSelectMode ? 'none' : '1.5px solid var(--border-color)',
+                  background: isSelectMode ? 'var(--primary-color)' : 'var(--surface-color)',
+                  color: isSelectMode ? 'white' : 'var(--text-muted)',
+                  boxShadow: isSelectMode ? '0 4px 10px rgba(16, 185, 129, 0.2)' : '0 1px 3px rgba(0,0,0,0.06)',
+                  height: isMobile ? '100%' : 'fit-content',
+                  width: isMobile ? '100%' : 'auto'
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="18" height="18" x="3" y="3" rx="2" />
+                  <path d="m9 12 2 2 4-4" />
+                </svg>
+                {isSelectMode ? 'ยกเลิกโหมดเลือก' : 'เลือกหลายรายการ'}
+              </button>
             </div>
           </div>
 
@@ -653,36 +653,7 @@ function LineReceiptsContent() {
                 </div>
               )}
 
-              {/* Mobile only — moved here, right above the results grid */}
-              {isMobile && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-                  <button
-                    onClick={toggleSelectMode}
-                    className={`${styles.actionButtonSecondary} ${isSelectMode ? styles.actionButtonActive : ''}`}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      fontSize: '0.875rem',
-                      fontWeight: '700',
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      width: 'fit-content',
-                      border: isSelectMode ? 'none' : '1.5px solid var(--border-color)',
-                      height: 'fit-content'
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect width="18" height="18" x="3" y="3" rx="2" />
-                      <path d="m9 12 2 2 4-4" />
-                    </svg>
-                    {isSelectMode ? 'ยกเลิกโหมดเลือก' : 'เลือกหลายรายการ'}
-                  </button>
-                </div>
-              )}
+
 
               {/* ── Pagination (top) ── */}
               {totalPages > 1 && (
