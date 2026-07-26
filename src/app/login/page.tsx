@@ -53,7 +53,7 @@ function LoginContent() {
         {/* Header */}
         <div className={styles.loginHeader}>
           <div className={styles.loginLogo}>
-            <img src="/logo-dark.png" alt="SmartSlip AI Logo" width={360} height={144} />
+            <img src="/logo-dark.png" alt="SmartSlip AI Logo" width={360} height={144} translate="no" />
           </div>
           <p>เข้าสู่ระบบเพื่อเริ่มใช้งาน</p>
         </div>

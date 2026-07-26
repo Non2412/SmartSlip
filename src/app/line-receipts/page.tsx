@@ -6,6 +6,7 @@ import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import ReceiptDetailSheet from '@/components/ReceiptDetailSheet';
 import CreateReceiptSheet from '@/components/CreateReceiptSheet';
+import BulkEditModal, { BulkEditData } from '@/components/BulkEditModal';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
 import { Receipt, cleanAndProxyImageUrl } from '@/lib/apiClient';
@@ -35,6 +36,13 @@ function LineReceiptsContent() {
   const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Bulk selection states
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+  const [queueReceiptsList, setQueueReceiptsList] = useState<Receipt[] | undefined>(undefined);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 769);
@@ -42,9 +50,9 @@ function LineReceiptsContent() {
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
-  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'duplicate'>(() => {
+  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'pending' | 'duplicate'>(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'line' || tab === 'web' || tab === 'duplicate') return tab;
+    if (tab === 'line' || tab === 'web' || tab === 'pending' || tab === 'duplicate') return tab;
     return 'all';
   });
   const [searchQuery, setSearchQuery] = useState('');
@@ -54,7 +62,7 @@ function LineReceiptsContent() {
   const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
-  const { receipts, fetchReceipts, deleteReceipt, loading } = useReceipts();
+  const { receipts, fetchReceipts, deleteReceipt, deleteMultipleReceipts, updateMultipleReceipts, loading } = useReceipts();
 
   useEffect(() => {
     setViewedIds(getViewedIds());
@@ -77,6 +85,8 @@ function LineReceiptsContent() {
     
     // For other tabs, exclude duplicates
     if (isSubsequentDuplicate) return false;
+
+    if (filterTab === 'pending') return Boolean(r.isPending || !r.extractedData);
 
     const isLine = r.source === 'line' || r.transactionId?.startsWith('LINE-');
     if (filterTab === 'line') return isLine;
@@ -189,6 +199,7 @@ function LineReceiptsContent() {
 
   const handleReceiptClick = (receipt: Receipt) => {
     markAsViewed(receipt._id || receipt.id || '');
+    setQueueReceiptsList(undefined);
     setSelectedReceipt(receipt);
   };
 
@@ -196,6 +207,63 @@ function LineReceiptsContent() {
     if (!deleteConfirm) return;
     await deleteReceipt(deleteConfirm._id || deleteConfirm.id || '');
     setDeleteConfirm(null);
+  };
+
+  // Bulk actions handlers
+  const toggleSelectMode = () => {
+    setIsSelectMode(!isSelectMode);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelectItem = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAllFiltered = (filteredList: Receipt[]) => {
+    const allIds = filteredList.map(r => r._id || r.id || '');
+    setSelectedIds(new Set(allIds));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkDeleteConfirmed = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    const res = await deleteMultipleReceipts(ids);
+    if (res.success) {
+      setToastMsg(`ลบใบเสร็จสำเร็จจำนวน ${ids.length} รายการ`);
+      setTimeout(() => setToastMsg(null), 3000);
+    } else {
+      alert(res.error || 'เกิดข้อผิดพลาดในการลบใบเสร็จ');
+    }
+    setSelectedIds(new Set());
+    setIsSelectMode(false);
+    setShowBulkDeleteConfirm(false);
+  };
+
+  const handleBulkEditConfirmed = async (updates: BulkEditData) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    const res = await updateMultipleReceipts(ids, updates);
+    if (res.success) {
+      setToastMsg(`แก้ไขข้อมูลใบเสร็จสำเร็จจำนวน ${ids.length} รายการ`);
+      setTimeout(() => setToastMsg(null), 4000);
+    } else {
+      alert(res.error || 'เกิดข้อผิดพลาดในการแก้ไขใบเสร็จ');
+    }
+    setShowBulkEditModal(false);
   };
 
   // Proxy GCS images through local API to bypass public access restrictions
@@ -270,6 +338,19 @@ function LineReceiptsContent() {
                   activeBadge: '#1d4ed8',
                 },
                 {
+                  key: 'pending',
+                  label: 'รอตรวจสอบ',
+                  count: allImageReceipts.filter(r => (r.isPending || !r.extractedData) && !duplicateIds.has(r._id || r.id || '')).length,
+                  icon: (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                  ),
+                  activeColor: '#f59e0b',
+                  activeBg: '#f59e0b',
+                  activeBadge: '#d97706',
+                },
+                {
                   key: 'duplicate',
                   label: 'ซ้ำกัน',
                   count: allImageReceipts.filter(r => allDuplicateIds.has(r._id || r.id || '')).length,
@@ -314,6 +395,36 @@ function LineReceiptsContent() {
                   </button>
                 );
               })}
+
+              {/* Desktop only — on mobile this button moves below the
+                  filter bar (see block right after filterBar closes). */}
+              {!isMobile && (
+                <button
+                  onClick={toggleSelectMode}
+                  className={`${styles.actionButtonSecondary} ${isSelectMode ? styles.actionButtonActive : ''}`}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    fontWeight: '700',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    marginLeft: 'auto', // push to the right end of the tabs row
+                    border: isSelectMode ? 'none' : '1.5px solid var(--border-color)',
+                    height: 'fit-content'
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="18" height="18" x="3" y="3" rx="2" />
+                    <path d="m9 12 2 2 4-4" />
+                  </svg>
+                  {isSelectMode ? 'ยกเลิกโหมดเลือก' : 'เลือกหลายรายการ'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -482,6 +593,15 @@ function LineReceiptsContent() {
                   <h3 style={{ color: '#1e293b', marginTop: '16px' }}>ไม่พบสลิปที่ซ้ำกัน</h3>
                   <p>ยอดเยี่ยมมาก! ไม่มีสลิปโอนเงินที่ซ้ำกันในระบบของคุณเลย</p>
                 </>
+              ) : filterTab === 'pending' ? (
+                <>
+                  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                  <h3 style={{ color: '#1e293b', marginTop: '16px' }}>ไม่มีรายการรอตรวจสอบ</h3>
+                  <p>ใบเสร็จทั้งหมดของคุณผ่านการตรวจสอบแล้ว</p>
+                </>
               ) : (
                 <>
                   <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
@@ -533,6 +653,37 @@ function LineReceiptsContent() {
                 </div>
               )}
 
+              {/* Mobile only — moved here, right above the results grid */}
+              {isMobile && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+                  <button
+                    onClick={toggleSelectMode}
+                    className={`${styles.actionButtonSecondary} ${isSelectMode ? styles.actionButtonActive : ''}`}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      fontWeight: '700',
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      width: 'fit-content',
+                      border: isSelectMode ? 'none' : '1.5px solid var(--border-color)',
+                      height: 'fit-content'
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="18" height="18" x="3" y="3" rx="2" />
+                      <path d="m9 12 2 2 4-4" />
+                    </svg>
+                    {isSelectMode ? 'ยกเลิกโหมดเลือก' : 'เลือกหลายรายการ'}
+                  </button>
+                </div>
+              )}
+
               {/* ── Pagination (top) ── */}
               {totalPages > 1 && (
                 <div className={styles.pagination}>
@@ -570,13 +721,30 @@ function LineReceiptsContent() {
               <div className={styles.galleryGrid}>
               {paginatedReceipts.map((receipt, index) => {
                 const isNew = !viewedIds.has(receipt._id || receipt.id || '');
+                const isItemSecleted = selectedIds.has(receipt._id || receipt.id || '');
                 return (
                   <div
                     key={(receipt._id || receipt.id) || index}
-                    className={styles.galleryCard}
-                    onClick={() => handleReceiptClick(receipt)}
+                    className={`${styles.galleryCard} ${isItemSecleted ? styles.cardSelected : ''}`}
+                    onClick={() => {
+                      if (isSelectMode) {
+                        toggleSelectItem(receipt._id || receipt.id || '');
+                      } else {
+                        handleReceiptClick(receipt);
+                      }
+                    }}
                     style={{ cursor: 'pointer', position: 'relative' }}
                   >
+                    {isSelectMode && (
+                      <div className={`${styles.cardCheckbox} ${isItemSecleted ? styles.cardCheckboxChecked : ''}`}>
+                        {isItemSecleted && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </div>
+                    )}
+
                     {isNew && (
                       <div style={{
                         position: 'absolute', top: '8px', left: '8px', zIndex: 10,
@@ -597,10 +765,11 @@ function LineReceiptsContent() {
                       </div>
                     )}
 
-                    <div
-                      style={{ position: 'absolute', top: '8px', right: '8px', zIndex: 10 }}
-                      onClick={e => e.stopPropagation()}
-                    >
+                    {!isSelectMode && (
+                      <div
+                        style={{ position: 'absolute', top: '8px', right: '8px', zIndex: 10 }}
+                        onClick={e => e.stopPropagation()}
+                      >
                       <div style={{ position: 'relative' }}>
                         <button
                           onClick={e => {
@@ -651,6 +820,7 @@ function LineReceiptsContent() {
                         </div>
                       </div>
                     </div>
+                    )}
                     <div className={styles.imageContainer}>
                       {receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl ? (
                         <img src={getImageUrl(receipt.extractedData?.imageData || receipt.imageURL || receipt.imageUrl) || undefined} alt={`ใบเสร็จจาก ${receipt.storeName}`} loading="lazy" />
@@ -715,6 +885,83 @@ function LineReceiptsContent() {
         </div>
       )}
 
+      {/* ── Floating Action Bar for Bulk Selection Mode ── */}
+      {isSelectMode && (
+        <div className={styles.floatingActionBar}>
+          <div className={styles.actionBarInfo}>
+            เลือกอยู่ <strong>{selectedIds.size}</strong> รายการ
+          </div>
+          <div className={styles.actionBarButtons}>
+            <button 
+              className={`${styles.actionBarBtn} ${styles.actionBarBtnSecondary}`}
+              onClick={() => {
+                if (selectedIds.size === filteredReceipts.length) {
+                  deselectAll();
+                } else {
+                  selectAllFiltered(filteredReceipts);
+                }
+              }}
+            >
+              {selectedIds.size === filteredReceipts.length ? 'ยกเลิกทั้งหมด' : 'เลือกทั้งหมด'}
+            </button>
+            <button 
+              className={`${styles.actionBarBtn} ${styles.actionBarBtnPrimary}`}
+              disabled={selectedIds.size === 0}
+              onClick={() => {
+                const selectedList = lineReceipts.filter(r => selectedIds.has(r._id || r.id || ''));
+                if (selectedList.length > 0) {
+                  setQueueReceiptsList(selectedList);
+                  setSelectedReceipt(selectedList[0]);
+                }
+              }}
+            >
+              แก้ไขที่เลือก ({selectedIds.size})
+            </button>
+            <button 
+              className={`${styles.actionBarBtn} ${styles.actionBarBtnDanger}`}
+              disabled={selectedIds.size === 0}
+              onClick={() => setShowBulkDeleteConfirm(true)}
+            >
+              ลบที่เลือก ({selectedIds.size})
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk Edit Modal ── */}
+      <BulkEditModal
+        isOpen={showBulkEditModal}
+        selectedCount={selectedIds.size}
+        onClose={() => setShowBulkEditModal(false)}
+        onSave={handleBulkEditConfirmed}
+      />
+
+      {/* ── Bulk Delete Confirmation Dialog ── */}
+      {showBulkDeleteConfirm && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 2000,
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '28px 32px',
+            width: 'min(400px, 90vw)', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+          }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-main)', margin: '0 0 8px' }}>ยืนยันการลบแบบกลุ่ม</h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: '0 0 24px', lineHeight: 1.5 }}>
+              คุณต้องการลบใบเสร็จที่เลือกจำนวน <strong style={{ color: 'var(--text-main)' }}>{selectedIds.size} รายการ</strong> ออกจากระบบหรือไม่? การลบนี้จะไม่สามารถย้อนกลับได้
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setShowBulkDeleteConfirm(false)} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1.5px solid var(--border-color)', background: 'var(--surface-color)', fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-muted)', cursor: 'pointer' }}>ยกเลิก</button>
+              <button onClick={handleBulkDeleteConfirmed} style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: 'white', fontWeight: '800', fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(239,68,68,0.35)' }}>ลบทั้งหมด</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <CreateReceiptSheet
         isOpen={isCreateSheetOpen}
         onClose={() => setIsCreateSheetOpen(false)}
@@ -731,11 +978,15 @@ function LineReceiptsContent() {
         userId={session?.user?.id}
       />
 
-      {/* ── Receipt Detail Sheet ── */}
+      {/* ── Receipt Detail Sheet (Queue Mode for selected items) ── */}
       <ReceiptDetailSheet
         isOpen={!!selectedReceipt}
         receipt={selectedReceipt ?? undefined}
-        onClose={() => setSelectedReceipt(null)}
+        allReceipts={queueReceiptsList}
+        onClose={() => {
+          setSelectedReceipt(null);
+          setQueueReceiptsList(undefined);
+        }}
         onSuccess={(id) => {
           if (session?.user?.id) {
             const lineUserId = (session as any)?.lineUserId as string | undefined;
@@ -750,6 +1001,7 @@ function LineReceiptsContent() {
             setTimeout(() => setToastMsg(null), 8000);
           }
           setSelectedReceipt(null);
+          setQueueReceiptsList(undefined);
         }}
       />
 

@@ -40,7 +40,19 @@ export default function ProfileCard({ refreshTrigger }: { refreshTrigger?: numbe
         <span>เบอร์โทร:</span>
         <strong>{data.phone || "-"}</strong>
       </div>
-      
+      {data.customCategories && data.customCategories.length > 0 && (
+        <>
+          <div style={{ marginTop: '20px', fontWeight: 'bold', fontSize: '0.95rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', color: 'var(--text-main)' }}>หมวดหมู่รายจ่ายส่วนตัว</div>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
+            {data.customCategories.map((cat: string, idx: number) => (
+              <span key={idx} style={{ padding: '4px 10px', borderRadius: '12px', background: 'var(--input-bg)', border: '1px solid var(--border-color)', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                🏷️ {cat}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+
       <button className={styles.button} style={{ background: '#f8fafc', color: '#0f172a', border: '1px solid #e2e8f0', marginTop: '20px' }} onClick={() => window.print()}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
         พิมพ์ข้อมูล / PDF

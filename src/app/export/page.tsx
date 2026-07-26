@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import { useReceipts } from '@/hooks/useReceipts';
+import { activityLogApi } from '@/lib/apiClient';
 import styles from './Export.module.css';
 
 // Interface for export rows
@@ -34,7 +35,7 @@ export default function ExportPage() {
 
   // Filter real pending receipts
   const realPendingItems = useMemo(() => {
-    return receipts.filter(r => !r.extractedData);
+    return receipts.filter(r => r.isPending || !r.extractedData);
   }, [receipts]);
 
   // Show notification if there are pending items upon receipts loading
@@ -183,7 +184,7 @@ export default function ExportPage() {
       // Find invoice no or construct one
       const invNo = r.extractedData?.receiptNo || r.transactionId || `INV-${String(10128 + idx).padStart(5, '0')}`;
       const amountVal = r.amount !== undefined ? r.amount : (r.totalAmount || 0);
-      const isApproved = r.extractedData !== undefined;
+      const isApproved = !r.isPending && r.extractedData !== undefined;
       const status: 'Approved' | 'Pending' = isApproved ? 'Approved' : 'Pending';
       const category = r.extractedData?.category || 'ไม่ระบุ';
       const source = (r.source === 'line' || r.transactionId?.startsWith('LINE-')) ? 'LINE' : 'Web';
@@ -306,6 +307,21 @@ export default function ExportPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // บันทึกกิจกรรมส่งออกข้อมูล
+    if (session?.user?.id) {
+      activityLogApi.create(
+        session.user.id,
+        'export',
+        `ส่งออกข้อมูลใบเสร็จรับเงินจำนวน ${filteredItems.length} รายการเป็นไฟล์ ${fileFormat === 'excel' ? 'Excel' : 'CSV'}`,
+        undefined,
+        {
+          startDate: formatDateToYYYYMMDD(startDate),
+          endDate: formatDateToYYYYMMDD(endDate),
+          fileFormat: fileFormat === 'excel' ? 'Excel' : 'CSV',
+        }
+      ).catch(err => console.error('Failed to log activity:', err));
+    }
   };
 
   return (
