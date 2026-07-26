@@ -96,9 +96,23 @@ export const useReceipts = (): UseReceiptsReturn => {
 
   const deleteReceipt = useCallback(async (id: string) => {
     try {
+      const receiptToDelete = receipts.find(r => r._id === id || r.id === id);
       const result = await receiptApi.delete(id) as any;
       if (result.success) {
         setReceipts(prev => prev.filter(r => r._id !== id && r.id !== id));
+        if (receiptToDelete) {
+          try {
+            const storeName = receiptToDelete.storeName || 'ไม่ระบุร้านค้า';
+            const amt = (receiptToDelete.amount !== undefined ? receiptToDelete.amount : receiptToDelete.totalAmount || 0);
+            await activityLogApi.create(
+              receiptToDelete.userId || 'user123',
+              'delete',
+              `ลบใบเสร็จร้าน "${storeName}" ยอดเงิน ฿${parseFloat(amt.toString()).toFixed(2)} บาท`
+            );
+          } catch (logErr) {
+            console.error('Failed to log activity:', logErr);
+          }
+        }
         return { success: true };
       } else {
         return { success: false, error: result.error || 'Failed to delete receipt' };
@@ -106,7 +120,7 @@ export const useReceipts = (): UseReceiptsReturn => {
     } catch (err: unknown) {
       return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
     }
-  }, []);
+  }, [receipts]);
 
   const updateMultipleReceipts = useCallback(async (
     ids: string[],
@@ -192,10 +206,23 @@ export const useReceipts = (): UseReceiptsReturn => {
 
   const deleteMultipleReceipts = useCallback(async (ids: string[]) => {
     try {
+      const targetReceipts = receipts.filter(r => ids.includes(r._id || '') || ids.includes(r.id || ''));
       const result = await receiptApi.deleteMultiple(ids) as any;
       if (result.success) {
         const idSet = new Set(ids);
         setReceipts(prev => prev.filter(r => !idSet.has(r._id || '') && !idSet.has(r.id || '')));
+        if (targetReceipts.length > 0) {
+          try {
+            const sampleReceipt = targetReceipts[0];
+            await activityLogApi.create(
+              sampleReceipt?.userId || 'user123',
+              'delete',
+              `ลบใบเสร็จแบบกลุ่มจำนวน ${ids.length} รายการ`
+            );
+          } catch (logErr) {
+            console.error('Failed to log activity:', logErr);
+          }
+        }
         return { success: true };
       } else {
         return { success: false, error: result.error || 'Failed to delete receipts' };
@@ -203,7 +230,7 @@ export const useReceipts = (): UseReceiptsReturn => {
     } catch (err: unknown) {
       return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
     }
-  }, []);
+  }, [receipts]);
 
   const extractFromImage = useCallback(async (file: File, userId?: string) => {
     setLoading(true);

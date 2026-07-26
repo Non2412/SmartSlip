@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
-import { cleanAndProxyImageUrl } from '@/lib/apiClient';
+import { cleanAndProxyImageUrl, activityLogApi } from '@/lib/apiClient';
 import styles from './TopBar.module.css';
 
 function useDarkMode() {
@@ -61,6 +61,16 @@ const TopBar = ({
     const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
     const dropdownRef = useRef<HTMLDivElement>(null);
 
+    const [activityLogs, setActivityLogs] = useState<any[]>([]);
+    const [lastViewedTime, setLastViewedTime] = useState<string>('1970-01-01T00:00:00.000Z');
+    const [hasOpenedDropdown, setHasOpenedDropdown] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setLastViewedTime(localStorage.getItem('smartslip_notifications_last_viewed') || '1970-01-01T00:00:00.000Z');
+        }
+    }, []);
+
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -81,14 +91,47 @@ const TopBar = ({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [mobileMenuOpen]);
 
+    const fetchLogs = async (userId: string, lineUserId?: string) => {
+        try {
+            const res = await activityLogApi.getAll(userId, lineUserId);
+            if (res.success && res.data) {
+                setActivityLogs(res.data);
+            }
+        } catch (err) {
+            console.error('Failed to fetch activity logs in TopBar:', err);
+        }
+    };
+
     useEffect(() => {
         if (session?.user?.id) {
             const lineUserId = (session as any)?.lineUserId as string | undefined;
             fetchReceipts(session.user.id, lineUserId);
+            fetchLogs(session.user.id, lineUserId);
         }
     }, [session, fetchReceipts]);
 
-    const pendingCount = receipts.filter(r => r.isPending || !r.extractedData).length;
+    useEffect(() => {
+        if (isDropdownOpen && session?.user?.id) {
+            const lineUserId = (session as any)?.lineUserId as string | undefined;
+            fetchLogs(session.user.id, lineUserId);
+        }
+    }, [isDropdownOpen, session]);
+
+    const toggleDropdown = () => {
+        if (!isDropdownOpen) {
+            if (typeof window !== 'undefined') {
+                const stored = localStorage.getItem('smartslip_notifications_last_viewed') || '1970-01-01T00:00:00.000Z';
+                setLastViewedTime(stored);
+            }
+            setIsDropdownOpen(true);
+            setHasOpenedDropdown(true);
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('smartslip_notifications_last_viewed', new Date().toISOString());
+            }
+        } else {
+            setIsDropdownOpen(false);
+        }
+    };
 
     const formatTimeAgoThai = (dateStr: string) => {
         try {
@@ -116,75 +159,227 @@ const TopBar = ({
         }
     };
 
+    // Construct unified list
+    const notificationItems: any[] = [];
+    const loggedReceiptIds = new Set();
+
+    activityLogs.forEach(log => {
+        const correspondingReceipt = receipts.find(r => r._id === log.receiptId || r.id === log.receiptId);
+        
+        let title = '';
+        let details = log.details;
+        let link = '/activity-logs';
+        let imageUrl = '';
+        let isPending = false;
+
+        if (correspondingReceipt) {
+            loggedReceiptIds.add(correspondingReceipt._id || correspondingReceipt.id);
+            imageUrl = cleanAndProxyImageUrl(correspondingReceipt.imageUrl || correspondingReceipt.imageURL);
+            isPending = correspondingReceipt.isPending || !correspondingReceipt.extractedData;
+            
+            if (isPending) {
+                const isLine = correspondingReceipt.source === 'line' || correspondingReceipt.transactionId?.startsWith('LINE-');
+                title = `ใบเสร็จรอตรวจสอบ • ${correspondingReceipt.storeName || 'ไม่ระบุร้านค้า'}`;
+                if (isLine) {
+                    title = `ใบเสร็จรอตรวจสอบ (จาก LINE) • ${correspondingReceipt.storeName || 'ไม่ระบุร้านค้า'}`;
+                }
+                const rawAmt = correspondingReceipt.amount !== undefined ? correspondingReceipt.amount : correspondingReceipt.totalAmount || 0;
+                details = `ยอดเงิน ฿${parseFloat(rawAmt.toString()).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`;
+                link = `/dashboard?openReceiptId=${correspondingReceipt._id || correspondingReceipt.id}`;
+            } else {
+                if (log.action === 'add') {
+                    const isLine = correspondingReceipt.source === 'line' || correspondingReceipt.transactionId?.startsWith('LINE-');
+                    title = isLine ? 'เพิ่มใบเสร็จใหม่ (จาก LINE)' : 'เพิ่มใบเสร็จใหม่';
+                    link = `/dashboard?openReceiptId=${correspondingReceipt._id || correspondingReceipt.id}`;
+                } else if (log.action === 'edit') {
+                    title = 'แก้ไขใบเสร็จ';
+                    link = `/dashboard?openReceiptId=${correspondingReceipt._id || correspondingReceipt.id}`;
+                }
+            }
+        }
+
+        if (!title) {
+            switch (log.action) {
+                case 'add':
+                    title = 'เพิ่มใบเสร็จ';
+                    break;
+                case 'edit':
+                    title = 'แก้ไขใบเสร็จ';
+                    break;
+                case 'delete':
+                    title = 'ลบใบเสร็จ';
+                    break;
+                case 'export':
+                    title = 'ส่งออกข้อมูล';
+                    break;
+                default:
+                    title = log.action;
+            }
+        }
+
+        notificationItems.push({
+            id: log.id || log._id || `log-${log.timestamp}`,
+            action: log.action,
+            title,
+            details,
+            timestamp: log.timestamp,
+            link,
+            imageUrl,
+            isPending
+        });
+    });
+
+    // Fallback: pending receipts that are not yet logged
+    receipts.forEach(r => {
+        const rId = r._id || r.id;
+        if (!loggedReceiptIds.has(rId)) {
+            const isPending = r.isPending || !r.extractedData;
+            if (isPending) {
+                const isLine = r.source === 'line' || r.transactionId?.startsWith('LINE-');
+                let title = `ใบเสร็จรอตรวจสอบ • ${r.storeName || 'ไม่ระบุร้านค้า'}`;
+                if (isLine) {
+                    title = `ใบเสร็จรอตรวจสอบ (จาก LINE) • ${r.storeName || 'ไม่ระบุร้านค้า'}`;
+                }
+                const rawAmt = r.amount !== undefined ? r.amount : r.totalAmount || 0;
+                const details = `ยอดเงิน ฿${parseFloat(rawAmt.toString()).toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท`;
+                notificationItems.push({
+                    id: `fallback-${rId}`,
+                    action: 'add',
+                    title,
+                    details,
+                    timestamp: r.createdAt,
+                    link: `/dashboard?openReceiptId=${rId}`,
+                    imageUrl: cleanAndProxyImageUrl(r.imageUrl || r.imageURL),
+                    isPending: true
+                });
+            }
+        }
+    });
+
+    // Sort by timestamp
+    notificationItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    // Calculate unread count (pending is always unread; others depend on lastViewedTime)
+    const bellBadgeCount = hasOpenedDropdown ? 0 : notificationItems.filter(item => {
+        if (item.isPending) return true;
+        return new Date(item.timestamp).getTime() > new Date(lastViewedTime).getTime();
+    }).length;
+
+    // Filter by tab
+    const displayedItems = activeTab === 'unread' 
+        ? notificationItems.filter(item => item.isPending || (new Date(item.timestamp).getTime() > new Date(lastViewedTime).getTime()))
+        : notificationItems;
+
+    // Group by age
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
 
-    const pendingReceipts = receipts.filter(r => r.isPending || !r.extractedData);
-    const sortedReceipts = [...receipts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    const displayedItems = activeTab === 'unread' ? pendingReceipts : sortedReceipts;
+    const newItems: any[] = [];
+    const todayItems: any[] = [];
+    const earlierItems: any[] = [];
 
-    const newItems: typeof receipts = [];
-    const todayItems: typeof receipts = [];
-    const earlierItems: typeof receipts = [];
-
-    displayedItems.forEach(r => {
-        const date = new Date(r.createdAt);
+    displayedItems.forEach(item => {
+        const date = new Date(item.timestamp);
         if (date >= twoHoursAgo) {
-            newItems.push(r);
+            newItems.push(item);
         } else if (date >= todayStart) {
-            todayItems.push(r);
+            todayItems.push(item);
         } else {
-            earlierItems.push(r);
+            earlierItems.push(item);
         }
     });
 
-    const renderDropdownItem = (receipt: typeof receipts[0]) => {
-        const id = receipt._id || receipt.id;
-        const shopName = receipt.storeName || 'ไม่ระบุร้านค้า';
-        const rawAmt = receipt.amount !== undefined ? receipt.amount : receipt.totalAmount || 0;
-        const amountText = `฿${parseFloat(rawAmt.toString()).toLocaleString('th-TH', { minimumFractionDigits: 2 })}`;
-        const imgUrl = cleanAndProxyImageUrl(receipt.imageUrl || receipt.imageURL);
-        const timeAgo = formatTimeAgoThai(receipt.createdAt);
-        const isPending = receipt.isPending || !receipt.extractedData;
+    const renderDropdownItem = (item: any) => {
+        const imgUrl = item.imageUrl;
+        const timeAgo = formatTimeAgoThai(item.timestamp);
+        const isUnread = item.isPending || (new Date(item.timestamp).getTime() > new Date(lastViewedTime).getTime());
+
+        const getNotificationIcon = (action: string) => {
+            switch (action) {
+                case 'add':
+                    return (
+                        <div className={`${styles.itemIconCircle} ${styles.iconAdd}`}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 5v14M5 12h14" />
+                            </svg>
+                        </div>
+                    );
+                case 'edit':
+                    return (
+                        <div className={`${styles.itemIconCircle} ${styles.iconEdit}`}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                        </div>
+                    );
+                case 'delete':
+                    return (
+                        <div className={`${styles.itemIconCircle} ${styles.iconDelete}`}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                <line x1="10" y1="11" x2="10" y2="17" />
+                                <line x1="14" y1="11" x2="14" y2="17" />
+                            </svg>
+                        </div>
+                    );
+                case 'export':
+                    return (
+                        <div className={`${styles.itemIconCircle} ${styles.iconExport}`}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                                <polyline points="16 6 12 2 8 6" />
+                                <line x1="12" y1="2" x2="12" y2="15" />
+                            </svg>
+                        </div>
+                    );
+                default:
+                    return (
+                        <div className={styles.itemIconCircle}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10" />
+                            </svg>
+                        </div>
+                    );
+            }
+        };
 
         return (
             <Link
-                key={id}
-                href={`/dashboard?openReceiptId=${id}`}
-                className={styles.dropdownItem}
+                key={item.id}
+                href={item.link}
+                className={`${styles.dropdownItem} ${isUnread ? styles.dropdownItemUnread : ''}`}
                 onClick={() => setIsDropdownOpen(false)}
             >
                 {imgUrl ? (
                     <div className={styles.itemImageWrapper}>
                         <Image
                             src={imgUrl}
-                            alt={shopName}
+                            alt={item.title}
                             fill
                             unoptimized
                             className={styles.itemImage}
                         />
                     </div>
                 ) : (
-                    <div className={styles.itemIconCircle}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <polyline points="21 15 16 10 5 21" />
-                        </svg>
-                    </div>
+                    getNotificationIcon(item.action)
                 )}
 
                 <div className={styles.itemContent}>
-                    <p className={styles.itemTitle}>
-                        ใบเสร็จรอตรวจสอบ • {shopName} ยอดเงิน {amountText}
+                    <p className={item.isPending ? styles.itemTitle : styles.itemTitle}>
+                        {item.title}
                     </p>
-                    <span className={isPending ? styles.itemTime : styles.itemTimeMuted}>
+                    <p className={styles.itemDetails}>
+                        {item.details}
+                    </p>
+                    <span className={isUnread ? styles.itemTime : styles.itemTimeMuted}>
                         {timeAgo}
                     </span>
                 </div>
 
-                {isPending && <div className={styles.itemIndicator} />}
+                {isUnread && <div className={styles.itemIndicator} />}
             </Link>
         );
     };
@@ -213,13 +408,13 @@ const TopBar = ({
                     <div className={styles.notificationWrapper} ref={dropdownRef}>
                         <button
                             className={styles.iconButton}
-                            onClick={() => setIsDropdownOpen(prev => !prev)}
+                            onClick={toggleDropdown}
                             title="การแจ้งเตือน"
                             aria-expanded={isDropdownOpen}
                         >
                             <BellIcon />
-                            {pendingCount > 0 && (
-                                <span className={styles.notificationBadge}>{pendingCount}</span>
+                            {bellBadgeCount > 0 && (
+                                <span className={styles.notificationBadge}>{bellBadgeCount}</span>
                             )}
                         </button>
 
@@ -333,12 +528,17 @@ const TopBar = ({
                                 <button
                                     type="button"
                                     className={styles.mobileDropdownItem}
-                                    onClick={() => { setMobileMenuOpen(false); setIsDropdownOpen(true); }}
+                                    onClick={() => { 
+                                        setMobileMenuOpen(false); 
+                                        if (!isDropdownOpen) {
+                                            toggleDropdown();
+                                        }
+                                    }}
                                 >
                                     <BellIcon />
                                     <span>การแจ้งเตือน</span>
-                                    {pendingCount > 0 && (
-                                        <span className={styles.dropdownBadge}>{pendingCount}</span>
+                                    {bellBadgeCount > 0 && (
+                                        <span className={styles.dropdownBadge}>{bellBadgeCount}</span>
                                     )}
                                 </button>
                                 <Link

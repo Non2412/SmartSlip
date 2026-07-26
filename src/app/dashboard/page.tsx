@@ -228,6 +228,7 @@ function DashboardContent() {
                   src="/BOT.png"
                   alt="SmartSlip AI"
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  translate="no"
                 />
                 <div className={styles.aiAvatarPing}></div>
               </div>

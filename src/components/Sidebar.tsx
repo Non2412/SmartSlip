@@ -53,6 +53,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
             src="/logo-dark.png"
             alt="SmartSlip AI"
             className={styles.logo}
+            translate="no"
           />
         </Link>
       </div>
