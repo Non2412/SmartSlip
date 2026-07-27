@@ -617,6 +617,56 @@
   to { transform: scale(1); }
 }
 
+.qrContainer {
+  position: relative;
+  padding: 16px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.qrImage {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+  display: block;
+}
+
+.lineAddBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: #06C755;
+  color: white;
+  text-decoration: none;
+  padding: 12px 24px;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 12px rgba(6, 199, 85, 0.3);
+  transition: all 0.2s ease;
+  width: 100%;
+  border: none;
+  cursor: pointer;
+}
+
+.lineAddBtn:hover {
+  background-color: #05b34c;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(6, 199, 85, 0.45);
+}
+
+.lineAddBtn:active {
+  transform: translateY(0);
+}
+
+
 
 
 

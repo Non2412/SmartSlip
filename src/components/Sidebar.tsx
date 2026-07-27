@@ -19,6 +19,7 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
   const { data: session } = useSession();
   const user = session?.user;
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isLineModalOpen, setIsLineModalOpen] = useState(false);
   useEffect(() => {
     const update = () => {
       try {
@@ -45,73 +46,117 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
 
 
   return (
-    <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarActive : ''}`}>
+    <>
+      <aside className={`${styles.sidebar} ${isOpen ? styles.sidebarActive : ''}`}>
 
-      <div className={styles.logoContainer}>
-        <Link href="/">
-          <img
-            src="/logo-dark.png"
-            alt="SmartSlip AI"
-            className={styles.logo}
-            translate="no"
-          />
-        </Link>
-      </div>
-
-      <nav className={styles.nav}>
-        <div className={styles.navSection}>
-          เมนูธุรกิจ
+        <div className={styles.logoContainer}>
+          <Link href="/">
+            <img
+              src="/logo-dark.png"
+              alt="SmartSlip AI"
+              className={styles.logo}
+              translate="no"
+            />
+          </Link>
         </div>
-        <ul className={styles.navList}>
-          <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="ภาพรวม" icon={<ListIcon />} />
-          <SidebarItem href="/line-receipts" active={pathname === '/line-receipts'} label="รูปภาพ" icon={<ImageIcon />} badge={unreadCount} />
-          <SidebarItem href="/export" active={pathname === '/export'} label="ส่งออกข้อมูล" icon={<ExportIcon />} />
-          <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<PlusIcon />} onClick={onAddReceipt} />
-        </ul>
 
-        <div className={styles.navSection}>
-          ประวัติการใช้งาน
+        <nav className={styles.nav}>
+          <div className={styles.navSection}>
+            เมนูธุรกิจ
+          </div>
+          <ul className={styles.navList}>
+            <SidebarItem href="/dashboard" active={pathname === '/dashboard'} label="ภาพรวม" icon={<ListIcon />} />
+            <SidebarItem href="/line-receipts" active={pathname === '/line-receipts'} label="รูปภาพ" icon={<ImageIcon />} badge={unreadCount} />
+            <SidebarItem href="/export" active={pathname === '/export'} label="ส่งออกข้อมูล" icon={<ExportIcon />} />
+            <SidebarItem href="#" label="เพิ่มใบเสร็จ" icon={<PlusIcon />} onClick={onAddReceipt} />
+          </ul>
+
+          <div className={styles.navSection}>
+            ประวัติการใช้งาน
+          </div>
+          <ul className={styles.navList}>
+            <SidebarItem href="/history" active={pathname === '/history'} label="ประวัติใบเสร็จ" icon={<HistoryIcon />} />
+            <SidebarItem href="/activity-logs" active={pathname === '/activity-logs'} label="ประวัติกิจกรรม" icon={<ActivityIcon />} />
+          </ul>
+
+          <div className={styles.navSection}>
+            ช่วยเหลือ
+          </div>
+          <ul className={styles.navListNoMargin}>
+            <SidebarItem href="/ai-advisor" active={pathname === '/ai-advisor'} label="ที่ปรึกษาการเงิน (AI)" icon={<RobotIcon />} />
+            <SidebarItem
+              href="/how-to-use"
+              active={pathname === '/how-to-use'}
+              label="วิธีการใช้งาน"
+              icon={<HelpIcon />}
+            />
+            <SidebarItem
+              href="#"
+              label="แอดไลน์เพื่อใช้งานในโทรศัพท์"
+              icon={<LineIcon />}
+              onClick={() => setIsLineModalOpen(true)}
+            />
+          </ul>
+
+          <div className={styles.navSpacer} />
+        </nav>
+
+        <div className={styles.userCard}>
+          <div className={styles.userAvatar}>
+            <img src={displayImage} alt="User" />
+            <div className={styles.statusIndicator}></div>
+          </div>
+          <div className={styles.userInfo}>
+            <div className={styles.userName}>{displayName}</div>
+            <div className={styles.userId}>{userId}</div>
+          </div>
+          <button
+            className={styles.logoutButton}
+            title="ออกจากระบบ"
+            onClick={() => signOut({ callbackUrl: '/login' })}
+          >
+            <LogoutIcon />
+          </button>
         </div>
-        <ul className={styles.navList}>
-          <SidebarItem href="/history" active={pathname === '/history'} label="ประวัติใบเสร็จ" icon={<HistoryIcon />} />
-          <SidebarItem href="/activity-logs" active={pathname === '/activity-logs'} label="ประวัติกิจกรรม" icon={<ActivityIcon />} />
-        </ul>
 
-        <div className={styles.navSection}>
-          ช่วยเหลือ
+      </aside>
+
+      {isLineModalOpen && (
+        <div className={styles.modalOverlay} onClick={() => setIsLineModalOpen(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalHeaderTitle}>
+                <LineIcon />
+                <span>แอดไลน์เพื่อใช้งานในโทรศัพท์</span>
+              </h3>
+              <button className={styles.closeBtn} onClick={() => setIsLineModalOpen(false)} title="ปิด">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className={styles.modalBody} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '20px', padding: '30px 24px' }}>
+              <div className={styles.qrContainer}>
+                <img
+                  src="/QRcode.png"
+                  alt="Line Bot QR Code"
+                  className={styles.qrImage}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <p style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                  สแกนคิวอาร์โค้ดเพื่อแอดไลน์
+                </p>
+                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.5, maxWidth: '280px' }}>
+                  ส่งรูปภาพใบเสร็จหรือสลิปโอนเงินเข้า LINE Bot เพื่อบันทึกประวัติและวิเคราะห์ข้อมูลได้ทันที
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-        <ul className={styles.navListNoMargin}>
-          <SidebarItem href="/ai-advisor" active={pathname === '/ai-advisor'} label="ที่ปรึกษาการเงิน (AI)" icon={<RobotIcon />} />
-          <SidebarItem
-            href="/how-to-use"
-            active={pathname === '/how-to-use'}
-            label="วิธีการใช้งาน"
-            icon={<HelpIcon />}
-          />
-        </ul>
-
-        <div className={styles.navSpacer} />
-      </nav>
-
-      <div className={styles.userCard}>
-        <div className={styles.userAvatar}>
-          <img src={displayImage} alt="User" />
-          <div className={styles.statusIndicator}></div>
-        </div>
-        <div className={styles.userInfo}>
-          <div className={styles.userName}>{displayName}</div>
-          <div className={styles.userId}>{userId}</div>
-        </div>
-        <button
-          className={styles.logoutButton}
-          title="ออกจากระบบ"
-          onClick={() => signOut({ callbackUrl: '/login' })}
-        >
-          <LogoutIcon />
-        </button>
-      </div>
-
-    </aside>
+      )}
+    </>
   );
 };
 
@@ -275,6 +320,14 @@ function ActivityIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </svg>
+  );
+}
+
+function LineIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
     </svg>
   );
 }
