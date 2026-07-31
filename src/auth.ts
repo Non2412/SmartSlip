@@ -121,10 +121,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                         token.role = "user";
                         token.status = "pending";
                     }
+
+                    // Check if profile is completed
+                    const profileDoc = await db.collection("profiles").findOne({ userId: token.sub });
+                    const isProfileCompleted = !!(
+                        profileDoc && 
+                        profileDoc.name?.trim() && 
+                        profileDoc.phone?.trim() && 
+                        profileDoc.company?.trim() && 
+                        profileDoc.citizenId?.trim()
+                    );
+                    token.isProfileCompleted = isProfileCompleted;
                 } catch (err) {
                     console.error("❌ Failed to fetch user role & status:", err);
                     token.role = token.role || "user";
                     token.status = token.status || "pending";
+                    token.isProfileCompleted = false;
                 }
             }
 
@@ -141,12 +153,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 s.lineUserName = token.lineUserName;
                 s.lineUserImage = token.lineUserImage;
                 s.lineUserId = token.lineUserId;
+                s.isProfileCompleted = token.isProfileCompleted;
             }
             return session
         },
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user
             const userStatus = (auth?.user as any)?.status
+            const userRole = (auth?.user as any)?.role
+            const isProfileCompleted = (auth as any)?.isProfileCompleted
 
             // 1. Check if user is restricted
             if (isLoggedIn && userStatus === "restricted") {
@@ -160,6 +175,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             if (isLoggedIn && userStatus === "pending") {
                 if (nextUrl.pathname !== "/pending-approval") {
                     return Response.redirect(new URL("/pending-approval", nextUrl))
+                }
+                return true
+            }
+
+            // 3. Force profile completion if logged in but profile is not completed (only for regular users)
+            if (isLoggedIn && userStatus === "active" && userRole === "user" && !isProfileCompleted) {
+                if (nextUrl.pathname !== "/profile") {
+                    return Response.redirect(new URL("/profile?force=true", nextUrl))
                 }
                 return true
             }
@@ -196,8 +219,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
                 // Check admin authorization
                 if (isOnAdmin) {
-                    const userRole = (auth?.user as any)?.role
-                    if (userRole !== "admin") {
+                    const roleVal = (auth?.user as any)?.role
+                    if (roleVal !== "admin") {
                         return Response.redirect(new URL("/dashboard", nextUrl))
                     }
                 }

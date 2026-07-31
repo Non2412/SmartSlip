@@ -50,6 +50,21 @@ export async function GET() {
       return !registeredIds.has(id) && !linkedLineIds.has(id);
     });
 
+    const profiles = await db.collection('profiles').find({}).toArray();
+    const profileMap = new Map();
+    profiles.forEach(p => {
+      if (p.userId) {
+        profileMap.set(p.userId.toString(), p);
+      }
+    });
+
+    const lineIdToUserMap = new Map();
+    accounts.forEach(a => {
+      if (a.provider === 'line' && a.providerAccountId && a.userId) {
+        lineIdToUserMap.set(a.providerAccountId, a.userId.toString());
+      }
+    });
+
     // คำนวณสถิติสำหรับผู้ใช้ที่ลงทะเบียนแล้ว
     const usersWithStats = await Promise.all(users.map(async (u) => {
       const lineAccount = accounts.find(
@@ -77,6 +92,8 @@ export async function GET() {
         }
       }
 
+      const userProfile = profileMap.get(u._id.toString());
+
       return {
         id: u._id.toString(),
         name: u.name || 'Unknown User',
@@ -87,13 +104,28 @@ export async function GET() {
         lineUserId,
         receiptCount,
         createdAt: createdAtStr,
-        lastActiveAt: u.lastActiveAt || null
+        lastActiveAt: u.lastActiveAt || null,
+        profile: userProfile ? {
+          company: userProfile.company || 'ไม่ระบุ',
+          phone: userProfile.phone || 'ไม่ระบุ',
+          address: userProfile.address || userProfile.about || userProfile.from || 'ไม่ระบุ',
+          budgets: userProfile.budgets !== undefined ? userProfile.budgets : 0,
+          citizenId: userProfile.citizenId || 'ไม่ระบุ'
+        } : {
+          company: 'ไม่ระบุ',
+          phone: 'ไม่ระบุ',
+          address: 'ไม่ระบุ',
+          budgets: 0,
+          citizenId: 'ไม่ระบุ'
+        }
       };
     }));
 
     // สร้างข้อมูลสถิติผู้ใช้ LINE ที่ยังไม่ลงทะเบียน
     const unregisteredUsersWithStats = await Promise.all(unregisteredLineIds.map(async (lineId) => {
       const receiptCount = await appDb.collection('receipts').countDocuments({ userId: lineId });
+      const mongoUserId = lineIdToUserMap.get(lineId);
+      const userProfile = mongoUserId ? profileMap.get(mongoUserId) : null;
       
       return {
         id: lineId, // ใช้ LINE ID เป็นรหัสอ้างอิง
@@ -105,7 +137,20 @@ export async function GET() {
         lineUserId: lineId,
         receiptCount,
         createdAt: new Date().toISOString(),
-        lastActiveAt: null
+        lastActiveAt: null,
+        profile: userProfile ? {
+          company: userProfile.company || 'ไม่ระบุ',
+          phone: userProfile.phone || 'ไม่ระบุ',
+          address: userProfile.address || userProfile.about || userProfile.from || 'ไม่ระบุ',
+          budgets: userProfile.budgets !== undefined ? userProfile.budgets : 0,
+          citizenId: userProfile.citizenId || 'ไม่ระบุ'
+        } : {
+          company: 'ไม่ระบุ',
+          phone: 'ไม่ระบุ',
+          address: 'ไม่ระบุ',
+          budgets: 0,
+          citizenId: 'ไม่ระบุ'
+        }
       };
     }));
 
@@ -127,13 +172,13 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { userId, role, status } = body;
+    const { userId, role, status, profile } = body;
 
-    if (!userId || (!role && !status)) {
+    if (!userId || (!role && !status && !profile)) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
-    if (userId === authCheck.session.user.id) {
+    if (userId === authCheck.session.user.id && (role || status)) {
       return NextResponse.json({ success: false, error: 'Cannot modify your own admin role or status' }, { status: 400 });
     }
 
@@ -189,13 +234,39 @@ export async function PATCH(request: Request) {
       }
     }
 
-    const result = await db.collection('users').updateOne(
-      { _id: targetObjectId },
-      { $set: updateFields }
-    );
+    const targetUser = await db.collection('users').findOne({ _id: targetObjectId });
 
-    if (result.matchedCount === 0) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+    if (Object.keys(updateFields).length > 0) {
+      const result = await db.collection('users').updateOne(
+        { _id: targetObjectId },
+        { $set: updateFields }
+      );
+
+      if (result.matchedCount === 0) {
+        return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+      }
+    }
+
+    if (profile) {
+      const profileFields: Record<string, any> = {};
+      if (profile.company !== undefined) profileFields.company = profile.company;
+      if (profile.phone !== undefined) profileFields.phone = profile.phone;
+      if (profile.address !== undefined) profileFields.address = profile.address;
+      if (profile.budgets !== undefined) profileFields.budgets = parseFloat(profile.budgets) || 0;
+      if (profile.citizenId !== undefined) profileFields.citizenId = profile.citizenId;
+
+      await db.collection('profiles').updateOne(
+        { userId: targetObjectId.toString() },
+        { 
+          $set: { 
+            ...profileFields, 
+            name: targetUser?.name || 'ผู้ใช้งาน LINE (ยังไม่ได้ลงทะเบียน)',
+            email: targetUser?.email || 'ไม่มีอีเมล (LINE login)',
+            updatedAt: new Date() 
+          } 
+        },
+        { upsert: true }
+      );
     }
 
     // บันทึกกิจกรรมการจัดการของแอดมิน

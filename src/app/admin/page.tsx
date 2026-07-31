@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
+import { useToast } from '@/components/Toast';
 import styles from './AdminDashboard.module.css';
 
 interface UserStat {
@@ -18,6 +19,13 @@ interface UserStat {
   receiptCount: number;
   createdAt: string;
   lastActiveAt?: string | null;
+  profile?: {
+    company: string;
+    phone: string;
+    address: string;
+    budgets: number;
+    citizenId?: string;
+  };
 }
 
 interface SystemStats {
@@ -48,6 +56,15 @@ interface ActivityLog {
 export default function AdminPage() {
   const { data: session, status: sessionStatus } = useSession();
   const router = useRouter();
+  const { showToast } = useToast();
+
+  // Mask citizen ID — show only last 3 digits
+  const maskCitizenId = (id?: string): string => {
+    if (!id) return 'ไม่ระบุ';
+    const digits = id.replace(/-/g, '');
+    if (digits.length <= 3) return id;
+    return 'X'.repeat(digits.length - 3) + digits.slice(-3);
+  };
 
   const isUserOnline = (lastActiveAt?: string | null) => {
     if (!lastActiveAt) return false;
@@ -90,6 +107,27 @@ export default function AdminPage() {
   const [userSearch, setUserSearch] = useState('');
   const [receiptSearch, setReceiptSearch] = useState('');
   const [logSearch, setLogSearch] = useState('');
+
+  // Inspect user modal states
+  const [inspectingUser, setInspectingUser] = useState<UserStat | null>(null);
+  const [editProfileForm, setEditProfileForm] = useState({
+    company: '',
+    phone: '',
+    address: '',
+    budgets: 0
+  });
+
+  // Watch inspectingUser to populate editProfileForm
+  useEffect(() => {
+    if (inspectingUser) {
+      setEditProfileForm({
+        company: inspectingUser.profile?.company || 'ไม่ระบุ',
+        phone: inspectingUser.profile?.phone || 'ไม่ระบุ',
+        address: inspectingUser.profile?.address || 'ไม่ระบุ',
+        budgets: inspectingUser.profile?.budgets || 0
+      });
+    }
+  }, [inspectingUser]);
 
   // Protect client route as a fallback
   useEffect(() => {
@@ -182,12 +220,51 @@ export default function AdminPage() {
       if (json.success) {
         // Refresh users & stats & logs
         await Promise.all([fetchUsers(), fetchStats(), fetchLogs()]);
+        showToast('อัปเดตข้อมูลผู้ใช้งานเรียบร้อยแล้ว!', 'success');
       } else {
-        alert(json.error || 'Failed to update user');
+        showToast(json.error || 'Failed to update user', 'error');
       }
     } catch (e) {
       console.error(e);
-      alert('Network error');
+      showToast('Network error', 'error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Handle saving profile changes
+  const handleSaveProfile = async () => {
+    if (!inspectingUser) return;
+    try {
+      setActionLoading(inspectingUser.id);
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: inspectingUser.id,
+          profile: editProfileForm
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        // Refresh lists
+        await Promise.all([fetchUsers(), fetchStats(), fetchLogs()]);
+        // Update local modal state
+        setInspectingUser(prev => prev ? {
+          ...prev,
+          profile: {
+            company: editProfileForm.company,
+            phone: editProfileForm.phone,
+            address: editProfileForm.address,
+            budgets: editProfileForm.budgets
+          }
+        } : null);
+        showToast('บันทึกข้อมูลสำเร็จเรียบร้อยครับ!', 'success');
+      } else {
+        showToast('เกิดข้อผิดพลาด: ' + (json.error || 'ไม่สามารถบันทึกข้อมูลได้'), 'error');
+      }
+    } catch (e: any) {
+      showToast('เกิดข้อผิดพลาดการเชื่อมต่อ: ' + e.message, 'error');
     } finally {
       setActionLoading(null);
     }
@@ -195,7 +272,6 @@ export default function AdminPage() {
 
   // Handle receipt delete
   const handleReceiptDelete = async (receiptId: string) => {
-    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบใบเสร็จนี้ออก?')) return;
     try {
       setActionLoading(receiptId);
       const res = await fetch(`/api/receipts?id=${receiptId}`, {
@@ -204,12 +280,13 @@ export default function AdminPage() {
       const json = await res.json();
       if (json.success) {
         await Promise.all([fetchReceipts(), fetchStats(), fetchLogs()]);
+        showToast('ลบใบเสร็จเรียบร้อยแล้ว', 'success');
       } else {
-        alert(json.error || 'Failed to delete receipt');
+        showToast(json.error || 'Failed to delete receipt', 'error');
       }
     } catch (e) {
       console.error(e);
-      alert('Network error');
+      showToast('Network error', 'error');
     } finally {
       setActionLoading(null);
     }
@@ -517,6 +594,20 @@ export default function AdminPage() {
                           </td>
                           <td>
                             <div style={{ display: 'flex', gap: '8px' }}>
+                              {/* Inspect details button */}
+                              <button 
+                                className={styles.actionBtn}
+                                style={{ 
+                                  background: 'transparent',
+                                  border: '1px solid var(--border-color)',
+                                  color: 'var(--text-main)',
+                                  fontWeight: '600'
+                                }}
+                                onClick={() => setInspectingUser(u)}
+                              >
+                                🔍 ตรวจสอบข้อมูล
+                              </button>
+
                               {/* Toggle Role */}
                               <button 
                                 className={styles.actionBtn}
@@ -600,7 +691,7 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredReceipts.map(r => {
+                      {filteredReceipts.map((r, index) => {
                         const amt = r.totalAmount !== undefined ? r.totalAmount : r.amount;
                         const date = r.extractedData?.date || r.createdAt;
                         const cat = r.extractedData?.category || 'อื่นๆ';
@@ -608,7 +699,7 @@ export default function AdminPage() {
                         const isLine = r.source === 'line' || r.transactionId?.startsWith('LINE-');
 
                         return (
-                          <tr key={r.id || r._id}>
+                          <tr key={r.id || r._id || index}>
                             <td style={{ fontWeight: '700' }}>{r.storeName || 'ไม่ระบุร้านค้า'}</td>
                             <td style={{ color: 'var(--primary-hover)', fontWeight: 'bold' }}>
                               ฿ {typeof amt === 'number' ? amt.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '0.00'}
@@ -831,10 +922,7 @@ export default function AdminPage() {
                                   gap: '6px',
                                   transition: 'all 0.2s'
                                 }}
-                                onClick={() => {
-                                  setReceiptSearch(u.id);
-                                  setActiveTab('receipts');
-                                }}
+                                onClick={() => setInspectingUser(u)}
                                 onMouseOver={(e) => {
                                   e.currentTarget.style.background = 'var(--input-bg)';
                                 }}
@@ -1152,8 +1240,8 @@ export default function AdminPage() {
                                 </tr>
                               </thead>
                               <tbody>
-                                {stats.activeUsersInMonth.map((u) => (
-                                  <tr key={u.userId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                {stats.activeUsersInMonth.map((u, index) => (
+                                  <tr key={u.userId || index} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                     <td style={{ padding: '12px' }}>
                                       <div className={styles.userCell} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                         <img 
@@ -1205,6 +1293,259 @@ export default function AdminPage() {
                     ไม่พบข้อมูลสถิติสำหรับการแสดงผลกราฟ
                   </div>
                 )}
+              </div>
+            );
+          })()}
+          {inspectingUser && (() => {
+            const userReceipts = receipts.filter(r => 
+              r.userId === inspectingUser.id || 
+              (inspectingUser.lineUserId && r.userId === inspectingUser.lineUserId)
+            );
+
+            return (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh',
+                background: 'rgba(0, 0, 0, 0.65)',
+                backdropFilter: 'blur(8px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 9999,
+                padding: '20px'
+              }}>
+                <div style={{
+                  background: 'var(--card-bg)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '24px',
+                  width: '100%',
+                  maxWidth: '850px',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  boxShadow: 'var(--shadow-lg)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  position: 'relative',
+                  animation: 'fadeIn 0.25s ease'
+                }}>
+                  {/* Modal Header */}
+                  <div style={{
+                    padding: '24px 32px',
+                    borderBottom: '1px solid var(--border-color)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <img 
+                        src={inspectingUser.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${inspectingUser.name}`} 
+                        alt={inspectingUser.name} 
+                        style={{ width: '40px', height: '40px', borderRadius: '50%' }}
+                      />
+                      <div>
+                        <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: 'var(--text-main)' }}>
+                          ตรวจสอบข้อมูลผู้ใช้: {inspectingUser.name}
+                        </h3>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '2px' }}>
+                          ID: {inspectingUser.id}
+                        </div>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setInspectingUser(null)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        fontSize: '1.8rem',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        outline: 'none',
+                        lineHeight: '1',
+                        padding: '4px'
+                      }}
+                      title="ปิดหน้าต่าง"
+                    >
+                      &times;
+                    </button>
+                  </div>
+
+                  {/* Modal Body */}
+                  <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                    
+                    {/* Section 1: ข้อมูลประวัติการกรอก (Registration Details) */}
+                    <div>
+                      <h4 style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-main)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>📝</span> ข้อมูลการลงทะเบียนประวัติส่วนตัว
+                      </h4>
+                      
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                        gap: '20px',
+                        background: 'var(--input-bg)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '16px',
+                        padding: '24px'
+                      }}>
+                        {/* เป็นใครมาจากไหน */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>เป็นใครมาจากไหน (ที่อยู่ / ประวัติตนเอง)</span>
+                          <span style={{ 
+                            padding: '10px 16px', 
+                            background: 'var(--card-bg)', 
+                            border: '1px solid var(--border-color)', 
+                            borderRadius: '10px',
+                            color: 'var(--text-main)',
+                            fontSize: '0.9rem',
+                            minHeight: '42px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}>
+                            {inspectingUser.profile?.address || 'ไม่ระบุ'}
+                          </span>
+                        </div>
+
+                        {/* ทำงานอยู่ที่ไหน */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>ทำงานอยู่ที่ไหน (บริษัท / สถานที่ทำงาน)</span>
+                          <span style={{ 
+                            padding: '10px 16px', 
+                            background: 'var(--card-bg)', 
+                            border: '1px solid var(--border-color)', 
+                            borderRadius: '10px',
+                            color: 'var(--text-main)',
+                            fontSize: '0.9rem',
+                            minHeight: '42px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}>
+                            {inspectingUser.profile?.company || 'ไม่ระบุ'}
+                          </span>
+                        </div>
+
+                        {/* เบอร์โทรศัพท์ */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>เบอร์โทรศัพท์ติดต่อ</span>
+                          <span style={{ 
+                            padding: '10px 16px', 
+                            background: 'var(--card-bg)', 
+                            border: '1px solid var(--border-color)', 
+                            borderRadius: '10px',
+                            color: 'var(--text-main)',
+                            fontSize: '0.9rem',
+                            minHeight: '42px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}>
+                            {inspectingUser.profile?.phone || 'ไม่ระบุ'}
+                          </span>
+                        </div>
+
+                         {/* รหัสบัตรประชาชน */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>
+                            เลขประจำตัวประชาชน (13 หลัก)
+                            <span style={{ fontSize: '0.7rem', fontWeight: 400, marginLeft: '4px', opacity: 0.6 }}>🔒 3 ตัวท้าย</span>
+                          </span>
+                          <span style={{ 
+                            padding: '10px 16px', 
+                            background: 'var(--card-bg)', 
+                            border: '1px solid var(--border-color)', 
+                            borderRadius: '10px',
+                            color: 'var(--text-main)',
+                            fontSize: '0.9rem',
+                            minHeight: '42px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontFamily: 'monospace',
+                            letterSpacing: '1.5px'
+                          }}>
+                            {maskCitizenId(inspectingUser.profile?.citizenId)}
+                          </span>
+                        </div>
+
+                        {/* จำนวนเงินในบัญชี */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>จำนวนเงินในบัญชี (งบประมาณ / เงินเก็บ)</span>
+                          <span style={{ 
+                            padding: '10px 16px', 
+                            background: 'var(--card-bg)', 
+                            border: '1px solid var(--border-color)', 
+                            borderRadius: '10px',
+                            color: 'var(--text-main)',
+                            fontSize: '0.9rem',
+                            minHeight: '42px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontWeight: '600'
+                          }}>
+                            ฿{typeof inspectingUser.profile?.budgets === 'number' ? inspectingUser.profile.budgets.toLocaleString('en-US') : '0'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 2: รายการใบเสร็จทั้งหมด (All Receipts Uploaded) */}
+                    <div>
+                      <h4 style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-main)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>🧾</span> รายการใบเสร็จทั้งหมดของผู้ใช้คนนี้ ({userReceipts.length} รายการ)
+                      </h4>
+                      
+                      {userReceipts.length > 0 ? (
+                        <div className={styles.tableContainer} style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                          <table className={styles.table} style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ position: 'sticky', top: 0, background: 'var(--card-bg)', zIndex: 10 }}>
+                                <th style={{ textAlign: 'left', padding: '12px' }}>ร้านค้า</th>
+                                <th style={{ textAlign: 'left', padding: '12px' }}>ช่องทาง</th>
+                                <th style={{ textAlign: 'left', padding: '12px' }}>วันที่ส่ง</th>
+                                <th style={{ textAlign: 'right', padding: '12px' }}>จำนวนเงิน</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {userReceipts.map((r: any, index: number) => (
+                                <tr key={r.id || r._id || index} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                  <td style={{ padding: '12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                      {r.imageUrl && (
+                                        <img 
+                                          src={r.imageUrl} 
+                                          alt="slip" 
+                                          style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover', cursor: 'zoom-in' }} 
+                                          onClick={() => window.open(r.imageUrl, '_blank')}
+                                        />
+                                      )}
+                                      <div style={{ fontWeight: '500', color: 'var(--text-main)' }}>{r.storeName || 'ไม่ระบุร้านค้า'}</div>
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: '12px' }}>
+                                    <span className={`${styles.badge} ${r.source === 'line' ? styles.badgeAdmin : styles.badgeUser}`}>
+                                      {r.source === 'line' ? '💬 LINE Bot' : '🌐 Web UI'}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '12px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                    {new Date(r.createdAt).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                  </td>
+                                  <td style={{ padding: '12px', fontWeight: '700', textAlign: 'right', color: 'var(--text-main)', fontSize: '0.95rem' }}>
+                                    ฿{parseFloat(r.totalAmount || r.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', background: 'var(--input-bg)', border: '1px dashed var(--border-color)', borderRadius: '16px', fontSize: '0.85rem' }}>
+                          ไม่พบประวัติการส่งใบเสร็จใดๆ ในระบบสำหรับผู้ใช้นี้
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                </div>
               </div>
             );
           })()}

@@ -62,6 +62,13 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
 
         <nav className={styles.nav}>
           <div className={styles.navSection}>
+            บัญชีผู้ใช้
+          </div>
+          <ul className={styles.navList}>
+            <SidebarItem href="/profile" active={pathname === '/profile'} label="ข้อมูลของฉัน" icon={<UserIcon />} />
+          </ul>
+
+          <div className={styles.navSection}>
             เมนูธุรกิจ
           </div>
           <ul className={styles.navList}>
@@ -112,15 +119,17 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
           <div className={styles.navSpacer} />
         </nav>
 
-        <div className={styles.userCard}>
-          <div className={styles.userAvatar}>
-            <img src={displayImage} alt="User" />
-            <div className={styles.statusIndicator}></div>
-          </div>
-          <div className={styles.userInfo}>
-            <div className={styles.userName}>{displayName}</div>
-            <div className={styles.userId}>{userId}</div>
-          </div>
+        <div className={styles.userCard} style={{ cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}>
+          <Link href="/profile" style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, textDecoration: 'none', minWidth: 0 }}>
+            <div className={styles.userAvatar}>
+              <img src={displayImage} alt="User" />
+              <div className={styles.statusIndicator}></div>
+            </div>
+            <div className={styles.userInfo}>
+              <div className={styles.userName} style={{ color: 'var(--text-main)' }}>{displayName}</div>
+              <div className={styles.userId} style={{ color: 'var(--text-muted)' }}>{userId}</div>
+            </div>
+          </Link>
           <button
             className={styles.logoutButton}
             title="ออกจากระบบ"

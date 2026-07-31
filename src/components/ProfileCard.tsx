@@ -40,6 +40,10 @@ export default function ProfileCard({ refreshTrigger }: { refreshTrigger?: numbe
         <span>เบอร์โทร:</span>
         <strong>{data.phone || "-"}</strong>
       </div>
+      <div className={styles.row}>
+        <span>เลขบัตรประชาชน:</span>
+        <strong>{data.citizenId || "-"}</strong>
+      </div>
       {data.customCategories && data.customCategories.length > 0 && (
         <>
           <div style={{ marginTop: '20px', fontWeight: 'bold', fontSize: '0.95rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', color: 'var(--text-main)' }}>หมวดหมู่รายจ่ายส่วนตัว</div>

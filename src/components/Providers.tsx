@@ -2,6 +2,7 @@
 
 import { SessionProvider, useSession } from "next-auth/react"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { ToastProvider } from "@/components/Toast"
 import { useEffect } from "react"
 
 function ActiveStatusTracker() {
@@ -45,10 +46,13 @@ function ActiveStatusTracker() {
 export function Providers({ children }: { children: React.ReactNode }) {
     return (
         <SessionProvider>
-            <ActiveStatusTracker />
-            <ErrorBoundary>
-                {children}
-            </ErrorBoundary>
+            <ToastProvider>
+                <ActiveStatusTracker />
+                <ErrorBoundary>
+                    {children}
+                </ErrorBoundary>
+            </ToastProvider>
         </SessionProvider>
     )
 }
+

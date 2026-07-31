@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
         company: "",
         email: session.user.email || "",
         phone: "",
+        citizenId: "",
       });
     }
 
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, company, email, phone, budgets } = body;
+    const { name, company, email, phone, budgets, citizenId } = body;
 
     const client = await clientPromise;
     const db = client.db();
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
       company,
       email,
       phone,
+      citizenId,
       updatedAt: new Date(),
     };
 
