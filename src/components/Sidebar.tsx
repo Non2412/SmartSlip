@@ -62,6 +62,13 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
 
         <nav className={styles.nav}>
           <div className={styles.navSection}>
+            บัญชีผู้ใช้
+          </div>
+          <ul className={styles.navList}>
+            <SidebarItem href="/profile" active={pathname === '/profile'} label="ข้อมูลของฉัน" icon={<UserIcon />} />
+          </ul>
+
+          <div className={styles.navSection}>
             เมนูธุรกิจ
           </div>
           <ul className={styles.navList}>
@@ -78,6 +85,17 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
             <SidebarItem href="/history" active={pathname === '/history'} label="ประวัติใบเสร็จ" icon={<HistoryIcon />} />
             <SidebarItem href="/activity-logs" active={pathname === '/activity-logs'} label="ประวัติกิจกรรม" icon={<ActivityIcon />} />
           </ul>
+
+          {user && (user as any).role === 'admin' && (
+            <>
+              <div className={styles.navSection}>
+                ผู้ดูแลระบบ (Admin)
+              </div>
+              <ul className={styles.navList}>
+                <SidebarItem href="/admin" active={pathname === '/admin'} label="จัดการระบบ" icon={<AdminIcon />} />
+              </ul>
+            </>
+          )}
 
           <div className={styles.navSection}>
             ช่วยเหลือ
@@ -101,15 +119,17 @@ const Sidebar = ({ onAddReceipt, isOpen, onClose }: SidebarProps) => {
           <div className={styles.navSpacer} />
         </nav>
 
-        <div className={styles.userCard}>
-          <div className={styles.userAvatar}>
-            <img src={displayImage} alt="User" />
-            <div className={styles.statusIndicator}></div>
-          </div>
-          <div className={styles.userInfo}>
-            <div className={styles.userName}>{displayName}</div>
-            <div className={styles.userId}>{userId}</div>
-          </div>
+        <div className={styles.userCard} style={{ cursor: 'pointer', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}>
+          <Link href="/profile" style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, textDecoration: 'none', minWidth: 0 }}>
+            <div className={styles.userAvatar}>
+              <img src={displayImage} alt="User" />
+              <div className={styles.statusIndicator}></div>
+            </div>
+            <div className={styles.userInfo}>
+              <div className={styles.userName} style={{ color: 'var(--text-main)' }}>{displayName}</div>
+              <div className={styles.userId} style={{ color: 'var(--text-muted)' }}>{userId}</div>
+            </div>
+          </Link>
           <button
             className={styles.logoutButton}
             title="ออกจากระบบ"
@@ -328,6 +348,16 @@ function LineIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    </svg>
+  );
+}
+
+function AdminIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="M12 8v4" />
+      <path d="M12 16h.01" />
     </svg>
   );
 }
