@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { auth } from '@/auth';
 
 // GET: ดึงรายการใบเสร็จทั้งหมด
 export async function GET(request: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if ((session.user as any).status !== 'active' && (session.user as any).role !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     const lineUserId = searchParams.get('lineUserId');
@@ -12,12 +22,29 @@ export async function GET(request: Request) {
     const client = await clientPromise;
     const db = client.db('smartslip_api');
 
+    const userRole = (session.user as any).role;
+    const currentUserId = session.user.id;
+    const currentLineUserId = (session as any).lineUserId;
+
     let query: Record<string, any> = {};
-    if (userId && lineUserId) {
-      // Query by either MongoDB user ID or LINE user ID (for backend webhook receipts)
-      query = { $or: [{ userId }, { userId: lineUserId }] };
-    } else if (userId) {
-      query = { userId };
+    if (userRole === 'admin') {
+      const all = searchParams.get('all') === 'true';
+      if (!all) {
+        const targetUserId = userId || currentUserId;
+        const targetLineUserId = lineUserId || currentLineUserId;
+        if (targetUserId && targetLineUserId) {
+          query = { $or: [{ userId: targetUserId }, { userId: targetLineUserId }] };
+        } else if (targetUserId) {
+          query = { userId: targetUserId };
+        }
+      }
+      // If all === true, query is empty, fetching all receipts
+    } else {
+      if (currentUserId && currentLineUserId) {
+        query = { $or: [{ userId: currentUserId }, { userId: currentLineUserId }] };
+      } else if (currentUserId) {
+        query = { userId: currentUserId };
+      }
     }
 
     const receipts = await db
@@ -75,6 +102,15 @@ export async function GET(request: Request) {
 // POST: เพิ่มใบเสร็จใหม่
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if ((session.user as any).status !== 'active' && (session.user as any).role !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { storeName, totalAmount, userId, extractedData, imageFileId, imageHash } = body;
 
@@ -85,13 +121,22 @@ export async function POST(request: Request) {
       );
     }
 
+    const userRole = (session.user as any).role;
+    const currentUserId = session.user.id;
+
+    // Regular user can only create receipts for themselves
+    let targetUserId = userId || currentUserId;
+    if (userRole !== 'admin') {
+      targetUserId = currentUserId;
+    }
+
     const client = await clientPromise;
     const db = client.db('smartslip_api');
 
     const newReceipt = {
       storeName,
       totalAmount: parseFloat(totalAmount.toString()),
-      userId: userId || 'user123',
+      userId: targetUserId,
       extractedData: extractedData || null,
       imageFileId: imageFileId || null,
       imageHash: imageHash || null,
@@ -121,15 +166,39 @@ export async function POST(request: Request) {
 // PATCH: อัปเดตข้อมูลใบเสร็จ
 export async function PATCH(request: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if ((session.user as any).status !== 'active' && (session.user as any).role !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ success: false, error: 'ID required' }, { status: 400 });
 
-    const body = await request.json();
-    const { storeName, totalAmount, extractedData, imageUrl, imageURL, imageHash } = body;
-
     const client = await clientPromise;
     const db = client.db('smartslip_api');
+
+    // Find existing receipt
+    const existing = await db.collection('receipts').findOne({ _id: new ObjectId(id) });
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'Receipt not found' }, { status: 404 });
+    }
+
+    // Verify ownership
+    const userRole = (session.user as any).role;
+    const currentUserId = session.user.id;
+    const currentLineUserId = (session as any).lineUserId;
+
+    if (userRole !== 'admin' && existing.userId !== currentUserId && existing.userId !== currentLineUserId) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { storeName, totalAmount, extractedData, imageUrl, imageURL, imageHash } = body;
 
     const updateFields: Record<string, unknown> = { updatedAt: new Date().toISOString() };
     if (storeName !== undefined) updateFields.storeName = storeName;
@@ -161,6 +230,15 @@ export async function PATCH(request: Request) {
 // DELETE: ลบใบเสร็จ (รองรับทีละใบ หรือ หลายใบผ่าน ?ids=)
 export async function DELETE(request: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if ((session.user as any).status !== 'active' && (session.user as any).role !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const idsParam = searchParams.get('ids');
@@ -170,12 +248,36 @@ export async function DELETE(request: Request) {
     const client = await clientPromise;
     const db = client.db('smartslip_api');
 
+    const userRole = (session.user as any).role;
+    const currentUserId = session.user.id;
+    const currentLineUserId = (session as any).lineUserId;
+
+    // Verify ownership of all targets
+    const targetIds: ObjectId[] = [];
     if (idsParam) {
-      const ids = idsParam.split(',').map(item => new ObjectId(item.trim()));
-      await db.collection('receipts').deleteMany({ _id: { $in: ids } });
-    } else if (id) {
-      await db.collection('receipts').deleteOne({ _id: new ObjectId(id) });
+      idsParam.split(',').forEach(item => {
+        if (ObjectId.isValid(item.trim())) {
+          targetIds.push(new ObjectId(item.trim()));
+        }
+      });
+    } else if (id && ObjectId.isValid(id)) {
+      targetIds.push(new ObjectId(id));
     }
+
+    if (targetIds.length === 0) {
+      return NextResponse.json({ success: false, error: 'Invalid ID format' }, { status: 400 });
+    }
+
+    if (userRole !== 'admin') {
+      const items = await db.collection('receipts').find({ _id: { $in: targetIds } }).toArray();
+      const hasUnowned = items.some(item => item.userId !== currentUserId && item.userId !== currentLineUserId);
+      if (hasUnowned) {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
+    // Perform delete
+    await db.collection('receipts').deleteMany({ _id: { $in: targetIds } });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

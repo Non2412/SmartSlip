@@ -1,0 +1,1215 @@
+"use client";
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import Sidebar from '@/components/Sidebar';
+import TopBar from '@/components/TopBar';
+import styles from './AdminDashboard.module.css';
+
+interface UserStat {
+  id: string;
+  name: string;
+  email: string | null;
+  image: string | null;
+  role: string;
+  status: string;
+  lineUserId: string | null;
+  receiptCount: number;
+  createdAt: string;
+  lastActiveAt?: string | null;
+}
+
+interface SystemStats {
+  totalUsers: number;
+  activeUsers: number;
+  restrictedUsers: number;
+  pendingUsers: number;
+  totalReceipts: number;
+  webReceipts: number;
+  lineReceipts: number;
+  totalLogs: number;
+  totalAmount: number;
+  uploadTrend?: { date: string; count: number }[];
+  activeUsersInMonth?: { userId: string; name: string; image: string | null; role: string; status: string; count: number }[];
+}
+
+interface ActivityLog {
+  id: string;
+  userId: string;
+  userName: string;
+  userImage: string | null;
+  action: string;
+  details: string;
+  timestamp: string;
+  receiptId?: string;
+}
+
+export default function AdminPage() {
+  const { data: session, status: sessionStatus } = useSession();
+  const router = useRouter();
+
+  const isUserOnline = (lastActiveAt?: string | null) => {
+    if (!lastActiveAt) return false;
+    const diff = new Date().getTime() - new Date(lastActiveAt).getTime();
+    return diff < 90000; // 90 seconds threshold
+  };
+
+  const formatLastActive = (lastActiveAt: string) => {
+    const date = new Date(lastActiveAt);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    
+    if (diff < 60000) return 'เมื่อครู่นี้';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} นาทีที่แล้ว`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} ชั่วโมงที่แล้ว`;
+    return date.toLocaleDateString('th-TH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'receipts' | 'logs' | 'approvals' | 'images'>('overview');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // States for API data
+  const [stats, setStats] = useState<SystemStats | null>(null);
+  const [users, setUsers] = useState<UserStat[]>([]);
+  const [receipts, setReceipts] = useState<any[]>([]);
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+
+  // Graph Date Filters
+  const [graphYear, setGraphYear] = useState<number>(new Date().getFullYear());
+  const [graphMonth, setGraphMonth] = useState<number>(new Date().getMonth() + 1);
+
+  // Loading and error states
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingReceipts, setLoadingReceipts] = useState(true);
+  const [loadingLogs, setLoadingLogs] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Search states
+  const [userSearch, setUserSearch] = useState('');
+  const [receiptSearch, setReceiptSearch] = useState('');
+  const [logSearch, setLogSearch] = useState('');
+
+  // Protect client route as a fallback
+  useEffect(() => {
+    if (sessionStatus === 'unauthenticated') {
+      router.push('/login');
+    } else if (sessionStatus === 'authenticated' && (session?.user as any)?.role !== 'admin') {
+      router.push('/dashboard');
+    }
+  }, [session, sessionStatus, router]);
+
+  // Fetch initial data
+  const fetchStats = async (year: number = graphYear, month: number = graphMonth) => {
+    try {
+      setLoadingStats(true);
+      const res = await fetch(`/api/admin/stats?year=${year}&month=${month}`);
+      const json = await res.json();
+      if (json.success) setStats(json.data);
+    } catch (e) {
+      console.error('Failed to fetch stats:', e);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const res = await fetch('/api/admin/users');
+      const json = await res.json();
+      if (json.success) setUsers(json.data);
+    } catch (e) {
+      console.error('Failed to fetch users:', e);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const fetchReceipts = async () => {
+    try {
+      setLoadingReceipts(true);
+      const res = await fetch('/api/receipts?all=true');
+      const json = await res.json();
+      if (json.success) setReceipts(json.data || json.receipts || []);
+    } catch (e) {
+      console.error('Failed to fetch receipts:', e);
+    } finally {
+      setLoadingReceipts(false);
+    }
+  };
+
+  const fetchLogs = async () => {
+    try {
+      setLoadingLogs(true);
+      const res = await fetch('/api/admin/logs');
+      const json = await res.json();
+      if (json.success) setLogs(json.data);
+    } catch (e) {
+      console.error('Failed to fetch logs:', e);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
+  // Fetch stats when graph filter dependencies change
+  useEffect(() => {
+    if (sessionStatus === 'authenticated' && (session?.user as any)?.role === 'admin') {
+      fetchStats(graphYear, graphMonth);
+    }
+  }, [session, sessionStatus, graphYear, graphMonth]);
+
+  // Fetch lists on load
+  useEffect(() => {
+    if (sessionStatus === 'authenticated' && (session?.user as any)?.role === 'admin') {
+      fetchUsers();
+      fetchReceipts();
+      fetchLogs();
+    }
+  }, [session, sessionStatus]);
+
+  // Handle user role or status change
+  const handleUserUpdate = async (userId: string, updates: { role?: string; status?: string }) => {
+    try {
+      setActionLoading(userId);
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, ...updates })
+      });
+      const json = await res.json();
+      if (json.success) {
+        // Refresh users & stats & logs
+        await Promise.all([fetchUsers(), fetchStats(), fetchLogs()]);
+      } else {
+        alert(json.error || 'Failed to update user');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Network error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Handle receipt delete
+  const handleReceiptDelete = async (receiptId: string) => {
+    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบใบเสร็จนี้ออก?')) return;
+    try {
+      setActionLoading(receiptId);
+      const res = await fetch(`/api/receipts?id=${receiptId}`, {
+        method: 'DELETE'
+      });
+      const json = await res.json();
+      if (json.success) {
+        await Promise.all([fetchReceipts(), fetchStats(), fetchLogs()]);
+      } else {
+        alert(json.error || 'Failed to delete receipt');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Network error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Filtered views
+  const filteredUsers = useMemo(() => {
+    const q = userSearch.toLowerCase().trim();
+    if (!q) return users;
+    return users.filter(u => 
+      (u.name || '').toLowerCase().includes(q) || 
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.id || '').toLowerCase().includes(q)
+    );
+  }, [users, userSearch]);
+
+  const filteredReceipts = useMemo(() => {
+    const q = receiptSearch.toLowerCase().trim();
+    if (!q) return receipts;
+    return receipts.filter(r => 
+      (r.storeName || '').toLowerCase().includes(q) || 
+      String(r.totalAmount || r.amount || '').includes(q) ||
+      (r.userId || '').toLowerCase().includes(q) ||
+      (r.extractedData?.category || 'อื่นๆ').toLowerCase().includes(q)
+    );
+  }, [receipts, receiptSearch]);
+
+  const filteredLogs = useMemo(() => {
+    const q = logSearch.toLowerCase().trim();
+    if (!q) return logs;
+    return logs.filter(l => 
+      (l.userName || '').toLowerCase().includes(q) || 
+      (l.details || '').toLowerCase().includes(q) ||
+      (l.action || '').toLowerCase().includes(q)
+    );
+  }, [logs, logSearch]);
+
+  // Sidebar controls
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const closeSidebar = () => setIsSidebarOpen(false);
+
+  if (sessionStatus === 'loading' || (sessionStatus === 'authenticated' && (session?.user as any)?.role !== 'admin')) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main, #0f172a)', color: '#94a3b8' }}>
+        กำลังโหลดหน้าระบบจัดการ...
+      </div>
+    );
+  }
+
+  return (
+    <div className="dashboard-layout">
+      <div className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} onClick={closeSidebar} />
+      <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
+      
+      <main className="main-content">
+        <TopBar title="จัดการระบบ (Admin Dashboard)" onToggleSidebar={toggleSidebar} />
+        
+        <div className={styles.container}>
+          {/* Tabs Navigation */}
+          <div className={styles.tabsContainer}>
+            <button 
+              className={`${styles.tabButton} ${activeTab === 'overview' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('overview')}
+            >
+              📊 ภาพรวมระบบ
+            </button>
+            <button 
+              className={`${styles.tabButton} ${activeTab === 'users' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('users')}
+            >
+              👥 จัดการผู้ใช้
+            </button>
+            <button 
+              className={`${styles.tabButton} ${activeTab === 'receipts' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('receipts')}
+            >
+              📄 ตรวจสอบใบเสร็จ
+            </button>
+            <button 
+              className={`${styles.tabButton} ${activeTab === 'logs' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('logs')}
+            >
+              🪵 บันทึกกิจกรรม
+            </button>
+            <button 
+              className={`${styles.tabButton} ${activeTab === 'approvals' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('approvals')}
+            >
+              ⏳ อนุมัติการใช้งาน
+              {users.filter(u => u.status === 'pending').length > 0 && (
+                <span style={{
+                  background: '#f59e0b',
+                  color: '#0f172a',
+                  padding: '2px 6px',
+                  borderRadius: '6px',
+                  fontSize: '0.7rem',
+                  fontWeight: '800',
+                  marginLeft: '6px',
+                  boxShadow: '0 0 6px rgba(245, 158, 11, 0.4)'
+                }}>
+                  {users.filter(u => u.status === 'pending').length}
+                </span>
+              )}
+            </button>
+            <button 
+              className={`${styles.tabButton} ${activeTab === 'images' ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab('images')}
+            >
+              📈 กราฟปริมาณรูปภาพ
+            </button>
+          </div>
+
+          {/* Tab 1: Overview */}
+          {activeTab === 'overview' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              {loadingStats ? (
+                <div className={styles.loadingSpinner}><div className={styles.spinner} /> กำลังโหลดข้อมูล...</div>
+              ) : stats ? (
+                <>
+                  <div className={styles.statsRow}>
+                    <div className={styles.statCard}>
+                      <div className={styles.statHeader}>
+                        <span className={styles.statTitle}>ผู้ใช้ทั้งหมด</span>
+                        <div className={styles.statIcon} style={{ background: 'rgba(99, 102, 241, 0.12)', color: '#6366f1' }}>👥</div>
+                      </div>
+                      <div>
+                        <div className={styles.statValue}>{stats.totalUsers} คน</div>
+                        <div className={styles.statDetails}>
+                          <span>🟢 Active: {stats.activeUsers}</span>
+                          <span>⏳ รออนุมัติ: {stats.pendingUsers}</span>
+                          <span>🔴 Restricted: {stats.restrictedUsers}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={styles.statCard}>
+                      <div className={styles.statHeader}>
+                        <span className={styles.statTitle}>ใบเสร็จทั้งหมดในระบบ</span>
+                        <div className={styles.statIcon} style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>📄</div>
+                      </div>
+                      <div>
+                        <div className={styles.statValue}>{stats.totalReceipts} ใบ</div>
+                        <div className={styles.statDetails}>
+                          <span>💻 Web: {stats.webReceipts}</span>
+                          <span>💬 LINE Bot: {stats.lineReceipts}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={styles.statCard}>
+                      <div className={styles.statHeader}>
+                        <span className={styles.statTitle}>ยอดค่าใช้จ่ายรวมผ่านระบบ</span>
+                        <div className={styles.statIcon} style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b' }}>฿</div>
+                      </div>
+                      <div>
+                        <div className={styles.statValue}>฿ {stats.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</div>
+                        <div className={styles.statDetails}>
+                          <span>เฉลี่ย: ฿ {(stats.totalReceipts > 0 ? stats.totalAmount / stats.totalReceipts : 0).toLocaleString('th-TH', { maximumFractionDigits: 2 })} / ใบ</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={styles.statCard}>
+                      <div className={styles.statHeader}>
+                        <span className={styles.statTitle}>บันทึกกิจกรรม</span>
+                        <div className={styles.statIcon} style={{ background: 'rgba(100, 116, 139, 0.12)', color: '#64748b' }}>🪵</div>
+                      </div>
+                      <div>
+                        <div className={styles.statValue}>{stats.totalLogs} กิจกรรม</div>
+                        <div className={styles.statDetails}>
+                          <span>ประวัติตรวจสอบระบบ</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Activity Summary Card */}
+                  <div className={styles.card}>
+                    <div className={styles.cardTitle}>📊 กิจกรรมล่าสุดในระบบ</div>
+                    {loadingLogs ? (
+                      <div>กำลังโหลดกิจกรรม...</div>
+                    ) : logs.length === 0 ? (
+                      <div style={{ color: 'var(--text-muted)' }}>ไม่มีข้อมูลกิจกรรม</div>
+                    ) : (
+                      <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                        {logs.slice(0, 5).map(l => (
+                          <div key={l.id} className={`${styles.logItem} ${styles[`log${l.action.charAt(0).toUpperCase() + l.action.slice(1)}`] || ''}`}>
+                            <div className={styles.logDetails}>
+                              <span className={styles.logText}>{l.details}</span>
+                              <div className={styles.logMeta}>
+                                <span>👤 ทำโดย: {l.userName}</span>
+                                <span>🕒 {new Date(l.timestamp).toLocaleString('th-TH')}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div>เกิดข้อผิดพลาดในการดึงข้อมูล</div>
+              )}
+            </div>
+          )}
+
+          {/* Tab 2: Users Management */}
+          {activeTab === 'users' && (
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div className={styles.cardTitle}>รายชื่อผู้ใช้งานระบบ ({filteredUsers.length} คน)</div>
+                <div className={styles.searchBar}>
+                  🔍
+                  <input 
+                    type="text" 
+                    placeholder="ค้นหาชื่อ อีเมล หรือ ID..." 
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {loadingUsers ? (
+                <div className={styles.loadingSpinner}><div className={styles.spinner} /> กำลังโหลดผู้ใช้งาน...</div>
+              ) : (
+                <div className={styles.tableWrapper}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>ผู้ใช้</th>
+                        <th>LINE ID</th>
+                        <th>บทบาท</th>
+                        <th>สถานะบัญชี</th>
+                        <th>จำนวนใบเสร็จ</th>
+                        <th>วันที่เข้าร่วม</th>
+                        <th>จัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.map(u => (
+                        <tr key={u.id}>
+                          <td>
+                            <div className={styles.userCell}>
+                              <div style={{ position: 'relative' }}>
+                                <img 
+                                  src={u.image || "https://api.dicebear.com/7.x/avataaars/svg?seed=" + u.name} 
+                                  alt={u.name} 
+                                  className={styles.avatar} 
+                                />
+                                <div style={{
+                                  position: 'absolute',
+                                  bottom: '0',
+                                  right: '0',
+                                  width: '10px',
+                                  height: '10px',
+                                  borderRadius: '50%',
+                                  background: isUserOnline(u.lastActiveAt) ? '#22c55e' : '#94a3b8',
+                                  border: '1.5px solid var(--card-bg)',
+                                  boxShadow: isUserOnline(u.lastActiveAt) ? '0 0 8px #22c55e' : 'none'
+                                }} title={isUserOnline(u.lastActiveAt) ? 'ออนไลน์' : 'ออฟไลน์'} />
+                              </div>
+                              <div>
+                                <div className={styles.userName}>{u.name}</div>
+                                <div className={styles.userEmail}>{u.email || 'ไม่มีอีเมล (LINE login)'}</div>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                  {isUserOnline(u.lastActiveAt) ? (
+                                    <span style={{ color: '#22c55e', fontWeight: 'bold' }}>🟢 ออนไลน์</span>
+                                  ) : u.lastActiveAt ? (
+                                    `ใช้งานล่าสุด: ${formatLastActive(u.lastActiveAt)}`
+                                  ) : (
+                                    '⚫ ออฟไลน์'
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            {u.lineUserId ? (
+                              <span title={u.lineUserId} style={{ color: '#06c755', fontWeight: 'bold' }}>
+                                🟢 เชื่อมต่อ ({u.lineUserId.substring(0, 8)}...)
+                              </span>
+                            ) : (
+                              '❌ ไม่ได้เชื่อมต่อ'
+                            )}
+                          </td>
+                          <td>
+                            <span className={`${styles.badge} ${u.role === 'admin' ? styles.badgeAdmin : styles.badgeUser}`}>
+                              {u.role === 'admin' ? '🛡️ Admin' : '👤 User'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`${styles.badge} ${
+                              u.status === 'restricted' ? styles.badgeRestricted : 
+                              u.status === 'pending' ? styles.badgePending : 
+                              styles.badgeActive
+                            }`}>
+                              {u.status === 'restricted' ? '🚫 Restricted' : 
+                               u.status === 'pending' ? '⏳ Pending' : 
+                               '🟢 Active'}
+                            </span>
+                          </td>
+                          <td style={{ fontWeight: '700', paddingLeft: '24px' }}>{u.receiptCount} ใบ</td>
+                          <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            {new Date(u.createdAt).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              {/* Toggle Role */}
+                              <button 
+                                className={styles.actionBtn}
+                                onClick={() => handleUserUpdate(u.id, { role: u.role === 'admin' ? 'user' : 'admin' })}
+                                disabled={actionLoading !== null}
+                              >
+                                {u.role === 'admin' ? '🛡️ ลดสิทธิ์' : '🔑 ตั้ง Admin'}
+                              </button>
+                              
+                              {/* Status Action */}
+                              {u.status === 'pending' ? (
+                                <>
+                                  <button 
+                                    className={`${styles.actionBtn} ${styles.successBtn}`}
+                                    onClick={() => handleUserUpdate(u.id, { status: 'active' })}
+                                    disabled={actionLoading !== null}
+                                    title="อนุมัติการใช้งาน"
+                                  >
+                                    ✅ อนุมัติ
+                                  </button>
+                                  <button 
+                                    className={`${styles.actionBtn} ${styles.dangerBtn}`}
+                                    onClick={() => handleUserUpdate(u.id, { status: 'restricted' })}
+                                    disabled={actionLoading !== null}
+                                    title="ปฏิเสธและระงับการใช้งาน"
+                                  >
+                                    ❌ ปฏิเสธ
+                                  </button>
+                                </>
+                              ) : (
+                                <button 
+                                  className={`${styles.actionBtn} ${u.status === 'restricted' ? styles.successBtn : styles.dangerBtn}`}
+                                  onClick={() => handleUserUpdate(u.id, { status: u.status === 'restricted' ? 'active' : 'restricted' })}
+                                  disabled={actionLoading !== null}
+                                >
+                                  {u.status === 'restricted' ? '🔓 ปลดบล็อก' : '🚫 ระงับใช้งาน'}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab 3: Receipts Audit */}
+          {activeTab === 'receipts' && (
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div className={styles.cardTitle}>ตรวจสอบใบเสร็จระบบทั้งหมด ({filteredReceipts.length} รายการ)</div>
+                <div className={styles.searchBar}>
+                  🔍
+                  <input 
+                    type="text" 
+                    placeholder="ค้นหาร้านค้า ยอดเงิน หรือ หมวดหมู่..." 
+                    value={receiptSearch}
+                    onChange={(e) => setReceiptSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {loadingReceipts ? (
+                <div className={styles.loadingSpinner}><div className={styles.spinner} /> กำลังโหลดใบเสร็จ...</div>
+              ) : (
+                <div className={styles.tableWrapper}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>ร้านค้า</th>
+                        <th>ยอดเงิน</th>
+                        <th>หมวดหมู่</th>
+                        <th>ช่องทางชำระ</th>
+                        <th>ผู้ส่ง (User ID)</th>
+                        <th>ช่องทางส่ง</th>
+                        <th>วันที่ทำรายการ</th>
+                        <th>การจัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredReceipts.map(r => {
+                        const amt = r.totalAmount !== undefined ? r.totalAmount : r.amount;
+                        const date = r.extractedData?.date || r.createdAt;
+                        const cat = r.extractedData?.category || 'อื่นๆ';
+                        const method = r.extractedData?.method || r.extractedData?.paymentMethod || 'ไม่ระบุ';
+                        const isLine = r.source === 'line' || r.transactionId?.startsWith('LINE-');
+
+                        return (
+                          <tr key={r.id || r._id}>
+                            <td style={{ fontWeight: '700' }}>{r.storeName || 'ไม่ระบุร้านค้า'}</td>
+                            <td style={{ color: 'var(--primary-hover)', fontWeight: 'bold' }}>
+                              ฿ {typeof amt === 'number' ? amt.toLocaleString('th-TH', { minimumFractionDigits: 2 }) : '0.00'}
+                            </td>
+                            <td>
+                              <span style={{
+                                padding: '4px 8px', background: 'var(--input-bg)', border: '1px solid var(--border-color)',
+                                borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold'
+                              }}>
+                                {cat}
+                              </span>
+                            </td>
+                            <td>{method}</td>
+                            <td style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-muted)' }} title={r.userId}>
+                              {r.userId ? `${r.userId.substring(0, 10)}...` : 'Unknown'}
+                            </td>
+                            <td>
+                              <span style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                {isLine ? '💬 LINE' : '💻 Web'}
+                              </span>
+                            </td>
+                            <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                              {new Date(date).toLocaleString('th-TH')}
+                            </td>
+                            <td>
+                              <button 
+                                className={`${styles.actionBtn} ${styles.dangerBtn}`}
+                                onClick={() => handleReceiptDelete(r.id || r._id)}
+                                disabled={actionLoading !== null}
+                              >
+                                🗑️ ลบใบเสร็จ
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab 4: System Activity Logs */}
+          {activeTab === 'logs' && (
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div className={styles.cardTitle}>บันทึกกิจกรรมของระบบ ({filteredLogs.length} รายการ)</div>
+                <div className={styles.searchBar}>
+                  🔍
+                  <input 
+                    type="text" 
+                    placeholder="ค้นหาข้อความ กิจกรรม หรือ ชื่อผู้ทำ..." 
+                    value={logSearch}
+                    onChange={(e) => setLogSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {loadingLogs ? (
+                <div className={styles.loadingSpinner}><div className={styles.spinner} /> กำลังโหลดบันทึกกิจกรรม...</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '600px', overflowY: 'auto', paddingRight: '4px' }}>
+                  {filteredLogs.map(l => (
+                    <div 
+                      key={l.id} 
+                      className={`${styles.logItem} ${styles[`log${l.action.charAt(0).toUpperCase() + l.action.slice(1)}`] || ''}`}
+                    >
+                      <div className={styles.logDetails}>
+                        <div className={styles.logText}>{l.details}</div>
+                        <div className={styles.logMeta}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            {l.userImage && (
+                              <img src={l.userImage} alt="" style={{ width: '16px', height: '16px', borderRadius: '50%' }} />
+                            )}
+                            👤 ผู้ทำ: <strong>{l.userName}</strong>
+                          </span>
+                          <span>🔑 Action: {l.action}</span>
+                          {l.receiptId && (
+                            <span style={{ fontFamily: 'monospace' }}>📄 ID ใบเสร็จ: {l.receiptId}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className={styles.logTime}>
+                        {new Date(l.timestamp).toLocaleString('th-TH')}
+                      </div>
+                    </div>
+                  ))}
+                  {filteredLogs.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                      ไม่พบประวัติกิจกรรมที่ค้นหา
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab 5: User Approvals */}
+          {activeTab === 'approvals' && (
+            <div className={styles.card}>
+              <div className={styles.cardHeader} style={{ marginBottom: '24px' }}>
+                <div>
+                  <div className={styles.cardTitle}>⏳ คำขออนุมัติเข้าใช้งานระบบ ({users.filter(u => u.status === 'pending').length} รายการ)</div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
+                    กรุณาตรวจสอบรายชื่อและประวัติผู้สมัครใหม่ก่อนอนุมัติสิทธิ์การเข้าถึงระบบ
+                  </p>
+                </div>
+              </div>
+
+              {loadingUsers ? (
+                <div className={styles.loadingSpinner}><div className={styles.spinner} /> กำลังโหลดข้อมูล...</div>
+              ) : users.filter(u => u.status === 'pending').length === 0 ? (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '60px 24px',
+                  color: 'var(--text-muted)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    background: 'rgba(34, 197, 94, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#22c55e',
+                    fontSize: '1.8rem',
+                    marginBottom: '16px',
+                    fontWeight: 'bold'
+                  }}>
+                    ✓
+                  </div>
+                  <h3 style={{ color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: '700', marginBottom: '8px' }}>
+                    ไม่มีคำขอรออนุมัติ
+                  </h3>
+                  <p style={{ fontSize: '0.9rem', maxWidth: '360px' }}>
+                    ผู้ใช้ทั้งหมดได้รับการเปิดสิทธิ์และตรวจสอบเรียบร้อยแล้ว
+                  </p>
+                </div>
+              ) : (
+                <div className={styles.tableContainer}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>ผู้ใช้งาน</th>
+                        <th>สถานะ LINE</th>
+                        <th>วันที่สมัคร</th>
+                        <th style={{ textAlign: 'right' }}>การดำเนินการ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {users.filter(u => u.status === 'pending').map(u => (
+                        <tr key={u.id}>
+                          <td>
+                            <div className={styles.userCell}>
+                              <div style={{ position: 'relative' }}>
+                                <img 
+                                  src={u.image || "https://api.dicebear.com/7.x/avataaars/svg?seed=" + u.name} 
+                                  alt={u.name} 
+                                  className={styles.avatar} 
+                                />
+                                <div style={{
+                                  position: 'absolute',
+                                  bottom: '0',
+                                  right: '0',
+                                  width: '10px',
+                                  height: '10px',
+                                  borderRadius: '50%',
+                                  background: isUserOnline(u.lastActiveAt) ? '#22c55e' : '#94a3b8',
+                                  border: '1.5px solid var(--card-bg)',
+                                  boxShadow: isUserOnline(u.lastActiveAt) ? '0 0 8px #22c55e' : 'none'
+                                }} title={isUserOnline(u.lastActiveAt) ? 'ออนไลน์' : 'ออฟไลน์'} />
+                              </div>
+                              <div>
+                                <div className={styles.userName}>{u.name}</div>
+                                <div className={styles.userEmail}>{u.email || 'ไม่มีอีเมล (LINE login)'}</div>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                  {isUserOnline(u.lastActiveAt) ? (
+                                    <span style={{ color: '#22c55e', fontWeight: 'bold' }}>🟢 ออนไลน์</span>
+                                  ) : u.lastActiveAt ? (
+                                    `ใช้งานล่าสุด: ${formatLastActive(u.lastActiveAt)}`
+                                  ) : (
+                                    '⚫ ออฟไลน์'
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            {u.lineUserId ? (
+                              <span title={u.lineUserId} style={{ color: '#06c755', fontWeight: 'bold' }}>
+                                🟢 LINE Linked ({u.lineUserId.substring(0, 8)}...)
+                              </span>
+                            ) : (
+                              '❌ ไม่ได้เชื่อมต่อ'
+                            )}
+                          </td>
+                          <td style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                            {new Date(u.createdAt).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                              <button 
+                                className={styles.actionBtn}
+                                style={{ 
+                                  padding: '8px 16px', 
+                                  fontWeight: '600',
+                                  background: 'transparent',
+                                  border: '1px solid var(--border-color)',
+                                  color: 'var(--text-main)',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  transition: 'all 0.2s'
+                                }}
+                                onClick={() => {
+                                  setReceiptSearch(u.id);
+                                  setActiveTab('receipts');
+                                }}
+                                onMouseOver={(e) => {
+                                  e.currentTarget.style.background = 'var(--input-bg)';
+                                }}
+                                onMouseOut={(e) => {
+                                  e.currentTarget.style.background = 'transparent';
+                                }}
+                              >
+                                🔍 ตรวจสอบข้อมูล
+                              </button>
+                              <button 
+                                className={`${styles.actionBtn} ${styles.successBtn}`}
+                                style={{ padding: '8px 16px', fontWeight: '700' }}
+                                onClick={() => handleUserUpdate(u.id, { status: 'active' })}
+                                disabled={actionLoading !== null}
+                              >
+                                ✅ อนุมัติ
+                              </button>
+                              <button 
+                                className={`${styles.actionBtn} ${styles.dangerBtn}`}
+                                style={{ padding: '8px 16px', fontWeight: '700' }}
+                                onClick={() => handleUserUpdate(u.id, { status: 'restricted' })}
+                                disabled={actionLoading !== null}
+                              >
+                                ❌ ปฏิเสธ
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab 6: Image Trend Graph (Spam Detection) */}
+          {activeTab === 'images' && (() => {
+            const THAI_MONTHS = [
+              'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+              'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+            ];
+            const years = [2024, 2025, 2026, 2027];
+
+            return (
+              <div className={styles.card}>
+                <div className={styles.cardHeader} style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                  <div>
+                    <div className={styles.cardTitle}>
+                      📈 กราฟปริมาณการอัปโหลดรูปภาพประจำเดือน {THAI_MONTHS[graphMonth - 1]} พ.ศ. {graphYear + 543}
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>
+                      ใช้สำหรับการตรวจสอบการอัปโหลดใบเสร็จสแปม (Spamming) หรือพฤติกรรมการใช้งานที่ผิดปกติในแต่ละวัน
+                    </p>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '10px 16px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    💡 เกณฑ์เฝ้าระวัง: <span style={{ color: '#ef4444', fontWeight: 'bold' }}>เกิน 20 รูป / วัน</span>
+                  </div>
+                </div>
+
+                {/* Filters Dropdown */}
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+                  <select
+                    value={graphMonth}
+                    onChange={(e) => setGraphMonth(parseInt(e.target.value))}
+                    style={{
+                      padding: '8px 20px',
+                      borderRadius: '24px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--card-bg)',
+                      color: 'var(--text-main)',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      boxShadow: 'var(--shadow-sm)',
+                      transition: 'border-color 0.2s'
+                    }}
+                  >
+                    {THAI_MONTHS.map((m, idx) => (
+                      <option key={m} value={idx + 1}>{m}</option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={graphYear}
+                    onChange={(e) => setGraphYear(parseInt(e.target.value))}
+                    style={{
+                      padding: '8px 20px',
+                      borderRadius: '24px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--card-bg)',
+                      color: 'var(--text-main)',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      boxShadow: 'var(--shadow-sm)',
+                      transition: 'border-color 0.2s'
+                    }}
+                  >
+                    {years.map(y => (
+                      <option key={y} value={y}>พ.ศ. {y + 543}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {loadingStats ? (
+                  <div className={styles.loadingSpinner}><div className={styles.spinner} /> กำลังคำนวณข้อมูลสถิติ...</div>
+                ) : stats?.uploadTrend ? (() => {
+                  const trend = stats.uploadTrend || [];
+                  const maxCount = Math.max(...trend.map(d => d.count), 5);
+                  const spikeThreshold = 20;
+                  const spikeDays = trend.filter(d => d.count >= spikeThreshold);
+                  
+                  // SVG dimensions
+                  const svgW = 1000;
+                  const svgH = 380;
+                  const paddingL = 60;
+                  const paddingR = 30;
+                  const paddingT = 30;
+                  const paddingB = 60;
+                  
+                  const chartW = svgW - paddingL - paddingR;
+                  const chartH = svgH - paddingT - paddingB;
+                  const stepX = chartW / (trend.length > 0 ? trend.length : 1);
+                  const barW = Math.max(stepX * 0.6, 6);
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                      {/* Spike Warning Banner */}
+                      {spikeDays.length > 0 ? (
+                        <div style={{
+                          background: 'rgba(239, 68, 68, 0.08)',
+                          border: '1px solid rgba(239, 68, 68, 0.25)',
+                          borderRadius: '16px',
+                          padding: '16px 20px',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '12px',
+                          color: 'var(--text-main)',
+                          fontSize: '0.9rem',
+                          lineHeight: '1.5'
+                        }}>
+                          <div style={{ fontSize: '1.4rem', marginTop: '-2px' }}>⚠️</div>
+                          <div>
+                            <div style={{ fontWeight: '700', color: '#ef4444', marginBottom: '4px' }}>ตรวจพบทราฟฟิกอัปโหลดสูงผิดปกติ!</div>
+                            พบการส่งรูปภาพเข้าระบบเกิน {spikeThreshold} รูปต่อวันในวันที่: <strong style={{ color: 'var(--text-main)' }}>{spikeDays.map(d => {
+                              const [y, m, md] = d.date.split('-');
+                              return `${md}/${m}`;
+                            }).join(', ')}</strong> (คลิกที่แท็บ "บันทึกกิจกรรม" หรือ "ตรวจสอบใบเสร็จ" เพื่อตรวจหาเจ้าของบัญชีผู้ส่งข้อมูลสแปม)
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{
+                          background: 'rgba(34, 197, 94, 0.08)',
+                          border: '1px solid rgba(34, 197, 94, 0.25)',
+                          borderRadius: '16px',
+                          padding: '14px 20px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          color: 'var(--text-main)',
+                          fontSize: '0.85rem'
+                        }}>
+                          <span>🟢</span>
+                          <span>สถานะระบบปกติ: ไม่พบการสแปมอัปโหลดรูปภาพในช่วง 30 วันที่ผ่านมา</span>
+                        </div>
+                      )}
+
+                      {/* SVG Chart Container */}
+                      <div style={{ 
+                        background: 'var(--input-bg)', 
+                        border: '1px solid var(--border-color)', 
+                        borderRadius: '20px', 
+                        padding: '24px 16px',
+                        overflowX: 'auto'
+                      }}>
+                        <div style={{ minWidth: '800px', position: 'relative' }}>
+                          <svg width="100%" height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} style={{ overflow: 'visible' }}>
+                            <defs>
+                              {/* Gradients for bars */}
+                              <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#3b82f6" />
+                                <stop offset="100%" stopColor="#1d4ed8" />
+                              </linearGradient>
+                              <linearGradient id="spamGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#ef4444" stopOpacity="1" />
+                                <stop offset="100%" stopColor="#b91c1c" stopOpacity="1" />
+                              </linearGradient>
+                            </defs>
+
+                            {/* Dotted Grid lines & Y-axis scale */}
+                            {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => {
+                              const val = Math.round(maxCount * ratio);
+                              const y = paddingT + chartH * (1 - ratio);
+                              return (
+                                <g key={index}>
+                                  {/* Grid Line */}
+                                  <line 
+                                    x1={paddingL} 
+                                    y1={y} 
+                                    x2={svgW - paddingR} 
+                                    y2={y} 
+                                    stroke="var(--border-color)" 
+                                    strokeDasharray="4 4" 
+                                    strokeWidth="1"
+                                    opacity="0.6"
+                                  />
+                                  {/* Y-axis Label */}
+                                  <text 
+                                    x={paddingL - 12} 
+                                    y={y + 4} 
+                                    fill="var(--text-muted)" 
+                                    fontSize="0.75rem" 
+                                    textAnchor="end"
+                                    fontFamily="monospace"
+                                  >
+                                    {val}
+                                  </text>
+                                </g>
+                              );
+                            })}
+
+                            {/* Chart Bars */}
+                            {trend.map((d, i) => {
+                              const x = paddingL + i * stepX + (stepX - barW) / 2;
+                              const barH = (d.count / maxCount) * chartH;
+                              const y = paddingT + chartH - barH;
+                              const isSpike = d.count >= spikeThreshold;
+                              const [yr, mn, day] = d.date.split('-');
+
+                              return (
+                                <g key={d.date} style={{ cursor: 'pointer' }}>
+                                  <title>{`${d.date}\nปริมาณ: ${d.count} รูป`}</title>
+                                  {/* Active Column Bar */}
+                                  <rect
+                                    x={x}
+                                    y={y}
+                                    width={barW}
+                                    height={Math.max(barH, 2)}
+                                    rx="4"
+                                    fill={isSpike ? "url(#spamGrad)" : "url(#barGrad)"}
+                                    style={{
+                                      transition: 'all 0.3s ease'
+                                    }}
+                                    onMouseOver={(e) => {
+                                      e.currentTarget.setAttribute('opacity', '0.8');
+                                    }}
+                                    onMouseOut={(e) => {
+                                      e.currentTarget.setAttribute('opacity', '1');
+                                    }}
+                                  />
+
+                                  {/* Bar count number text displayed above columns */}
+                                  {d.count > 0 && (
+                                    <text
+                                      x={x + barW / 2}
+                                      y={y - 6}
+                                      fill={isSpike ? '#ef4444' : 'var(--text-main)'}
+                                      fontSize="0.7rem"
+                                      fontWeight={isSpike ? 'bold' : 'normal'}
+                                      textAnchor="middle"
+                                    >
+                                      {d.count}
+                                    </text>
+                                  )}
+
+                                  {/* X-axis Label (Draw every 3 days to keep labels neat) */}
+                                  {(i % 3 === 0 || i === trend.length - 1) && (
+                                    <text
+                                      x={x + barW / 2}
+                                      y={svgH - paddingB + 20}
+                                      fill="var(--text-muted)"
+                                      fontSize="0.7rem"
+                                      textAnchor="middle"
+                                      transform={`rotate(25, ${x + barW / 2}, ${svgH - paddingB + 20})`}
+                                    >
+                                      {`${day}/${mn}`}
+                                    </text>
+                                  )}
+                                </g>
+                              );
+                            })}
+
+                            {/* Base X Axis line */}
+                            <line 
+                              x1={paddingL} 
+                              y1={svgH - paddingB} 
+                              x2={svgW - paddingR} 
+                              y2={svgH - paddingB} 
+                              stroke="var(--border-color)" 
+                              strokeWidth="1.5"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+
+                      {/* รายชื่อผู้ใช้งานที่ส่งรูปภาพเข้ามาในเดือนนี้ */}
+                      <div style={{ marginTop: '32px' }}>
+                        <h3 style={{ fontSize: '1.05rem', fontWeight: '700', marginBottom: '16px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span>👥</span>
+                          <span>ผู้ใช้อัปโหลดรูปภาพประจำเดือนนี้ ({stats.activeUsersInMonth?.length || 0} คน)</span>
+                        </h3>
+                        {stats.activeUsersInMonth && stats.activeUsersInMonth.length > 0 ? (
+                          <div className={styles.tableContainer} style={{ overflowX: 'auto' }}>
+                            <table className={styles.table} style={{ width: '100%', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr>
+                                  <th style={{ textAlign: 'left', padding: '12px' }}>ผู้ใช้งาน</th>
+                                  <th style={{ textAlign: 'left', padding: '12px' }}>User ID</th>
+                                  <th style={{ textAlign: 'left', padding: '12px' }}>บทบาท</th>
+                                  <th style={{ textAlign: 'left', padding: '12px' }}>สถานะบัญชี</th>
+                                  <th style={{ textAlign: 'right', padding: '12px' }}>จำนวนภาพที่ส่ง</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {stats.activeUsersInMonth.map((u) => (
+                                  <tr key={u.userId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                    <td style={{ padding: '12px' }}>
+                                      <div className={styles.userCell} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <img 
+                                          src={u.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.name}`} 
+                                          alt={u.name} 
+                                          className={styles.avatar} 
+                                          style={{ width: '32px', height: '32px', borderRadius: '50%' }}
+                                        />
+                                        <div className={styles.userName} style={{ fontWeight: '500' }}>{u.name}</div>
+                                      </div>
+                                    </td>
+                                    <td style={{ padding: '12px', fontSize: '0.8rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                                      {u.userId}
+                                    </td>
+                                    <td style={{ padding: '12px' }}>
+                                      <span className={`${styles.badge} ${u.role === 'admin' ? styles.badgeAdmin : styles.badgeUser}`}>
+                                        {u.role === 'admin' ? '🛡️ Admin' : '👤 User'}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: '12px' }}>
+                                      <span className={`${styles.badge} ${
+                                        u.status === 'restricted' ? styles.badgeRestricted : 
+                                        u.status === 'pending' ? styles.badgePending : 
+                                        styles.badgeActive
+                                      }`}>
+                                        {u.status === 'restricted' ? '🚫 Restricted' : 
+                                         u.status === 'pending' ? '⏳ Pending' : 
+                                         '🟢 Active'}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: '12px', fontWeight: '700', textAlign: 'right', color: u.count >= 20 ? '#ef4444' : 'var(--text-main)', fontSize: '0.95rem' }}>
+                                      {u.count} รูป
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)', background: 'var(--input-bg)', border: '1px dashed var(--border-color)', borderRadius: '16px', fontSize: '0.85rem' }}>
+                            ไม่มีประวัติการส่งรูปภาพในเดือนนี้
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })() : (
+                  <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                    ไม่พบข้อมูลสถิติสำหรับการแสดงผลกราฟ
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      </main>
+    </div>
+  );
+}
