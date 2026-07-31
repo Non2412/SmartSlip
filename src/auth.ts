@@ -45,6 +45,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 console.log("📝 บันทึก ID ผู้ใช้และอีเมล:", user.id, user.email);
             }
 
+            // Store LINE user info as primary account
+            if (account?.provider === "line") {
+                token.lineUserName = user?.name || undefined
+                token.lineUserImage = user?.image || undefined
+                token.lineUserId = account.providerAccountId
+                console.log("📝 บันทึกข้อมูล LINE:", user?.name, "providerAccountId:", account.providerAccountId);
+            }
+
             // If the token has a sub (userId) but no lineUserId, query DB to see if there is a linked LINE account
             if (token.sub && !token.lineUserId) {
                 try {
@@ -52,7 +60,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     const db = client.db();
                     const queryUserId = ObjectId.isValid(token.sub) ? new ObjectId(token.sub) : token.sub;
                     const lineAccount = await db.collection("accounts").findOne({
-                        userId: queryUserId,
+                        userId: queryUserId as any,
                         provider: "line"
                     });
                     if (lineAccount) {
@@ -64,12 +72,72 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 }
             }
 
-            // Store LINE user info as primary account
-            if (account?.provider === "line") {
-                token.lineUserName = user?.name
-                token.lineUserImage = user?.image
-                token.lineUserId = account.providerAccountId
-                console.log("📝 บันทึกข้อมูล LINE:", user?.name, "providerAccountId:", account.providerAccountId);
+            // Fetch user role & status from DB and set defaults
+            if (token.sub) {
+                try {
+                    const client = await clientPromise;
+                    const db = client.db();
+                    const queryUserId = ObjectId.isValid(token.sub) ? new ObjectId(token.sub) : token.sub;
+                    const userDoc = await db.collection("users").findOne({ _id: queryUserId as any });
+                    if (userDoc) {
+                        let role = userDoc.role;
+                        let status = userDoc.status;
+
+                        if (!role) {
+                            const adminLineIds = (process.env.ADMIN_LINE_IDS || "").split(",").map(id => id.trim()).filter(Boolean);
+                            const adminEmails = (process.env.ADMIN_EMAILS || "").split(",").map(email => email.trim().toLowerCase()).filter(Boolean);
+                            
+                            const isLineAdmin = token.lineUserId && adminLineIds.includes(token.lineUserId as string);
+                            const isEmailAdmin = token.email && adminEmails.includes((token.email as string).toLowerCase());
+
+                            const userCount = await db.collection("users").countDocuments();
+
+                            if (isLineAdmin || isEmailAdmin || userCount <= 1) {
+                                role = "admin";
+                                status = "active";
+                            } else {
+                                role = "user";
+                                status = "pending";
+                            }
+
+                            await db.collection("users").updateOne(
+                                { _id: queryUserId as any },
+                                { $set: { role, status } }
+                            );
+                            console.log(`📝 Set default role: ${role}, status: ${status} for user: ${token.sub}`);
+                        } else if (!status) {
+                            // Backfill missing status
+                            status = (role === "admin") ? "active" : "pending";
+                            await db.collection("users").updateOne(
+                                { _id: queryUserId as any },
+                                { $set: { status } }
+                            );
+                            console.log(`📝 Backfilled status: ${status} for user: ${token.sub}`);
+                        }
+
+                        token.role = role;
+                        token.status = status;
+                    } else {
+                        token.role = "user";
+                        token.status = "pending";
+                    }
+
+                    // Check if profile is completed
+                    const profileDoc = await db.collection("profiles").findOne({ userId: token.sub });
+                    const isProfileCompleted = !!(
+                        profileDoc && 
+                        profileDoc.name?.trim() && 
+                        profileDoc.phone?.trim() && 
+                        profileDoc.company?.trim() && 
+                        profileDoc.citizenId?.trim()
+                    );
+                    token.isProfileCompleted = isProfileCompleted;
+                } catch (err) {
+                    console.error("❌ Failed to fetch user role & status:", err);
+                    token.role = token.role || "user";
+                    token.status = token.status || "pending";
+                    token.isProfileCompleted = false;
+                }
             }
 
             return token
@@ -78,20 +146,85 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             if (session.user && token) {
                 session.user.id = token.sub || ""
                 session.user.email = (token.email as string) || session.user.email
+                session.user.role = token.role || "user"
+                session.user.status = token.status || "active"
+                
                 const s = session as unknown as Record<string, unknown>;
                 s.lineUserName = token.lineUserName;
                 s.lineUserImage = token.lineUserImage;
                 s.lineUserId = token.lineUserId;
+                s.isProfileCompleted = token.isProfileCompleted;
             }
             return session
         },
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user
-            const isOnDashboard = nextUrl.pathname.startsWith("/dashboard")
+            const userStatus = (auth?.user as any)?.status
+            const userRole = (auth?.user as any)?.role
+            const isProfileCompleted = (auth as any)?.isProfileCompleted
 
-            if (isOnDashboard) {
-                if (isLoggedIn) return true
-                return false
+            // 1. Check if user is restricted
+            if (isLoggedIn && userStatus === "restricted") {
+                if (nextUrl.pathname !== "/restricted") {
+                    return Response.redirect(new URL("/restricted", nextUrl))
+                }
+                return true
+            }
+
+            // 2. Check if user is pending approval
+            if (isLoggedIn && userStatus === "pending") {
+                if (nextUrl.pathname !== "/pending-approval") {
+                    return Response.redirect(new URL("/pending-approval", nextUrl))
+                }
+                return true
+            }
+
+            // 3. Force profile completion if logged in but profile is not completed (only for regular users)
+            if (isLoggedIn && userStatus === "active" && userRole === "user" && !isProfileCompleted) {
+                if (nextUrl.pathname !== "/profile") {
+                    return Response.redirect(new URL("/profile?force=true", nextUrl))
+                }
+                return true
+            }
+
+            // Prevent redirect loop for restricted
+            if (nextUrl.pathname === "/restricted") {
+                if (isLoggedIn && userStatus === "restricted") {
+                    return true
+                }
+                return Response.redirect(new URL("/dashboard", nextUrl))
+            }
+
+            // Prevent redirect loop for pending-approval
+            if (nextUrl.pathname === "/pending-approval") {
+                if (isLoggedIn && userStatus === "pending") {
+                    return true
+                }
+                return Response.redirect(new URL("/dashboard", nextUrl))
+            }
+
+            const isOnDashboard = nextUrl.pathname.startsWith("/dashboard")
+            const isOnAdmin = nextUrl.pathname.startsWith("/admin")
+            const isOnLineReceipts = nextUrl.pathname.startsWith("/line-receipts")
+            const isOnExport = nextUrl.pathname.startsWith("/export")
+            const isOnHistory = nextUrl.pathname.startsWith("/history")
+            const isOnActivityLogs = nextUrl.pathname.startsWith("/activity-logs")
+            const isOnAiAdvisor = nextUrl.pathname.startsWith("/ai-advisor")
+            const isOnProfile = nextUrl.pathname.startsWith("/profile")
+
+            const isProtectedRoute = isOnDashboard || isOnAdmin || isOnLineReceipts || isOnExport || isOnHistory || isOnActivityLogs || isOnAiAdvisor || isOnProfile
+
+            if (isProtectedRoute) {
+                if (!isLoggedIn) return false // redirects to /login
+
+                // Check admin authorization
+                if (isOnAdmin) {
+                    const roleVal = (auth?.user as any)?.role
+                    if (roleVal !== "admin") {
+                        return Response.redirect(new URL("/dashboard", nextUrl))
+                    }
+                }
+                return true
             } else if (isLoggedIn && nextUrl.pathname === "/login") {
                 return Response.redirect(new URL("/dashboard", nextUrl))
             }

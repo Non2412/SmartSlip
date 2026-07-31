@@ -1,25 +1,50 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
+import { auth } from '@/auth';
 
 // GET: ดึงรายการประวัติกิจกรรม
 export async function GET(request: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if ((session.user as any).status !== 'active' && (session.user as any).role !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     const lineUserId = searchParams.get('lineUserId');
-    if (!userId) {
-      return NextResponse.json({ success: false, error: 'UserId is required' }, { status: 400 });
-    }
 
     const client = await clientPromise;
     const db = client.db('smartslip_api');
 
-    // สร้าง Query รองรับทั้งระบบเว็บ (internal userId) และไลน์ (lineUserId)
+    const userRole = (session.user as any).role;
+    const currentUserId = session.user.id;
+    const currentLineUserId = (session as any).lineUserId;
+
+    // สร้าง Query รองรับการจำกัดสิทธิ์
     let query: Record<string, any> = {};
-    if (userId && lineUserId) {
-      query = { $or: [{ userId }, { userId: lineUserId }] };
-    } else if (userId) {
-      query = { userId };
+    if (userRole === 'admin') {
+      const all = searchParams.get('all') === 'true';
+      if (!all) {
+        const targetUserId = userId || currentUserId;
+        const targetLineUserId = lineUserId || currentLineUserId;
+        if (targetUserId && targetLineUserId) {
+          query = { $or: [{ userId: targetUserId }, { userId: targetLineUserId }] };
+        } else if (targetUserId) {
+          query = { userId: targetUserId };
+        }
+      }
+      // If all === true, query is empty, fetching all activity logs
+    } else {
+      if (currentUserId && currentLineUserId) {
+        query = { $or: [{ userId: currentUserId }, { userId: currentLineUserId }] };
+      } else if (currentUserId) {
+        query = { userId: currentUserId };
+      }
     }
 
     // 1. ดึงรายการใบเสร็จทั้งหมดของผู้ใช้เพื่อนำไปใช้ในการ backfill ประวัติกิจกรรมเก่า
@@ -38,7 +63,7 @@ export async function GET(request: Request) {
 
     for (const receipt of receipts) {
       const receiptIdStr = receipt._id.toString();
-      const receiptOwnerId = receipt.userId || userId; // ใช้ userId ของใบเสร็จนั้นจริง ๆ
+      const receiptOwnerId = receipt.userId || currentUserId; // ใช้ userId ของใบเสร็จนั้นจริง ๆ
 
       // ตรวจสอบว่ามีประวัติการเพิ่มใบเสร็จ (add) หรือยัง หากไม่มีให้ backfill เข้าไป
       if (!existingReceiptIds.has(receiptIdStr)) {
@@ -100,6 +125,15 @@ export async function GET(request: Request) {
 // POST: บันทึกกิจกรรมใหม่
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if ((session.user as any).status !== 'active' && (session.user as any).role !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { userId, action, details, receiptId, metadata } = body;
 
@@ -107,11 +141,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
+    const userRole = (session.user as any).role;
+    const currentUserId = session.user.id;
+
+    // Regular user can only log activities for themselves
+    let targetUserId = userId;
+    if (userRole !== 'admin') {
+      targetUserId = currentUserId;
+    }
+
     const client = await clientPromise;
     const db = client.db('smartslip_api');
 
     const newLog = {
-      userId,
+      userId: targetUserId,
       action,
       details,
       timestamp: new Date().toISOString(),

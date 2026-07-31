@@ -9,6 +9,7 @@ import CreateReceiptSheet from '@/components/CreateReceiptSheet';
 import BulkEditModal, { BulkEditData } from '@/components/BulkEditModal';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
+import { useToast } from '@/components/Toast';
 import { Receipt, cleanAndProxyImageUrl } from '@/lib/apiClient';
 import { identifyDuplicateReceipts } from '@/lib/ocr-utils';
 import styles from './LineReceipts.module.css';
@@ -28,13 +29,13 @@ function getViewedIds(): Set<string> {
 function LineReceiptsContent() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Receipt | null>(null);
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
   const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   
   // Bulk selection states
@@ -242,10 +243,9 @@ function LineReceiptsContent() {
 
     const res = await deleteMultipleReceipts(ids);
     if (res.success) {
-      setToastMsg(`ลบใบเสร็จสำเร็จจำนวน ${ids.length} รายการ`);
-      setTimeout(() => setToastMsg(null), 3000);
+      showToast(`ลบใบเสร็จสำเร็จจำนวน ${ids.length} รายการ`, 'success');
     } else {
-      alert(res.error || 'เกิดข้อผิดพลาดในการลบใบเสร็จ');
+      showToast(res.error || 'เกิดข้อผิดพลาดในการลบใบเสร็จ', 'error');
     }
     setSelectedIds(new Set());
     setIsSelectMode(false);
@@ -258,10 +258,9 @@ function LineReceiptsContent() {
 
     const res = await updateMultipleReceipts(ids, updates);
     if (res.success) {
-      setToastMsg(`แก้ไขข้อมูลใบเสร็จสำเร็จจำนวน ${ids.length} รายการ`);
-      setTimeout(() => setToastMsg(null), 4000);
+      showToast(`แก้ไขข้อมูลใบเสร็จสำเร็จจำนวน ${ids.length} รายการ`, 'success');
     } else {
-      alert(res.error || 'เกิดข้อผิดพลาดในการแก้ไขใบเสร็จ');
+      showToast(res.error || 'เกิดข้อผิดพลาดในการแก้ไขใบเสร็จ', 'error');
     }
     setShowBulkEditModal(false);
   };
@@ -941,8 +940,7 @@ function LineReceiptsContent() {
           if (session?.user?.id) {
             const lineUserId = (session as any)?.lineUserId as string | undefined;
             fetchReceipts(session.user.id, lineUserId);
-            setToastMsg('อัปโหลดและสร้างใบเสร็จสำเร็จ!');
-            setTimeout(() => setToastMsg(null), 6000);
+            showToast('อัปโหลดและสร้างใบเสร็จสำเร็จ!', 'success', 6000);
           }
           setIsCreateSheetOpen(false);
         }}
@@ -965,41 +963,15 @@ function LineReceiptsContent() {
           }
           if (id) {
             setRecentlyEditedId(id);
-            setToastMsg('แก้ไขข้อมูลสำเร็จ! คุณสามารถกลับไปเช็ครูปภาพของรายการนี้ได้');
+            showToast('แก้ไขข้อมูลสำเร็จ! คุณสามารถกลับไปเช็ครูปภาพของรายการนี้ได้', 'success', 8000);
             setTimeout(() => {
               setRecentlyEditedId(null);
             }, 15000);
-            setTimeout(() => setToastMsg(null), 8000);
           }
           setSelectedReceipt(null);
           setQueueReceiptsList(undefined);
         }}
       />
-
-      {/* Toast Notification */}
-      {toastMsg && (
-        <div style={{
-          position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
-          backgroundColor: '#0f172a', color: 'white', padding: '16px 20px',
-          borderRadius: '12px', boxShadow: '0 12px 32px rgba(0,0,0,0.2)',
-          display: 'flex', alignItems: 'center', gap: '12px',
-          fontFamily: 'inherit',
-          animation: 'slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-        }}>
-          <style dangerouslySetInnerHTML={{ __html: `
-            @keyframes slideIn {
-              from { transform: translateY(100%); opacity: 0; }
-              to { transform: translateY(0); opacity: 1; }
-            }
-          `}} />
-          <span style={{ fontSize: '1.25rem' }}>✅</span>
-          <div>
-            <div style={{ fontWeight: '700', fontSize: '0.9rem' }}>ทำรายการสำเร็จ</div>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>{toastMsg}</div>
-          </div>
-          <button onClick={() => setToastMsg(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontWeight: 'bold', marginLeft: '12px' }}>✕</button>
-        </div>
-      )}
     </div>
   );
 }
