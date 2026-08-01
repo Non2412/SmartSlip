@@ -14,6 +14,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
     address: "",
     citizenId: "",
   });
+  const [requestedRole, setRequestedRole] = useState<"clerk" | "user">("user");
   const [phoneCode, setPhoneCode] = useState("+66");
   const [phoneNumberOnly, setPhoneNumberOnly] = useState("");
   const [customCategories, setCustomCategories] = useState<string[]>([]);
@@ -48,6 +49,10 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
             address: data.address || data.about || data.from || "",
             citizenId: data.citizenId || "",
           });
+
+          if (data.requestedRole === 'clerk' || data.requestedRole === 'user') {
+            setRequestedRole(data.requestedRole);
+          }
 
           const phoneVal = data.phone || "";
           if (phoneVal.startsWith("+66")) {
@@ -266,6 +271,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
         body: JSON.stringify({ 
           ...form, 
           phone: finalPhone, 
+          requestedRole,
           customCategories 
         }),
       });
@@ -274,7 +280,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
         if (onSaved) onSaved();
 
         if (isForcedView) {
-          setTimeout(() => { window.location.href = "/dashboard"; }, 1500);
+          setTimeout(() => { window.location.href = "/pending-approval"; }, 1500);
         }
       } else {
         showToast("เกิดข้อผิดพลาดในการบันทึกข้อมูล", "error");
@@ -444,7 +450,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                 <input
                   className={styles.input}
                   name="name"
-                  placeholder="กรอกชื่อ-นามสกุล"
+                  placeholder="ตัวอย่าง: นาย สมชาย ใจดี"
                   value={form.name}
                   onChange={handleChange}
                   onBlur={handleBlur}
@@ -461,7 +467,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                 <input
                   className={styles.input}
                   name="company"
-                  placeholder="เช่น บริษัท สมาร์ทสลิป จำกัด..."
+                  placeholder="ตัวอย่าง: บริษัท สมาร์ทสลิป จำกัด (มหาชน)"
                   value={form.company}
                   onChange={handleChange}
                   onBlur={handleBlur}
@@ -479,7 +485,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                   className={styles.input}
                   name="email"
                   type="email"
-                  placeholder="example@email.com"
+                  placeholder="ตัวอย่าง: somchai.j@example.com"
                   value={form.email}
                   onChange={handleChange}
                   onBlur={handleBlur}
@@ -504,7 +510,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                   </select>
                   <input 
                     className={styles.input}
-                    placeholder="8x-xxx-xxxx" 
+                    placeholder="ตัวอย่าง: 081-234-5678" 
                     value={phoneNumberOnly} 
                     onChange={(e) => handlePhoneChange(e.target.value)}
                     onBlur={handlePhoneBlur}
@@ -524,7 +530,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
               <textarea
                 className={styles.input}
                 name="address"
-                placeholder="ระบุที่อยู่ หรือ ประวัติย่อส่วนตัวของคุณ..."
+                placeholder="ตัวอย่าง: 123/45 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110"
                 value={form.address}
                 onChange={(e: any) => handleChange(e)}
                 onBlur={(e: any) => handleBlur(e)}
@@ -546,7 +552,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
               <input 
                 className={styles.input} 
                 name="citizenId" 
-                placeholder="X-XXXX-XXXXX-XX-X" 
+                placeholder="ตัวอย่าง: 1-1004-99999-99-9" 
                 value={maskCitizenId(form.citizenId)}
                 onChange={handleCitizenIdChange}
                 onBlur={handleBlur}
@@ -560,6 +566,84 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
               {errors.citizenId && (
                 <span style={{ color: errors.citizenId.startsWith('กรอกแล้ว') ? '#f59e0b' : '#ef4444', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>⚠ {errors.citizenId}</span>
               )}
+            </div>
+
+            {/* ── Role Request Selection Cards ── */}
+            <div style={{ marginTop: '24px', background: 'var(--input-bg, #f8fafc)', borderRadius: '16px', padding: '20px', border: '1px solid var(--border-color, #e2e8f0)' }}>
+              <label className={styles.label} style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-main, #0f172a)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>🔑</span> เลือกขอสถานะ / สิทธิ์การใช้งานระบบ
+              </label>
+              <p style={{ margin: '0 0 16px 0', fontSize: '0.82rem', color: 'var(--text-muted, #64748b)' }}>
+                กรุณาเลือกสถานะการใช้งานที่คุณต้องการขออนุญาตจากผู้ดูแลระบบ (Admin)
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+                {/* Option 1: เสมียน (Clerk) */}
+                <div 
+                  onClick={() => setRequestedRole('clerk')}
+                  style={{
+                    padding: '16px 18px',
+                    borderRadius: '14px',
+                    border: requestedRole === 'clerk' ? '2px solid #6366f1' : '1px solid var(--border-color, #e2e8f0)',
+                    background: requestedRole === 'clerk' ? 'rgba(99, 102, 241, 0.08)' : 'var(--card-bg, #ffffff)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px'
+                  }}
+                >
+                  <input 
+                    type="radio" 
+                    name="requestedRole" 
+                    value="clerk" 
+                    checked={requestedRole === 'clerk'} 
+                    onChange={() => setRequestedRole('clerk')} 
+                    style={{ marginTop: '3px', accentColor: '#6366f1' }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: requestedRole === 'clerk' ? '#6366f1' : 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>💼</span> 1. เสมียน (Clerk)
+                    </div>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted, #64748b)', lineHeight: '1.4' }}>
+                      ขอสิทธิ์ใช้งานในฐานะเสมียน เพื่อช่วยตรวจสอบ ตรวจเช็ค และจัดการเอกสารสลิป/ใบเสร็จในระบบ
+                    </p>
+                  </div>
+                </div>
+
+                {/* Option 2: ผู้ใช้งานทั่วไป (General User) */}
+                <div 
+                  onClick={() => setRequestedRole('user')}
+                  style={{
+                    padding: '16px 18px',
+                    borderRadius: '14px',
+                    border: requestedRole === 'user' ? '2px solid #10b981' : '1px solid var(--border-color, #e2e8f0)',
+                    background: requestedRole === 'user' ? 'rgba(16, 185, 129, 0.08)' : 'var(--card-bg, #ffffff)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px'
+                  }}
+                >
+                  <input 
+                    type="radio" 
+                    name="requestedRole" 
+                    value="user" 
+                    checked={requestedRole === 'user'} 
+                    onChange={() => setRequestedRole('user')} 
+                    style={{ marginTop: '3px', accentColor: '#10b981' }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: requestedRole === 'user' ? '#10b981' : 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>👤</span> 2. ผู้ใช้งานทั่วไป (General User)
+                    </div>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted, #64748b)', lineHeight: '1.4' }}>
+                      ขอสิทธิ์ใช้งานในฐานะผู้ใช้งานทั่วไป สำหรับสแกน บันทึก และคุมรายจ่ายใบเสร็จส่วนตัว
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

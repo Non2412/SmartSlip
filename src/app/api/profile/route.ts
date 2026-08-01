@@ -21,11 +21,13 @@ export async function GET(req: NextRequest) {
         phone: "",
         address: "",
         citizenId: "",
+        requestedRole: "user",
         customCategories: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'],
       });
     }
 
     return NextResponse.json({
+      requestedRole: "user",
       customCategories: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'],
       ...profile,
     });
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, company, email, phone, address, budgets, citizenId, customCategories } = body;
+    const { name, company, email, phone, address, budgets, citizenId, requestedRole, customCategories } = body;
 
     const client = await clientPromise;
     const db = client.db();
@@ -59,6 +61,10 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date(),
     };
 
+    if (requestedRole) {
+      updateFields.requestedRole = requestedRole;
+    }
+
     if (budgets !== undefined) {
       updateFields.budgets = budgets;
     }
@@ -72,6 +78,20 @@ export async function POST(req: NextRequest) {
       { $set: updateFields },
       { upsert: true }
     );
+
+    // Also update requestedRole on users collection for admin list visibility
+    if (requestedRole) {
+      const { ObjectId } = await import("mongodb");
+      const filterConditions: any[] = [{ id: session.user.id }];
+      if (ObjectId.isValid(session.user.id)) {
+        filterConditions.push({ _id: new ObjectId(session.user.id) });
+      }
+
+      await db.collection("users").updateOne(
+        { $or: filterConditions } as any,
+        { $set: { requestedRole, updatedAt: new Date() } }
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

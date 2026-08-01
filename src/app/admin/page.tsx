@@ -16,6 +16,7 @@ interface UserStat {
   image: string | null;
   role: string;
   status: string;
+  requestedRole?: string;
   lineUserId: string | null;
   receiptCount: number;
   createdAt: string;
@@ -26,6 +27,7 @@ interface UserStat {
     address: string;
     budgets: number;
     citizenId?: string;
+    requestedRole?: string;
   };
 }
 
@@ -1465,6 +1467,25 @@ export default function AdminPage() {
                             letterSpacing: '1.5px'
                           }}>
                             {maskCitizenId(inspectingUser.profile?.citizenId)}
+                          </span>
+                        </div>
+
+                        {/* สิทธิ์ที่ขอใช้งาน */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>สถานะ / สิทธิ์ที่ขอใช้งาน</span>
+                          <span style={{ 
+                            padding: '10px 16px', 
+                            background: (inspectingUser.profile?.requestedRole === 'clerk' || inspectingUser.requestedRole === 'clerk') ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)', 
+                            border: (inspectingUser.profile?.requestedRole === 'clerk' || inspectingUser.requestedRole === 'clerk') ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)', 
+                            borderRadius: '10px',
+                            color: (inspectingUser.profile?.requestedRole === 'clerk' || inspectingUser.requestedRole === 'clerk') ? '#6366f1' : '#10b981',
+                            fontSize: '0.9rem',
+                            minHeight: '42px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontWeight: '700'
+                          }}>
+                            {(inspectingUser.profile?.requestedRole === 'clerk' || inspectingUser.requestedRole === 'clerk') ? '💼 1. เสมียน (Clerk)' : '👤 2. ผู้ใช้งานทั่วไป (General User)'}
                           </span>
                         </div>
 
