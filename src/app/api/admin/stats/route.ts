@@ -29,8 +29,13 @@ export async function GET(request: Request) {
     // 1. นับจำนวนผู้ใช้ทั้งหมด
     const totalUsers = await db.collection('users').countDocuments();
     const restrictedUsers = await db.collection('users').countDocuments({ status: 'restricted' });
-    const pendingUsers = await db.collection('users').countDocuments({ status: 'pending' });
-    const activeUsers = totalUsers - restrictedUsers - pendingUsers;
+    const pendingUsers = await db.collection('users').countDocuments({
+      $or: [
+        { status: 'pending' },
+        { status: { $exists: false }, role: { $ne: 'admin' } }
+      ]
+    });
+    const activeUsers = Math.max(0, totalUsers - restrictedUsers - pendingUsers);
 
     // 2. นับจำนวนใบเสร็จทั้งหมด
     const totalReceipts = await appDb.collection('receipts').countDocuments();
@@ -150,11 +155,13 @@ export async function GET(request: Request) {
 
     const userMap = new Map();
     usersList.forEach(u => {
+      const userRole = u.role || 'user';
+      const userStatus = u.status || (userRole === 'admin' ? 'active' : 'pending');
       userMap.set(u._id.toString(), {
         name: u.name || 'Unknown',
         image: u.image || null,
-        role: u.role || 'user',
-        status: u.status || 'active'
+        role: userRole,
+        status: userStatus
       });
     });
 

@@ -41,6 +41,10 @@ export default function ProfileCard({ refreshTrigger }: { refreshTrigger?: numbe
         <strong>{data.phone || "-"}</strong>
       </div>
       <div className={styles.row}>
+        <span>ที่อยู่ / ประวัติตนเอง:</span>
+        <strong>{data.address || data.about || data.from || "-"}</strong>
+      </div>
+      <div className={styles.row}>
         <span>เลขบัตรประชาชน:</span>
         <strong>{data.citizenId || "-"}</strong>
       </div>

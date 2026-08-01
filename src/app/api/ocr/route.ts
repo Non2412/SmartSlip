@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { hasDocumentAiConfig, processDocumentAiImage, parseReceiptDocument } from '@/lib/documentai';
+import { auth } from '@/auth';
 
 const localOcrUrl = process.env.OCR_URL || 'http://127.0.0.1:5000/predict';
 const disableDocumentAi = process.env.DISABLE_DOCUMENT_AI === 'true';
@@ -26,6 +27,15 @@ async function fetchLocalOcr(image: string) {
 
 export async function POST(req: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if ((session.user as any).status !== 'active' && (session.user as any).role !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
     const { image } = await req.json();
 
     if (!image) {

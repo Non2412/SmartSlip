@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import { cleanAndProxyImageUrl } from '@/lib/apiClient';
 import styles from './AdminDashboard.module.css';
 
 interface UserStat {
@@ -1469,20 +1470,20 @@ export default function AdminPage() {
 
                         {/* จำนวนเงินในบัญชี */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>จำนวนเงินในบัญชี (งบประมาณ / เงินเก็บ)</span>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>จำนวนเงินในบัญชี (รวมใบเสร็จทั้งหมด)</span>
                           <span style={{ 
                             padding: '10px 16px', 
                             background: 'var(--card-bg)', 
                             border: '1px solid var(--border-color)', 
                             borderRadius: '10px',
-                            color: 'var(--text-main)',
-                            fontSize: '0.9rem',
+                            color: '#10b981',
+                            fontSize: '0.95rem',
                             minHeight: '42px',
                             display: 'flex',
                             alignItems: 'center',
-                            fontWeight: '600'
+                            fontWeight: '700'
                           }}>
-                            ฿{typeof inspectingUser.profile?.budgets === 'number' ? inspectingUser.profile.budgets.toLocaleString('en-US') : '0'}
+                            ฿{userReceipts.reduce((sum: number, r: any) => sum + (parseFloat(r.totalAmount || r.amount || 0) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         </div>
                       </div>
@@ -1506,34 +1507,45 @@ export default function AdminPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {userReceipts.map((r: any, index: number) => (
-                                <tr key={r.id || r._id || index} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                  <td style={{ padding: '12px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                      {r.imageUrl && (
-                                        <img 
-                                          src={r.imageUrl} 
-                                          alt="slip" 
-                                          style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover', cursor: 'zoom-in' }} 
-                                          onClick={() => window.open(r.imageUrl, '_blank')}
-                                        />
-                                      )}
-                                      <div style={{ fontWeight: '500', color: 'var(--text-main)' }}>{r.storeName || 'ไม่ระบุร้านค้า'}</div>
-                                    </div>
-                                  </td>
-                                  <td style={{ padding: '12px' }}>
-                                    <span className={`${styles.badge} ${r.source === 'line' ? styles.badgeAdmin : styles.badgeUser}`}>
-                                      {r.source === 'line' ? '💬 LINE Bot' : '🌐 Web UI'}
-                                    </span>
-                                  </td>
-                                  <td style={{ padding: '12px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                                    {new Date(r.createdAt).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                  </td>
-                                  <td style={{ padding: '12px', fontWeight: '700', textAlign: 'right', color: 'var(--text-main)', fontSize: '0.95rem' }}>
-                                    ฿{parseFloat(r.totalAmount || r.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </td>
-                                </tr>
-                              ))}
+                              {userReceipts.map((r: any, index: number) => {
+                                const rawImg = r.imageUrl || r.imageURL || r.extractedData?.imageData || r.extractedData?.imageUrl;
+                                const proxiedImg = cleanAndProxyImageUrl(rawImg);
+                                return (
+                                  <tr key={r.id || r._id || index} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                    <td style={{ padding: '12px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        {proxiedImg ? (
+                                          <img 
+                                            src={proxiedImg} 
+                                            alt="slip" 
+                                            style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover', cursor: 'zoom-in', border: '1px solid var(--border-color)', flexShrink: 0 }} 
+                                            onClick={() => window.open(proxiedImg, '_blank')}
+                                            onError={(e) => {
+                                              (e.target as HTMLElement).style.display = 'none';
+                                            }}
+                                          />
+                                        ) : (
+                                          <div style={{ width: '36px', height: '36px', borderRadius: '6px', background: 'rgba(148, 163, 184, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', flexShrink: 0, color: 'var(--text-muted)' }}>
+                                            🧾
+                                          </div>
+                                        )}
+                                        <div style={{ fontWeight: '500', color: 'var(--text-main)' }}>{r.storeName || 'ไม่ระบุร้านค้า'}</div>
+                                      </div>
+                                    </td>
+                                    <td style={{ padding: '12px' }}>
+                                      <span className={`${styles.badge} ${r.source === 'line' ? styles.badgeAdmin : styles.badgeUser}`}>
+                                        {r.source === 'line' ? '💬 LINE Bot' : '🌐 Web UI'}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: '12px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                      {new Date(r.createdAt).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                    </td>
+                                    <td style={{ padding: '12px', fontWeight: '700', textAlign: 'right', color: 'var(--text-main)', fontSize: '0.95rem' }}>
+                                      ฿{parseFloat(r.totalAmount || r.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>

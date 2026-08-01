@@ -147,7 +147,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 session.user.id = token.sub || ""
                 session.user.email = (token.email as string) || session.user.email
                 session.user.role = token.role || "user"
-                session.user.status = token.status || "active"
+                session.user.status = token.status || "pending"
                 
                 const s = session as unknown as Record<string, unknown>;
                 s.lineUserName = token.lineUserName;

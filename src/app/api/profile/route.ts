@@ -19,11 +19,16 @@ export async function GET(req: NextRequest) {
         company: "",
         email: session.user.email || "",
         phone: "",
+        address: "",
         citizenId: "",
+        customCategories: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'],
       });
     }
 
-    return NextResponse.json(profile);
+    return NextResponse.json({
+      customCategories: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'],
+      ...profile,
+    });
   } catch (error) {
     console.error("GET Profile error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
@@ -38,7 +43,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, company, email, phone, budgets, citizenId } = body;
+    const { name, company, email, phone, address, budgets, citizenId, customCategories } = body;
 
     const client = await clientPromise;
     const db = client.db();
@@ -49,12 +54,17 @@ export async function POST(req: NextRequest) {
       company,
       email,
       phone,
+      address,
       citizenId,
       updatedAt: new Date(),
     };
 
     if (budgets !== undefined) {
       updateFields.budgets = budgets;
+    }
+
+    if (Array.isArray(customCategories)) {
+      updateFields.customCategories = customCategories;
     }
 
     await db.collection("profiles").updateOne(
