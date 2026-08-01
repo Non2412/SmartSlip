@@ -49,7 +49,6 @@ export default function ProfilePage() {
         <div className="page-container">
           <div className={styles.profileContainer}>
             <ProfileForm onSaved={handleProfileSaved} />
-            <ProfileCard refreshTrigger={refreshTrigger} />
           </div>
         </div>
       </main>

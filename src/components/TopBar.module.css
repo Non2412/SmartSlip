@@ -1,4 +1,7 @@
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   height: auto;
   min-height: var(--header-height);
   padding: 8px 16px;
@@ -6,9 +9,11 @@
   align-items: center;
   justify-content: space-between;
   background-color: var(--surface-color);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-color);
-  gap: 24px;
-  flex-wrap: wrap;
+  gap: 16px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
 }
 
 .leftSection {

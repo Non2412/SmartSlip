@@ -93,14 +93,24 @@ export async function GET() {
       }
 
       const userProfile = profileMap.get(u._id.toString());
+      const userRole = u.role || 'user';
+      const userStatus = u.status || (userRole === 'admin' ? 'active' : 'pending');
+
+      // Auto-backfill missing status in DB if needed
+      if (!u.status) {
+        db.collection('users').updateOne(
+          { _id: u._id },
+          { $set: { role: userRole, status: userStatus } }
+        ).catch(() => {});
+      }
 
       return {
         id: u._id.toString(),
         name: u.name || 'Unknown User',
         email: u.email || 'ไม่มีอีเมล (LINE login)',
         image: u.image || null,
-        role: u.role || 'user',
-        status: u.status || 'active',
+        role: userRole,
+        status: userStatus,
         lineUserId,
         receiptCount,
         createdAt: createdAtStr,
@@ -193,7 +203,7 @@ export async function PATCH(request: Request) {
       updateFields.role = role;
     }
     if (status) {
-      if (status !== 'active' && status !== 'restricted') {
+      if (status !== 'active' && status !== 'restricted' && status !== 'pending') {
         return NextResponse.json({ success: false, error: 'Invalid status value' }, { status: 400 });
       }
       updateFields.status = status;

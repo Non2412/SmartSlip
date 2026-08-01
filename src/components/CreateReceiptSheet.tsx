@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
+import { useUserCategories } from '@/lib/useUserCategories';
 
 const shimmerKeyframes = `
 @keyframes shimmer {
@@ -274,6 +275,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
     const ocrTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const { createReceipt, updateReceipt, extractFromImage } = useReceipts();
+    const { categoriesWithoutAll } = useUserCategories();
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [extractedReceiptId, setExtractedReceiptId] = useState<string | null>(null);
@@ -1390,35 +1392,37 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                     <div>
                                         <label style={{ ...labelStyle, color: txLabel }}>หมวดหมู่ค่าใช้จ่าย</label>
                                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                            {[
-                                                { id: 'อาหาร', icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
-                                                { id: 'เดินทาง', icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
-                                                { id: 'ช้อปปิ้ง', icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
-                                                { id: 'อื่นๆ', icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
-                                            ].map(cat => {
-                                                const active = verCategory === cat.id;
+                                            {categoriesWithoutAll.map(catName => {
+                                                let icon = '🏷️'; let color = '#f0fdf4'; let border = '#10b981'; let text = '#047857';
+                                                if (catName === 'อาหาร') { icon = '🍴'; color = '#fef3c7'; border = '#f59e0b'; text = '#92400e'; }
+                                                else if (catName === 'เดินทาง') { icon = '🚗'; color = '#eff6ff'; border = '#3b82f6'; text = '#1e40af'; }
+                                                else if (catName === 'ช้อปปิ้ง') { icon = '🛍️'; color = '#fdf4ff'; border = '#a855f7'; text = '#6b21a8'; }
+                                                else if (catName === 'อื่นๆ') { icon = '✨'; color = '#f8fafc'; border = '#94a3b8'; text = '#475569'; }
+
+                                                const active = verCategory === catName;
                                                 return (
                                                     <button
-                                                        key={cat.id}
-                                                        onClick={() => setVerCategory(cat.id)}
+                                                        key={catName}
+                                                        type="button"
+                                                        onClick={() => setVerCategory(catName)}
                                                         style={{
                                                             padding: '6px 14px', borderRadius: '20px',
-                                                            border: `1.5px solid ${active ? cat.border : bdColor}`,
-                                                            background: active ? cat.color : bgCard,
-                                                            color: active ? cat.text : txMuted,
+                                                            border: `1.5px solid ${active ? border : bdColor}`,
+                                                            background: active ? color : bgCard,
+                                                            color: active ? text : txMuted,
                                                             fontWeight: active ? '800' : '600',
                                                             fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.15s',
                                                             display: 'flex', alignItems: 'center', gap: '5px',
-                                                            boxShadow: active ? `0 0 0 3px ${cat.border}22` : 'none'
+                                                            boxShadow: active ? `0 0 0 3px ${border}22` : 'none'
                                                         }}
                                                     >
-                                                        {cat.icon} {cat.id}
+                                                        {icon} {catName}
                                                     </button>
                                                 );
                                             })}
                                         </div>
                                         {/* fallback text if not in chips */}
-                                        {!['อาหาร','เดินทาง','ช้อปปิ้ง','อื่นๆ'].includes(verCategory) && (
+                                        {!categoriesWithoutAll.includes(verCategory) && (
                                             <input
                                                 value={verCategory}
                                                 onChange={e => setVerCategory(e.target.value)}
@@ -2090,25 +2094,26 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                 <div>
                                                     <label style={{ ...labelStyle, color: txLabel }}>หมวดหมู่ค่าใช้จ่าย</label>
                                                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                                        {[
-                                                            { id: 'อาหาร',       icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
-                                                            { id: 'เดินทาง',     icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
-                                                            { id: 'ช้อปปิ้ง',   icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
-                                                            { id: 'อื่นๆ',      icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
-                                                        ].map(cat => {
-                                                            const active = mainCategory === cat.id;
+                                                        {categoriesWithoutAll.map(catName => {
+                                                            let icon = '🏷️'; let color = '#f0fdf4'; let border = '#10b981'; let text = '#047857';
+                                                            if (catName === 'อาหาร') { icon = '🍴'; color = '#fef3c7'; border = '#f59e0b'; text = '#92400e'; }
+                                                            else if (catName === 'เดินทาง') { icon = '🚗'; color = '#eff6ff'; border = '#3b82f6'; text = '#1e40af'; }
+                                                            else if (catName === 'ช้อปปิ้ง') { icon = '🛍️'; color = '#fdf4ff'; border = '#a855f7'; text = '#6b21a8'; }
+                                                            else if (catName === 'อื่นๆ') { icon = '✨'; color = '#f8fafc'; border = '#94a3b8'; text = '#475569'; }
+
+                                                            const active = mainCategory === catName;
                                                             return (
-                                                                <button key={cat.id} onClick={() => setMainCategory(cat.id)} style={{
+                                                                <button key={catName} type="button" onClick={() => setMainCategory(catName)} style={{
                                                                     padding: '6px 14px', borderRadius: '20px',
-                                                                    border: `1.5px solid ${active ? cat.border : bdColor}`,
-                                                                    background: active ? cat.color : bgCard,
-                                                                    color: active ? cat.text : txMuted,
+                                                                    border: `1.5px solid ${active ? border : bdColor}`,
+                                                                    background: active ? color : bgCard,
+                                                                    color: active ? text : txMuted,
                                                                     fontWeight: active ? '800' : '600',
                                                                     fontSize: '0.8rem', cursor: 'pointer', transition: 'all 0.15s',
                                                                     display: 'flex', alignItems: 'center', gap: '5px',
-                                                                    boxShadow: active ? `0 0 0 3px ${cat.border}22` : 'none'
+                                                                    boxShadow: active ? `0 0 0 3px ${border}22` : 'none'
                                                                 }}>
-                                                                    {cat.icon} {cat.id}
+                                                                    {icon} {catName}
                                                                 </button>
                                                             );
                                                         })}

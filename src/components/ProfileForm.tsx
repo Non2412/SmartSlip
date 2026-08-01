@@ -11,8 +11,13 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
     name: "",
     company: "",
     email: "",
+    address: "",
     citizenId: "",
   });
+  const [requestedRole, setRequestedRole] = useState<"clerk" | "user">("user");
+  const [roleReason, setRoleReason] = useState("");
+  const [roleRequestsList, setRoleRequestsList] = useState<any[]>([]);
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
   const [phoneCode, setPhoneCode] = useState("+66");
   const [phoneNumberOnly, setPhoneNumberOnly] = useState("");
   const [customCategories, setCustomCategories] = useState<string[]>([]);
@@ -23,6 +28,17 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const fetchRoleRequests = () => {
+    fetch("/api/role-requests")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setRoleRequestsList(data);
+        }
+      })
+      .catch(console.error);
+  };
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -30,10 +46,47 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
         setIsForced(true);
       }
     }
+    fetchRoleRequests();
   }, []);
 
   const isSessionNotCompleted = session?.user && (session.user as any).role === "user" && (session as any).isProfileCompleted === false;
   const isForcedView = isForced || isSessionNotCompleted;
+
+  const handleRoleRequestSubmit = async () => {
+    if (!roleReason.trim()) {
+      showToast("กรุณาระบุเหตุผลการยื่นคำร้องขอเปลี่ยนบทบาทครับ", "warning");
+      return;
+    }
+
+    setIsSubmittingRequest(true);
+    try {
+      const res = await fetch("/api/role-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetRole: requestedRole,
+          reason: roleReason.trim(),
+          requestType: "role_change",
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast("ยื่นคำร้องขอเปลี่ยนบทบาทส่งไปยังผู้ดูแลระบบเรียบร้อยแล้ว! 📨", "success", 5000);
+        setRoleReason("");
+        fetchRoleRequests();
+      } else {
+        showToast(data.error || "เกิดข้อผิดพลาดในการส่งคำร้อง", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("เกิดข้อผิดพลาดในการส่งคำร้อง", "error");
+    } finally {
+      setIsSubmittingRequest(false);
+    }
+  };
+
+  const pendingRequest = roleRequestsList.find((r) => r.status === "pending");
 
   useEffect(() => {
     fetch("/api/profile")
@@ -44,8 +97,13 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
             name: data.name || "",
             company: data.company || "",
             email: data.email || "",
+            address: data.address || data.about || data.from || "",
             citizenId: data.citizenId || "",
           });
+
+          if (data.requestedRole === 'clerk' || data.requestedRole === 'user') {
+            setRequestedRole(data.requestedRole);
+          }
 
           const phoneVal = data.phone || "";
           if (phoneVal.startsWith("+66")) {
@@ -56,8 +114,10 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
             setPhoneNumberOnly(phoneVal);
           }
 
-          if (data.customCategories) {
+          if (Array.isArray(data.customCategories)) {
             setCustomCategories(data.customCategories);
+          } else {
+            setCustomCategories(['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ']);
           }
         }
       })
@@ -83,6 +143,8 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
         if (!value.trim()) return 'กรุณากรอกอีเมลติดต่อ';
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'รูปแบบอีเมลไม่ถูกต้อง';
         return '';
+      case 'address':
+        return value.trim() ? '' : 'กรุณากรอกที่อยู่ / ประวัติตนเอง';
       case 'citizenId': {
         const clean = value.replace(/-/g, '').trim();
         if (!clean) return 'กรุณากรอกเลขประจำตัวประชาชน';
@@ -171,23 +233,45 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
     }
   };
 
+  const saveCategoriesToDb = async (categories: string[]) => {
+    try {
+      const cleanPhoneOnly = phoneNumberOnly.replace(/[^\d]/g, "").replace(/^0/, "");
+      const finalPhone = `${phoneCode}${cleanPhoneOnly}`;
+      await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          ...form, 
+          phone: finalPhone, 
+          customCategories: categories 
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to auto-save categories:", err);
+    }
+  };
+
   const handleAddCategory = () => {
     const input = newCatInput.trim();
     if (!input) return;
 
-    const defaults = ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ', 'ทั้งหมด'];
-    if (defaults.includes(input) || customCategories.includes(input)) {
+    const exists = customCategories.some(c => c.toLowerCase() === input.toLowerCase());
+    if (exists || input === 'ทั้งหมด') {
       showToast("มีหมวดหมู่นี้อยู่แล้วครับ!", "warning");
       return;
     }
 
-    setCustomCategories([...customCategories, input]);
+    const updated = [...customCategories, input];
+    setCustomCategories(updated);
     setNewCatInput("");
+    saveCategoriesToDb(updated);
     showToast(`เพิ่มหมวดหมู่ "${input}" เรียบร้อยแล้ว`, "success");
   };
 
   const handleRemoveCategory = (catName: string) => {
-    setCustomCategories(customCategories.filter(c => c !== catName));
+    const updated = customCategories.filter(c => c !== catName);
+    setCustomCategories(updated);
+    saveCategoriesToDb(updated);
     showToast(`ลบหมวดหมู่ "${catName}" เรียบร้อยแล้ว`, "info");
   };
 
@@ -215,14 +299,15 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
     const nameErr = validateField('name', form.name);
     const companyErr = validateField('company', form.company);
     const emailErr = validateField('email', form.email);
+    const addressErr = validateField('address', form.address);
     const cleanPhone = phoneNumberOnly.replace(/[^\d]/g, '');
     const phoneErr = !phoneNumberOnly.trim() ? 'กรุณากรอกเบอร์โทรศัพท์'
       : (cleanPhone.length < 9 || cleanPhone.length > 10) ? 'เบอร์โทรศัพท์ต้องมี 9-10 หลัก' : '';
     const citizenErr = validateField('citizenId', form.citizenId);
 
-    const newErrors = { name: nameErr, company: companyErr, email: emailErr, phone: phoneErr, citizenId: citizenErr };
+    const newErrors = { name: nameErr, company: companyErr, email: emailErr, address: addressErr, phone: phoneErr, citizenId: citizenErr };
     setErrors(newErrors);
-    setTouched({ name: true, company: true, email: true, phone: true, citizenId: true });
+    setTouched({ name: true, company: true, email: true, address: true, phone: true, citizenId: true });
 
     if (Object.values(newErrors).some(e => e)) return;
 
@@ -237,6 +322,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
         body: JSON.stringify({ 
           ...form, 
           phone: finalPhone, 
+          requestedRole,
           customCategories 
         }),
       });
@@ -245,7 +331,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
         if (onSaved) onSaved();
 
         if (isForcedView) {
-          setTimeout(() => { window.location.href = "/dashboard"; }, 1500);
+          setTimeout(() => { window.location.href = "/pending-approval"; }, 1500);
         }
       } else {
         showToast("เกิดข้อผิดพลาดในการบันทึกข้อมูล", "error");
@@ -259,27 +345,123 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
   };
 
   if (initialLoading) {
-    return <div className={styles.card}>กำลังโหลด...</div>;
+    return <div className={styles.card} style={{ textAlign: 'center', padding: '40px' }}>กำลังโหลดข้อมูลโปรไฟล์...</div>;
   }
 
+  const isComplete = form.name.trim() && form.company.trim() && form.email.trim() && form.address.trim() && phoneNumberOnly.trim() && form.citizenId.trim() && validateCitizenId(form.citizenId);
+
   return (
-    <div className={styles.card}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* ── 1. Profile Hero Banner ── */}
+      <div style={{
+        background: 'var(--card-bg, #ffffff)',
+        borderRadius: '20px',
+        padding: '24px 28px',
+        border: '1px solid var(--border-color, #e2e8f0)',
+        boxShadow: '0 8px 24px -6px rgba(0,0,0,0.05)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '20px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+          <img 
+            src={session?.user?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(form.name || 'User')}`} 
+            alt={form.name || "User Avatar"} 
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(form.name || 'User')}`;
+            }}
+            style={{
+              width: '68px',
+              height: '68px',
+              borderRadius: '50%',
+              objectFit: 'cover',
+              border: '3px solid var(--primary-color, #10b981)',
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+            }}
+          />
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-main, #0f172a)' }}>
+                {form.name || session?.user?.name || 'โปรไฟล์ของฉัน'}
+              </h2>
+              <span style={{
+                fontSize: '0.75rem',
+                fontWeight: '700',
+                padding: '3px 10px',
+                borderRadius: '20px',
+                background: (session?.user as any)?.role === 'admin' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+                color: (session?.user as any)?.role === 'admin' ? '#6366f1' : '#10b981',
+                border: (session?.user as any)?.role === 'admin' ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
+              }}>
+                {(session?.user as any)?.role === 'admin' ? '🛡️ ผู้ดูแลระบบ (Admin)' : '👤 ผู้ใช้งานทั่วไป'}
+              </span>
+            </div>
+            <p style={{ margin: '4px 0 0', fontSize: '0.88rem', color: 'var(--text-muted, #64748b)' }}>
+              {form.email || session?.user?.email || 'ไม่มีอีเมล'}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{
+            fontSize: '0.8rem',
+            fontWeight: '600',
+            padding: '6px 14px',
+            borderRadius: '12px',
+            background: isComplete ? 'rgba(34, 197, 94, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+            color: isComplete ? '#22c55e' : '#f59e0b',
+            border: isComplete ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(245, 158, 11, 0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            {isComplete ? '✅ ข้อมูลครบถ้วนสมบูรณ์' : '⏳ รอดำเนินการกรอกข้อมูล'}
+          </span>
+
+          <button
+            type="button"
+            onClick={() => window.print()}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-color, #e2e8f0)',
+              background: 'var(--card-bg, #ffffff)',
+              color: 'var(--text-main, #0f172a)',
+              fontSize: '0.85rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary-color, #10b981)'}
+            onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-color, #e2e8f0)'}
+          >
+            🖨️ พิมพ์ข้อมูล / PDF
+          </button>
+        </div>
+      </div>
+
+      {/* ── 2. Forced Profile Warning Alert ── */}
       {isForcedView && (
         <div style={{
           background: 'rgba(239, 68, 68, 0.08)',
           border: '1px solid rgba(239, 68, 68, 0.25)',
           borderRadius: '16px',
           padding: '20px 24px',
-          marginBottom: '24px',
           display: 'flex',
           flexDirection: 'column',
           gap: '12px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444', fontWeight: 'bold', fontSize: '1.05rem' }}>
-            <span>⚠️</span> กรุณากรอกข้อมูลส่วนตัวให้ครบถ้วนก่อนเข้าใช้งานระบบ
+            <span>⚠️</span> กรุณากรอกข้อมูลส่วนตัวให้ครบถ้วนก่อนเริ่มใช้งานระบบ
           </div>
           <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-            เพื่อความถูกต้องและความปลอดภัยในการใช้งาน จำเป็นต้องกรอกชื่อ-นามสกุล, ชื่อบริษัท/ที่ทำงาน, เบอร์โทรศัพท์ และรหัสประจำตัวประชาชนให้ครบถ้วนก่อนจึงจะสามารถทำรายการเข้าชมหน้าหลักหรือแดชบอร์ดได้ครับ
+            เพื่อความถูกต้องและความปลอดภัยในการใช้งาน จำเป็นต้องกรอกชื่อ-นามสกุล, ชื่อบริษัท/ที่ทำงาน, ที่อยู่/ประวัติตนเอง, เบอร์โทรศัพท์ และรหัสประจำตัวประชาชนให้ครบถ้วนก่อนจึงจะสามารถทำรายการเข้าชมหน้าหลักหรือแดชบอร์ดได้ครับ
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-start', gap: '12px', marginTop: '4px' }}>
             <button
@@ -298,12 +480,6 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                 cursor: 'pointer',
                 transition: 'all 0.2s'
               }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'transparent';
-              }}
             >
               🚪 ออกจากระบบ / Sign Out
             </button>
@@ -311,168 +487,424 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
         </div>
       )}
 
-      <h3>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        {isForcedView ? "ลงทะเบียนประวัติส่วนตัว" : "แก้ไขข้อมูลของฉัน"}
-      </h3>
-      <form onSubmit={handleSubmit}>
-        <div className={styles.formGroup}>
-          <label className={styles.label}>ชื่อ-นามสกุล</label>
-          <input
-            className={styles.input}
-            name="name"
-            placeholder="ชื่อ-นามสกุล"
-            value={form.name}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            style={errors.name && touched.name ? { borderColor: '#ef4444' } : {}}
-            required
-          />
-          {touched.name && errors.name && (
-            <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>⚠ {errors.name}</span>
-          )}
-        </div>
-        <div className={styles.formGroup}>
-          <label className={styles.label}>ชื่อบริษัท / ที่ทำงาน</label>
-          <input
-            className={styles.input}
-            name="company"
-            placeholder="บริษัทจำกัด..."
-            value={form.company}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            style={errors.company && touched.company ? { borderColor: '#ef4444' } : {}}
-            required
-          />
-          {touched.company && errors.company && (
-            <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>⚠ {errors.company}</span>
-          )}
-        </div>
-        <div className={styles.formGroup}>
-          <label className={styles.label}>อีเมลติดต่อ</label>
-          <input
-            className={styles.input}
-            name="email"
-            type="email"
-            placeholder="example@email.com"
-            value={form.email}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            style={errors.email && touched.email ? { borderColor: '#ef4444' } : {}}
-            required
-          />
-          {touched.email && errors.email && (
-            <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>⚠ {errors.email}</span>
-          )}
-        </div>
-        <div className={styles.formGroup}>
-          <label className={styles.label}>เบอร์โทรศัพท์</label>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <select 
-              value={phoneCode} 
-              onChange={(e) => setPhoneCode(e.target.value)}
-              className={styles.input} 
-              style={{ width: '135px', flexShrink: 0, paddingRight: '4px', background: 'var(--input-bg)', color: 'var(--text-main)', border: errors.phone && touched.phone ? '1px solid #ef4444' : '1px solid var(--border-color)', borderRadius: '10px' }}
-            >
-              <option value="+66">🇹🇭 (+66)</option>
-            </select>
-            <input 
-              className={styles.input}
-              placeholder="8x-xxx-xxxx" 
-              value={phoneNumberOnly} 
-              onChange={(e) => handlePhoneChange(e.target.value)}
-              onBlur={handlePhoneBlur}
-              style={errors.phone && touched.phone ? { borderColor: '#ef4444' } : {}}
-              required
-            />
-          </div>
-          {touched.phone && errors.phone && (
-            <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>⚠ {errors.phone}</span>
-          )}
-        </div>
-        <div className={styles.formGroup}>
-          <label className={styles.label}>
-            เลขประจำตัวประชาชน (13 หลัก)
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400, marginLeft: '6px' }}>🔒 แสดงเฉพาะ 3 ตัวท้าย</span>
-          </label>
-          <input 
-            className={styles.input} 
-            name="citizenId" 
-            placeholder="X-XXXX-XXXXX-XX-X" 
-            value={maskCitizenId(form.citizenId)}
-            onChange={handleCitizenIdChange}
-            onBlur={handleBlur}
-            style={{
-              letterSpacing: '2px',
-              fontFamily: 'monospace',
-              ...(errors.citizenId && touched.citizenId ? { borderColor: '#ef4444' } : {})
-            }}
-            required
-          />
-          {errors.citizenId && (
-            <span style={{ color: errors.citizenId.startsWith('กรอกแล้ว') ? '#f59e0b' : '#ef4444', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>⚠ {errors.citizenId}</span>
-          )}
-        </div>
+      {/* ── 3. Unified Profile Form Card ── */}
+      <div className={styles.card} style={{ borderRadius: '20px', padding: '32px' }}>
+        <form onSubmit={handleSubmit}>
+          
+          {/* Section 1: ข้อมูลส่วนตัวและการติดต่อ */}
+          <div style={{ marginBottom: '28px' }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.15rem', fontWeight: '700', color: 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ background: 'rgba(16, 185, 129, 0.12)', padding: '6px 10px', borderRadius: '10px', color: 'var(--primary-color, #10b981)', fontSize: '1rem' }}>👤</span>
+              ข้อมูลส่วนตัวและสถานที่ทำงาน
+            </h3>
 
-        <hr style={{ margin: '24px 0', border: 'none', borderTop: '1.5px dashed #cbd5e1' }} />
-
-        {/* Custom Categories section */}
-        <h3 style={{ marginTop: '0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><line x1="12" y1="3" x2="12" y2="21" /><line x1="3" y1="12" x2="21" y2="12" /></svg>
-          จัดการหมวดหมู่รายจ่ายของคุณ
-        </h3>
-
-        {customCategories.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-            {customCategories.map((cat, idx) => (
-              <div key={idx} className={styles.customCategoryRow} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ flex: 1, minWidth: '100px', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                  {cat}
-                </div>
-                <button
-                  type="button"
-                  className={styles.deleteButton}
-                  onClick={() => handleRemoveCategory(cat)}
-                  title={`ลบหมวดหมู่ ${cat}`}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+              <div className={styles.formGroup} style={{ margin: 0 }}>
+                <label className={styles.label}>ชื่อ-นามสกุล</label>
+                <input
+                  className={styles.input}
+                  name="name"
+                  placeholder="ตัวอย่าง: นาย สมชาย ใจดี"
+                  value={form.name}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  style={errors.name && touched.name ? { borderColor: '#ef4444' } : {}}
+                  required
+                />
+                {touched.name && errors.name && (
+                  <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>⚠ {errors.name}</span>
+                )}
               </div>
-            ))}
+
+              <div className={styles.formGroup} style={{ margin: 0 }}>
+                <label className={styles.label}>ชื่อบริษัท / ที่ทำงาน</label>
+                <input
+                  className={styles.input}
+                  name="company"
+                  placeholder="ตัวอย่าง: บริษัท สมาร์ทสลิป จำกัด (มหาชน)"
+                  value={form.company}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  style={errors.company && touched.company ? { borderColor: '#ef4444' } : {}}
+                  required
+                />
+                {touched.company && errors.company && (
+                  <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>⚠ {errors.company}</span>
+                )}
+              </div>
+
+              <div className={styles.formGroup} style={{ margin: 0 }}>
+                <label className={styles.label}>อีเมลติดต่อ</label>
+                <input
+                  className={styles.input}
+                  name="email"
+                  type="email"
+                  placeholder="ตัวอย่าง: somchai.j@example.com"
+                  value={form.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  style={errors.email && touched.email ? { borderColor: '#ef4444' } : {}}
+                  required
+                />
+                {touched.email && errors.email && (
+                  <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>⚠ {errors.email}</span>
+                )}
+              </div>
+
+              <div className={styles.formGroup} style={{ margin: 0 }}>
+                <label className={styles.label}>เบอร์โทรศัพท์ติดต่อ</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <select 
+                    value={phoneCode} 
+                    onChange={(e) => setPhoneCode(e.target.value)}
+                    className={styles.input} 
+                    style={{ width: '130px', flexShrink: 0, paddingRight: '4px', background: 'var(--input-bg)', color: 'var(--text-main)', border: errors.phone && touched.phone ? '1px solid #ef4444' : '1px solid var(--border-color)', borderRadius: '10px' }}
+                  >
+                    <option value="+66">🇹🇭 (+66)</option>
+                  </select>
+                  <input 
+                    className={styles.input}
+                    placeholder="ตัวอย่าง: 081-234-5678" 
+                    value={phoneNumberOnly} 
+                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    onBlur={handlePhoneBlur}
+                    style={errors.phone && touched.phone ? { borderColor: '#ef4444' } : {}}
+                    required
+                  />
+                </div>
+                {touched.phone && errors.phone && (
+                  <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>⚠ {errors.phone}</span>
+                )}
+              </div>
+            </div>
+
+            {/* ที่อยู่ / ประวัติตนเอง */}
+            <div className={styles.formGroup} style={{ marginTop: '20px' }}>
+              <label className={styles.label}>เป็นใครมาจากไหน (ที่อยู่ / ประวัติตนเอง)</label>
+              <textarea
+                className={styles.input}
+                name="address"
+                placeholder="ตัวอย่าง: 123/45 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพมหานคร 10110"
+                value={form.address}
+                onChange={(e: any) => handleChange(e)}
+                onBlur={(e: any) => handleBlur(e)}
+                rows={2}
+                style={{ resize: 'vertical', minHeight: '68px', fontFamily: 'inherit', padding: '12px 14px', lineHeight: '1.5' }}
+                required
+              />
+              {touched.address && errors.address && (
+                <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>⚠ {errors.address}</span>
+              )}
+            </div>
+
+            {/* เลขประจำตัวประชาชน */}
+            <div className={styles.formGroup} style={{ marginTop: '20px' }}>
+              <label className={styles.label}>
+                เลขประจำตัวประชาชน (13 หลัก)
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400, marginLeft: '8px' }}>🔒 แสดงเฉพาะ 3 ตัวท้ายเพื่อความปลอดภัย</span>
+              </label>
+              <input 
+                className={styles.input} 
+                name="citizenId" 
+                placeholder="ตัวอย่าง: 1-1004-99999-99-9" 
+                value={maskCitizenId(form.citizenId)}
+                onChange={handleCitizenIdChange}
+                onBlur={handleBlur}
+                style={{
+                  letterSpacing: '2px',
+                  fontFamily: 'monospace',
+                  ...(errors.citizenId && touched.citizenId ? { borderColor: '#ef4444' } : {})
+                }}
+                required
+              />
+              {errors.citizenId && (
+                <span style={{ color: errors.citizenId.startsWith('กรอกแล้ว') ? '#f59e0b' : '#ef4444', fontSize: '0.78rem', marginTop: '4px', display: 'block' }}>⚠ {errors.citizenId}</span>
+              )}
+            </div>
+
+            {/* ── Role Request Selection Cards ── */}
+            <div style={{ marginTop: '24px', background: 'var(--input-bg, #f8fafc)', borderRadius: '16px', padding: '20px', border: '1px solid var(--border-color, #e2e8f0)' }}>
+              <label className={styles.label} style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-main, #0f172a)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>🔑</span> เลือกขอสถานะ / สิทธิ์การใช้งานระบบ
+              </label>
+              <p style={{ margin: '0 0 16px 0', fontSize: '0.82rem', color: 'var(--text-muted, #64748b)' }}>
+                กรุณาเลือกสถานะการใช้งานที่คุณต้องการขออนุญาตจากผู้ดูแลระบบ (Admin)
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+                {/* Option 1: เสมียน (Clerk) */}
+                <div 
+                  onClick={() => setRequestedRole('clerk')}
+                  style={{
+                    padding: '16px 18px',
+                    borderRadius: '14px',
+                    border: requestedRole === 'clerk' ? '2px solid #6366f1' : '1px solid var(--border-color, #e2e8f0)',
+                    background: requestedRole === 'clerk' ? 'rgba(99, 102, 241, 0.08)' : 'var(--card-bg, #ffffff)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px'
+                  }}
+                >
+                  <input 
+                    type="radio" 
+                    name="requestedRole" 
+                    value="clerk" 
+                    checked={requestedRole === 'clerk'} 
+                    onChange={() => setRequestedRole('clerk')} 
+                    style={{ marginTop: '3px', accentColor: '#6366f1' }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: requestedRole === 'clerk' ? '#6366f1' : 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>💼</span> 1. เสมียน (Clerk)
+                    </div>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted, #64748b)', lineHeight: '1.4' }}>
+                      ขอสิทธิ์ใช้งานในฐานะเสมียน เพื่อช่วยตรวจสอบ ตรวจเช็ค และจัดการเอกสารสลิป/ใบเสร็จในระบบ
+                    </p>
+                  </div>
+                </div>
+
+                {/* Option 2: ผู้ใช้งานทั่วไป (General User) */}
+                <div 
+                  onClick={() => setRequestedRole('user')}
+                  style={{
+                    padding: '16px 18px',
+                    borderRadius: '14px',
+                    border: requestedRole === 'user' ? '2px solid #10b981' : '1px solid var(--border-color, #e2e8f0)',
+                    background: requestedRole === 'user' ? 'rgba(16, 185, 129, 0.08)' : 'var(--card-bg, #ffffff)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px'
+                  }}
+                >
+                  <input 
+                    type="radio" 
+                    name="requestedRole" 
+                    value="user" 
+                    checked={requestedRole === 'user'} 
+                    onChange={() => setRequestedRole('user')} 
+                    style={{ marginTop: '3px', accentColor: '#10b981' }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: requestedRole === 'user' ? '#10b981' : 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>👤</span> 2. ผู้ใช้งานทั่วไป (General User)
+                    </div>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted, #64748b)', lineHeight: '1.4' }}>
+                      ขอสิทธิ์ใช้งานในฐานะผู้ใช้งานทั่วไป สำหรับสแกน บันทึก และคุมรายจ่ายใบเสร็จส่วนตัว
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
 
-        {/* Add New Custom Category Row */}
-        <h4 style={{ marginTop: '24px', marginBottom: '12px', fontSize: '0.95rem', color: 'var(--text-main)' }}>
-          ➕ สร้างหมวดหมู่รายจ่ายใหม่
-        </h4>
-        <div className={styles.addCategoryRow} style={{ marginBottom: '24px' }}>
-          <input
-            className={styles.input}
-            type="text"
-            placeholder="ชื่อหมวดหมู่ เช่น ค่าไฟ, ท่องเที่ยว..."
-            value={newCatInput}
-            onChange={(e) => setNewCatInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleAddCategory();
-              }
+          <hr style={{ margin: '32px 0', border: 'none', borderTop: '1px dashed var(--border-color, #cbd5e1)' }} />
+
+          {/* Section 2: จัดการหมวดหมู่รายจ่ายส่วนตัว */}
+          <div style={{ marginBottom: '28px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.15rem', fontWeight: '700', color: 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ background: 'rgba(99, 102, 241, 0.12)', padding: '6px 10px', borderRadius: '10px', color: '#6366f1', fontSize: '1rem' }}>🏷️</span>
+              จัดการหมวดหมู่รายจ่ายส่วนตัวของคุณ
+            </h3>
+
+            {customCategories.length > 0 && (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
+                {customCategories.map((cat, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 14px',
+                    borderRadius: '20px',
+                    background: 'var(--input-bg, #f8fafc)',
+                    border: '1px solid var(--border-color, #e2e8f0)',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    color: 'var(--text-main, #0f172a)',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                  }}>
+                    <span>🏷️ {cat}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveCategory(cat)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        padding: '0 2px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.9rem',
+                        fontWeight: 'bold'
+                      }}
+                      title={`ลบหมวดหมู่ ${cat}`}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add New Category Row */}
+            <div style={{ display: 'flex', gap: '10px', maxWidth: '500px' }}>
+              <input
+                className={styles.input}
+                type="text"
+                placeholder="พิมพ์ชื่อหมวดหมู่ใหม่ เช่น ค่าไฟ, ท่องเที่ยว..."
+                value={newCatInput}
+                onChange={(e) => setNewCatInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddCategory();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className={styles.addButton}
+                onClick={handleAddCategory}
+                style={{ flexShrink: 0 }}
+              >
+                ➕ เพิ่มหมวดหมู่
+              </button>
+            </div>
+          </div>
+
+          <hr style={{ margin: '32px 0', border: 'none', borderTop: '1px dashed var(--border-color, #cbd5e1)' }} />
+
+          {/* Section 3: ยื่นคำร้องขอเปลี่ยนสิทธิ์บทบาท / แจ้งปัญหา */}
+          <div style={{ marginBottom: '28px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.15rem', fontWeight: '700', color: 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ background: 'rgba(99, 102, 241, 0.12)', padding: '6px 10px', borderRadius: '10px', color: '#6366f1', fontSize: '1rem' }}>📝</span>
+              ยื่นคำร้องขอเปลี่ยนสิทธิ์บทบาท / แจ้งปัญหาการใช้งาน
+            </h3>
+
+            <p style={{ margin: '0 0 16px 0', fontSize: '0.85rem', color: 'var(--text-muted, #64748b)', lineHeight: '1.5' }}>
+              หากคุณต้องการปรับเปลี่ยนสิทธิ์บทบาทการใช้งาน (เช่น ขอเปลี่ยนสิทธิ์เป็นเสมียน หรือผู้ใช้งานทั่วไป) จำเป็นต้องระบุเหตุผลความจำเป็นเพื่อให้ผู้ดูแลระบบ (Admin) พิจารณาอนุมัติก่อนเปลี่ยนสิทธิ์ครับ
+            </p>
+
+            {/* Active Pending Request Alert */}
+            {pendingRequest && (
+              <div style={{
+                background: 'rgba(99, 102, 241, 0.08)',
+                border: '1px solid rgba(99, 102, 241, 0.25)',
+                borderRadius: '14px',
+                padding: '16px 20px',
+                marginBottom: '20px'
+              }}>
+                <div style={{ fontWeight: '700', color: '#6366f1', fontSize: '0.92rem', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>⏳</span> คำร้องขอสิทธิ์ของคุณอยู่ระหว่างรอผู้ดูแลระบบอนุมัติ
+                </div>
+                <p style={{ margin: '0 0 6px 0', fontSize: '0.85rem', color: 'var(--text-main, #0f172a)' }}>
+                  สิทธิ์ที่ขอเปลี่ยน: <strong>{pendingRequest.targetRole === 'clerk' ? '💼 เสมียน (Clerk)' : '👤 ผู้ใช้งานทั่วไป (User)'}</strong>
+                </p>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted, #64748b)' }}>
+                  เหตุผลที่ระบุ: &ldquo;{pendingRequest.reason}&rdquo; ({new Date(pendingRequest.createdAt).toLocaleString('th-TH')})
+                </p>
+              </div>
+            )}
+
+            {/* Resolved Status Notification Banners */}
+            {!pendingRequest && roleRequestsList.length > 0 && roleRequestsList[0].status === 'approved' && (
+              <div style={{
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: '14px',
+                padding: '16px 20px',
+                marginBottom: '20px'
+              }}>
+                <div style={{ fontWeight: '700', color: '#10b981', fontSize: '0.92rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>🎉</span> คำร้องขอเปลี่ยนบทบาทได้รับการอนุมัติแล้ว!
+                </div>
+                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-main, #0f172a)' }}>
+                  สิทธิ์การใช้งานใหม่ของคุณถูกปรับเป็น <strong>{roleRequestsList[0].targetRole === 'clerk' ? '💼 เสมียน (Clerk)' : '👤 ผู้ใช้งานทั่วไป'}</strong> เรียบร้อยแล้วครับ
+                </p>
+              </div>
+            )}
+
+            {!pendingRequest && roleRequestsList.length > 0 && roleRequestsList[0].status === 'rejected' && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '14px',
+                padding: '16px 20px',
+                marginBottom: '20px'
+              }}>
+                <div style={{ fontWeight: '700', color: '#ef4444', fontSize: '0.92rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>❌</span> คำร้องขอเปลี่ยนบทบาทถูกปฏิเสธ
+                </div>
+                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-main, #0f172a)' }}>
+                  คำร้องขอสิทธิ์ <strong>{roleRequestsList[0].targetRole === 'clerk' ? '💼 เสมียน (Clerk)' : '👤 ผู้ใช้งานทั่วไป'}</strong> ถูกปฏิเสธโดยผู้ดูแลระบบ{roleRequestsList[0].adminNote ? ` (เหตุผล: ${roleRequestsList[0].adminNote})` : ''}
+                </p>
+              </div>
+            )}
+
+            <div style={{ background: 'var(--input-bg, #f8fafc)', borderRadius: '16px', padding: '20px', border: '1px solid var(--border-color, #e2e8f0)' }}>
+              <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
+                <label className={styles.label}>เหตุผลที่ต้องการขอเปลี่ยนบทบาท / รายละเอียดปัญหาที่พบ <span style={{ color: '#ef4444' }}>*</span></label>
+                <textarea
+                  className={styles.input}
+                  placeholder="ระบุเหตุผลความจำเป็น เช่น ต้องช่วยตรวจเช็คเอกสารสลิปของแผนกการเงิน หรือแจ้งปัญหาที่พบ..."
+                  value={roleReason}
+                  onChange={(e) => setRoleReason(e.target.value)}
+                  rows={3}
+                  style={{ resize: 'vertical', minHeight: '80px', fontFamily: 'inherit', padding: '12px 14px', lineHeight: '1.5' }}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleRoleRequestSubmit}
+                disabled={isSubmittingRequest || !roleReason.trim()}
+                style={{
+                  padding: '10px 20px',
+                  background: '#6366f1',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: '700',
+                  fontSize: '0.9rem',
+                  cursor: isSubmittingRequest || !roleReason.trim() ? 'not-allowed' : 'pointer',
+                  opacity: isSubmittingRequest || !roleReason.trim() ? 0.6 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {isSubmittingRequest ? '⌛ กำลังส่งคำร้อง...' : '📨 ยื่นคำร้องขอเปลี่ยนสิทธิ์บทบาทแก่ Admin'}
+              </button>
+            </div>
+          </div>
+
+          <hr style={{ margin: '32px 0', border: 'none', borderTop: '1px dashed var(--border-color, #cbd5e1)' }} />
+
+          {/* Submit Action Button */}
+          <button 
+            type="submit" 
+            className={styles.button} 
+            disabled={loading}
+            style={{
+              padding: '14px',
+              fontSize: '1rem',
+              fontWeight: '700',
+              borderRadius: '14px',
+              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
+              cursor: loading ? 'not-allowed' : 'pointer'
             }}
-          />
-          <button
-            type="button"
-            className={styles.addButton}
-            onClick={handleAddCategory}
           >
-            สร้างหมวดหมู่
+            {loading ? "⌛ กำลังบันทึกข้อมูลโปรไฟล์..." : "💾 บันทึกข้อมูลโปรไฟล์ทั้งหมด"}
           </button>
-        </div>
-
-        <button type="submit" className={styles.button} disabled={loading}>
-          {loading ? "กำลังบันทึก..." : "💾 บันทึกข้อมูลทั้งหมด"}
-        </button>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import { useToast } from '@/components/Toast';
+import { cleanAndProxyImageUrl } from '@/lib/apiClient';
 import styles from './AdminDashboard.module.css';
 
 interface UserStat {
@@ -15,6 +16,7 @@ interface UserStat {
   image: string | null;
   role: string;
   status: string;
+  requestedRole?: string;
   lineUserId: string | null;
   receiptCount: number;
   createdAt: string;
@@ -25,6 +27,7 @@ interface UserStat {
     address: string;
     budgets: number;
     citizenId?: string;
+    requestedRole?: string;
   };
 }
 
@@ -83,14 +86,31 @@ export default function AdminPage() {
     return date.toLocaleDateString('th-TH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'receipts' | 'logs' | 'approvals' | 'images'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'receipts' | 'logs' | 'approvals' | 'images' | 'role_requests'>('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMobileTabDropdownOpen, setIsMobileTabDropdownOpen] = useState(false);
 
   // States for API data
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [users, setUsers] = useState<UserStat[]>([]);
   const [receipts, setReceipts] = useState<any[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [roleRequests, setRoleRequests] = useState<any[]>([]);
+  const [loadingRoleRequests, setLoadingRoleRequests] = useState(false);
+
+  const tabOptions = useMemo(() => [
+    { id: 'overview', label: '1. ภาพรวมระบบ', icon: '📊', count: null },
+    { id: 'users', label: '2. จัดการผู้ใช้', icon: '👥', count: `${users.length} คน` },
+    { id: 'receipts', label: '3. ตรวจสอบใบเสร็จ', icon: '📄', count: `${receipts.length} รายการ` },
+    { id: 'logs', label: '4. บันทึกกิจกรรม', icon: '🪵', count: `${logs.length} รายการ` },
+    { id: 'approvals', label: '5. อนุมัติการใช้งาน', icon: '⏳', count: users.filter(u => u.status === 'pending').length > 0 ? `${users.filter(u => u.status === 'pending').length} รออนุมัติ` : null },
+    { id: 'images', label: '6. กราฟปริมาณรูปภาพ', icon: '📈', count: null },
+    { id: 'role_requests', label: '7. คำร้องขอเปลี่ยนบทบาท', icon: '📩', count: roleRequests.filter(r => r.status === 'pending').length > 0 ? `${roleRequests.filter(r => r.status === 'pending').length} คำร้อง` : null },
+  ], [users, receipts, logs, roleRequests]);
+
+  const currentTabOption = useMemo(() => 
+    tabOptions.find(t => t.id === activeTab) || tabOptions[0]
+  , [tabOptions, activeTab]);
 
   // Graph Date Filters
   const [graphYear, setGraphYear] = useState<number>(new Date().getFullYear());
@@ -198,12 +218,49 @@ export default function AdminPage() {
     }
   }, [session, sessionStatus, graphYear, graphMonth]);
 
+  const fetchRoleRequests = async () => {
+    try {
+      setLoadingRoleRequests(true);
+      const res = await fetch('/api/role-requests');
+      const json = await res.json();
+      if (Array.isArray(json)) setRoleRequests(json);
+    } catch (e) {
+      console.error('Failed to fetch role requests:', e);
+    } finally {
+      setLoadingRoleRequests(false);
+    }
+  };
+
+  const handleRoleRequestAction = async (requestId: string, action: 'approve' | 'reject') => {
+    try {
+      setActionLoading(requestId);
+      const res = await fetch('/api/role-requests', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, action })
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast(action === 'approve' ? 'อนุมัติการเปลี่ยนบทบาทเรียบร้อยแล้ว!' : 'ปฏิเสธคำร้องเรียบร้อยแล้ว', 'success');
+        await Promise.all([fetchRoleRequests(), fetchUsers(), fetchStats()]);
+      } else {
+        showToast(json.error || 'เกิดข้อผิดพลาดในการดำเนินการ', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      showToast('Network error', 'error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Fetch lists on load
   useEffect(() => {
     if (sessionStatus === 'authenticated' && (session?.user as any)?.role === 'admin') {
       fetchUsers();
       fetchReceipts();
       fetchLogs();
+      fetchRoleRequests();
     }
   }, [session, sessionStatus]);
 
@@ -345,6 +402,70 @@ export default function AdminPage() {
         <TopBar title="จัดการระบบ (Admin Dashboard)" onToggleSidebar={toggleSidebar} />
         
         <div className={styles.container}>
+          {/* Custom Mobile Tab Dropdown Component */}
+          <div className={styles.customMobileDropdownContainer}>
+            <label style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>📑</span> เลือกเมนูการทำงานฝั่งผู้ดูแลระบบ:
+            </label>
+            <div 
+              className={styles.customMobileDropdownTrigger}
+              onClick={() => setIsMobileTabDropdownOpen(!isMobileTabDropdownOpen)}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <span style={{ fontSize: '1.1rem' }}>{currentTabOption.icon}</span>
+                <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-main)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                  {currentTabOption.label} {currentTabOption.count ? `(${currentTabOption.count})` : ''}
+                </span>
+              </div>
+              <span style={{ transform: isMobileTabDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                ▼
+              </span>
+            </div>
+
+            {isMobileTabDropdownOpen && (
+              <>
+                <div 
+                  style={{ position: 'fixed', inset: 0, zIndex: 998, background: 'rgba(0,0,0,0.15)' }}
+                  onClick={() => setIsMobileTabDropdownOpen(false)}
+                />
+                <div className={styles.customMobileDropdownMenu}>
+                  {tabOptions.map((opt) => (
+                    <div
+                      key={opt.id}
+                      className={`${styles.customMobileDropdownItem} ${activeTab === opt.id ? styles.customMobileDropdownItemActive : ''}`}
+                      onClick={() => {
+                        setActiveTab(opt.id as any);
+                        if (opt.id === 'role_requests') fetchRoleRequests();
+                        setIsMobileTabDropdownOpen(false);
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '1.1rem' }}>{opt.icon}</span>
+                        <span style={{ fontSize: '0.92rem', fontWeight: activeTab === opt.id ? '700' : '500' }}>
+                          {opt.label}
+                        </span>
+                      </div>
+
+                      {opt.count && (
+                        <span style={{
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          background: activeTab === opt.id ? 'var(--primary-color)' : 'var(--input-bg)',
+                          color: activeTab === opt.id ? '#ffffff' : 'var(--text-muted)',
+                          border: '1px solid var(--border-color)'
+                        }}>
+                          {opt.count}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Tabs Navigation */}
           <div className={styles.tabsContainer}>
             <button 
@@ -396,6 +517,29 @@ export default function AdminPage() {
               onClick={() => setActiveTab('images')}
             >
               📈 กราฟปริมาณรูปภาพ
+            </button>
+            <button 
+              className={`${styles.tabButton} ${activeTab === 'role_requests' ? styles.activeTab : ''}`}
+              onClick={() => {
+                setActiveTab('role_requests');
+                fetchRoleRequests();
+              }}
+            >
+              📩 คำร้องขอเปลี่ยนบทบาท
+              {roleRequests.filter(r => r.status === 'pending').length > 0 && (
+                <span style={{
+                  background: '#6366f1',
+                  color: '#ffffff',
+                  padding: '2px 6px',
+                  borderRadius: '6px',
+                  fontSize: '0.7rem',
+                  fontWeight: '800',
+                  marginLeft: '6px',
+                  boxShadow: '0 0 6px rgba(99, 102, 241, 0.4)'
+                }}>
+                  {roleRequests.filter(r => r.status === 'pending').length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -1296,6 +1440,142 @@ export default function AdminPage() {
               </div>
             );
           })()}
+
+          {/* Tab 7: Role Change Requests */}
+          {activeTab === 'role_requests' && (
+            <div className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div className={styles.cardTitle}>
+                  📩 รายการคำร้องขอเปลี่ยนสิทธิ์บทบาท & แจ้งปัญหา ({roleRequests.length} รายการ)
+                </div>
+                <button 
+                  onClick={fetchRoleRequests}
+                  style={{
+                    padding: '6px 14px',
+                    background: 'var(--input-bg)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-main)',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  🔄 รีเฟรช
+                </button>
+              </div>
+
+              {loadingRoleRequests ? (
+                <div className={styles.loadingSpinner}><div className={styles.spinner} /> กำลังโหลดคำร้องขอ...</div>
+              ) : roleRequests.length === 0 ? (
+                <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  ยังไม่มีคำร้องขอเปลี่ยนบทบาทหรือแจ้งปัญหาเข้ามาในระบบครับ
+                </div>
+              ) : (
+                <div className={styles.tableWrapper}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>ผู้ยื่นคำร้อง</th>
+                        <th>สิทธิ์ปัจจุบัน</th>
+                        <th>สิทธิ์ที่ขอเปลี่ยน</th>
+                        <th>เหตุผลความจำเป็นที่ระบุ</th>
+                        <th>วันที่ยื่น</th>
+                        <th>สถานะ</th>
+                        <th>การดำเนินการ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {roleRequests.map((r: any) => (
+                        <tr key={r._id || r.id}>
+                          <td>
+                            <div className={styles.userCell}>
+                              <img 
+                                src={r.userImage || "https://api.dicebear.com/7.x/avataaars/svg?seed=" + r.userName} 
+                                alt={r.userName} 
+                                className={styles.avatar} 
+                              />
+                              <div>
+                                <div className={styles.userName}>{r.userName}</div>
+                                <div className={styles.userEmail}>{r.userEmail}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`${styles.badge} ${r.currentRole === 'admin' ? styles.badgeAdmin : r.currentRole === 'clerk' ? styles.badgeAdmin : styles.badgeUser}`}>
+                              {r.currentRole === 'admin' ? '🛡️ Admin' : r.currentRole === 'clerk' ? '💼 Clerk' : '👤 User'}
+                            </span>
+                          </td>
+                          <td>
+                            <span style={{
+                              padding: '4px 10px',
+                              borderRadius: '8px',
+                              fontSize: '0.8rem',
+                              fontWeight: '700',
+                              background: r.targetRole === 'clerk' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+                              color: r.targetRole === 'clerk' ? '#6366f1' : '#10b981',
+                              border: r.targetRole === 'clerk' ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
+                            }}>
+                              {r.targetRole === 'clerk' ? '💼 1. เสมียน (Clerk)' : '👤 2. ผู้ใช้งานทั่วไป'}
+                            </span>
+                          </td>
+                          <td style={{ maxWidth: '300px' }}>
+                            <div style={{
+                              fontSize: '0.85rem',
+                              color: 'var(--text-main)',
+                              background: 'var(--input-bg)',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              border: '1px solid var(--border-color)',
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                              lineHeight: '1.4'
+                            }}>
+                              💬 &ldquo;{r.reason}&rdquo;
+                            </div>
+                          </td>
+                          <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                            {new Date(r.createdAt).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td>
+                            <span className={`${styles.badge} ${
+                              r.status === 'approved' ? styles.badgeActive : r.status === 'rejected' ? styles.badgeRestricted : styles.badgePending
+                            }`}>
+                              {r.status === 'approved' ? '✅ อนุมัติแล้ว' : r.status === 'rejected' ? '❌ ปฏิเสธ' : '⏳ รออนุมัติ'}
+                            </span>
+                          </td>
+                          <td>
+                            {r.status === 'pending' ? (
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button
+                                  onClick={() => handleRoleRequestAction(r._id || r.id, 'approve')}
+                                  disabled={actionLoading === (r._id || r.id)}
+                                  className={`${styles.actionBtn} ${styles.approveBtn}`}
+                                  title="อนุมัติการเปลี่ยนบทบาท"
+                                >
+                                  ✅ อนุมัติ
+                                </button>
+                                <button
+                                  onClick={() => handleRoleRequestAction(r._id || r.id, 'reject')}
+                                  disabled={actionLoading === (r._id || r.id)}
+                                  className={`${styles.actionBtn} ${styles.restrictBtn}`}
+                                  title="ปฏิเสธคำร้อง"
+                                >
+                                  ❌ ปฏิเสธ
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>ดำเนินการแล้ว</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
           {inspectingUser && (() => {
             const userReceipts = receipts.filter(r => 
               r.userId === inspectingUser.id || 
@@ -1467,22 +1747,41 @@ export default function AdminPage() {
                           </span>
                         </div>
 
+                        {/* สิทธิ์ที่ขอใช้งาน */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>สถานะ / สิทธิ์ที่ขอใช้งาน</span>
+                          <span style={{ 
+                            padding: '10px 16px', 
+                            background: (inspectingUser.profile?.requestedRole === 'clerk' || inspectingUser.requestedRole === 'clerk') ? 'rgba(99, 102, 241, 0.1)' : 'rgba(16, 185, 129, 0.1)', 
+                            border: (inspectingUser.profile?.requestedRole === 'clerk' || inspectingUser.requestedRole === 'clerk') ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)', 
+                            borderRadius: '10px',
+                            color: (inspectingUser.profile?.requestedRole === 'clerk' || inspectingUser.requestedRole === 'clerk') ? '#6366f1' : '#10b981',
+                            fontSize: '0.9rem',
+                            minHeight: '42px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontWeight: '700'
+                          }}>
+                            {(inspectingUser.profile?.requestedRole === 'clerk' || inspectingUser.requestedRole === 'clerk') ? '💼 1. เสมียน (Clerk)' : '👤 2. ผู้ใช้งานทั่วไป (General User)'}
+                          </span>
+                        </div>
+
                         {/* จำนวนเงินในบัญชี */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>จำนวนเงินในบัญชี (งบประมาณ / เงินเก็บ)</span>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>จำนวนเงินในบัญชี (รวมใบเสร็จทั้งหมด)</span>
                           <span style={{ 
                             padding: '10px 16px', 
                             background: 'var(--card-bg)', 
                             border: '1px solid var(--border-color)', 
                             borderRadius: '10px',
-                            color: 'var(--text-main)',
-                            fontSize: '0.9rem',
+                            color: '#10b981',
+                            fontSize: '0.95rem',
                             minHeight: '42px',
                             display: 'flex',
                             alignItems: 'center',
-                            fontWeight: '600'
+                            fontWeight: '700'
                           }}>
-                            ฿{typeof inspectingUser.profile?.budgets === 'number' ? inspectingUser.profile.budgets.toLocaleString('en-US') : '0'}
+                            ฿{userReceipts.reduce((sum: number, r: any) => sum + (parseFloat(r.totalAmount || r.amount || 0) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         </div>
                       </div>
@@ -1506,34 +1805,45 @@ export default function AdminPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {userReceipts.map((r: any, index: number) => (
-                                <tr key={r.id || r._id || index} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                  <td style={{ padding: '12px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                      {r.imageUrl && (
-                                        <img 
-                                          src={r.imageUrl} 
-                                          alt="slip" 
-                                          style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover', cursor: 'zoom-in' }} 
-                                          onClick={() => window.open(r.imageUrl, '_blank')}
-                                        />
-                                      )}
-                                      <div style={{ fontWeight: '500', color: 'var(--text-main)' }}>{r.storeName || 'ไม่ระบุร้านค้า'}</div>
-                                    </div>
-                                  </td>
-                                  <td style={{ padding: '12px' }}>
-                                    <span className={`${styles.badge} ${r.source === 'line' ? styles.badgeAdmin : styles.badgeUser}`}>
-                                      {r.source === 'line' ? '💬 LINE Bot' : '🌐 Web UI'}
-                                    </span>
-                                  </td>
-                                  <td style={{ padding: '12px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                                    {new Date(r.createdAt).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                  </td>
-                                  <td style={{ padding: '12px', fontWeight: '700', textAlign: 'right', color: 'var(--text-main)', fontSize: '0.95rem' }}>
-                                    ฿{parseFloat(r.totalAmount || r.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </td>
-                                </tr>
-                              ))}
+                              {userReceipts.map((r: any, index: number) => {
+                                const rawImg = r.imageUrl || r.imageURL || r.extractedData?.imageData || r.extractedData?.imageUrl;
+                                const proxiedImg = cleanAndProxyImageUrl(rawImg);
+                                return (
+                                  <tr key={r.id || r._id || index} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                    <td style={{ padding: '12px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        {proxiedImg ? (
+                                          <img 
+                                            src={proxiedImg} 
+                                            alt="slip" 
+                                            style={{ width: '36px', height: '36px', borderRadius: '6px', objectFit: 'cover', cursor: 'zoom-in', border: '1px solid var(--border-color)', flexShrink: 0 }} 
+                                            onClick={() => window.open(proxiedImg, '_blank')}
+                                            onError={(e) => {
+                                              (e.target as HTMLElement).style.display = 'none';
+                                            }}
+                                          />
+                                        ) : (
+                                          <div style={{ width: '36px', height: '36px', borderRadius: '6px', background: 'rgba(148, 163, 184, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', flexShrink: 0, color: 'var(--text-muted)' }}>
+                                            🧾
+                                          </div>
+                                        )}
+                                        <div style={{ fontWeight: '500', color: 'var(--text-main)' }}>{r.storeName || 'ไม่ระบุร้านค้า'}</div>
+                                      </div>
+                                    </td>
+                                    <td style={{ padding: '12px' }}>
+                                      <span className={`${styles.badge} ${r.source === 'line' ? styles.badgeAdmin : styles.badgeUser}`}>
+                                        {r.source === 'line' ? '💬 LINE Bot' : '🌐 Web UI'}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: '12px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                      {new Date(r.createdAt).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                    </td>
+                                    <td style={{ padding: '12px', fontWeight: '700', textAlign: 'right', color: 'var(--text-main)', fontSize: '0.95rem' }}>
+                                      ฿{parseFloat(r.totalAmount || r.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>

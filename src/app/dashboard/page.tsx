@@ -14,6 +14,7 @@ import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
 import { StatCardSkeleton, ChartSkeleton, RecentUploadsSkeleton } from '@/components/Skeleton';
 import { identifyDuplicateReceipts } from '@/lib/ocr-utils';
+import { useUserCategories } from '@/lib/useUserCategories';
 import styles from './Dashboard.module.css';
 
 function DashboardContent() {
@@ -43,7 +44,7 @@ function DashboardContent() {
     }
   }, [session, fetchReceipts]);
 
-  const filterCategories = ['ทั้งหมด', 'อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'];
+  const { categories: filterCategories } = useUserCategories();
 
   // Auto-open receipt detail sheet if openReceiptId is present in URL
   useEffect(() => {
