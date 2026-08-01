@@ -164,7 +164,9 @@ const TopBar = ({
     const loggedReceiptIds = new Set();
 
     activityLogs.forEach(log => {
-        const correspondingReceipt = receipts.find(r => r._id === log.receiptId || r.id === log.receiptId);
+        const correspondingReceipt = log.receiptId 
+          ? receipts.find(r => r._id === log.receiptId || r.id === log.receiptId) 
+          : null;
         
         let title = '';
         let details = log.details;
@@ -172,7 +174,22 @@ const TopBar = ({
         let imageUrl = '';
         let isPending = false;
 
-        if (correspondingReceipt) {
+        const isUserOrRoleUpdate = log.action === 'role_approved' || 
+          log.action === 'role_rejected' || 
+          log.action === 'role_update' || 
+          log.action === 'user_update' || 
+          (log.details && (log.details.includes('เปลี่ยนสิทธิ์') || log.details.includes('แก้ไขบัญชีผู้ใช้')));
+
+        if (isUserOrRoleUpdate) {
+            if (log.action === 'role_approved') {
+                title = '🎉 อนุมัติสิทธิ์การใช้งาน';
+            } else if (log.action === 'role_rejected') {
+                title = '❌ ปฏิเสธคำร้องขอสิทธิ์';
+            } else {
+                title = '👤 อัปเดตสิทธิ์ / บัญชีผู้ใช้งาน';
+            }
+            link = '/profile';
+        } else if (correspondingReceipt) {
             loggedReceiptIds.add(correspondingReceipt._id || correspondingReceipt.id);
             imageUrl = cleanAndProxyImageUrl(correspondingReceipt.imageUrl || correspondingReceipt.imageURL);
             isPending = correspondingReceipt.isPending || !correspondingReceipt.extractedData;
@@ -204,7 +221,7 @@ const TopBar = ({
                     title = 'เพิ่มใบเสร็จ';
                     break;
                 case 'edit':
-                    title = 'แก้ไขใบเสร็จ';
+                    title = 'แก้ไขข้อมูล';
                     break;
                 case 'delete':
                     title = 'ลบใบเสร็จ';
@@ -213,7 +230,7 @@ const TopBar = ({
                     title = 'ส่งออกข้อมูล';
                     break;
                 default:
-                    title = log.action;
+                    title = 'การแจ้งเตือน';
             }
         }
 
@@ -335,12 +352,24 @@ const TopBar = ({
                             </svg>
                         </div>
                     );
+                case 'role_approved':
+                case 'role_update':
+                case 'user_update':
+                    return (
+                        <div className={styles.itemIconCircle} style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+                            <span style={{ fontSize: '1.05rem', fontWeight: 'bold' }}>👤</span>
+                        </div>
+                    );
+                case 'role_rejected':
+                    return (
+                        <div className={styles.itemIconCircle} style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+                            <span style={{ fontSize: '1.05rem', fontWeight: 'bold' }}>❌</span>
+                        </div>
+                    );
                 default:
                     return (
-                        <div className={styles.itemIconCircle}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="12" cy="12" r="10" />
-                            </svg>
+                        <div className={styles.itemIconCircle} style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#6366f1' }}>
+                            <span style={{ fontSize: '1.05rem', fontWeight: 'bold' }}>🔔</span>
                         </div>
                     );
             }
