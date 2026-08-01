@@ -59,16 +59,37 @@ export async function POST(req: NextRequest) {
         const userId = event.source.userId;
 
         try {
-          // 1. Map LINE User to Internal User
+          // 1. Map LINE User to Internal User and Check Approval Status
           const client = await clientPromise;
           const db = client.db();
-          
+          const { ObjectId } = await import('mongodb');
+
           const userAccount = await db.collection('accounts').findOne({
             provider: 'line',
             providerAccountId: userId // This is the LINE User ID
           });
 
           const internalUserId = userAccount ? userAccount.userId.toString() : userId;
+
+          let userDoc = null;
+          if (userAccount) {
+            const queryUserId = ObjectId.isValid(userAccount.userId) ? new ObjectId(userAccount.userId) : userAccount.userId;
+            userDoc = await db.collection('users').findOne({ _id: queryUserId as any });
+          } else if (ObjectId.isValid(internalUserId)) {
+            userDoc = await db.collection('users').findOne({ _id: new ObjectId(internalUserId) });
+          } else {
+            userDoc = await db.collection('users').findOne({ lineUserId: userId });
+          }
+
+          const userStatus = userDoc?.status;
+          if (userStatus === 'restricted') {
+            await replyMessage(replyToken, '❌ บัญชีของคุณถูกระงับการใช้งานชั่วคราว\n\nกรุณาติดต่อผู้ดูแลระบบหากมีข้อสงสัยครับ');
+            continue;
+          }
+          if (!userDoc || userStatus === 'pending' || !userStatus) {
+            await replyMessage(replyToken, '⏳ บัญชีของคุณอยู่ระหว่างรอการอนุมัติสิทธิ์จากผู้ดูแลระบบ (Admin)\n\nกรุณาแจ้งผู้ดูแลระบบเพื่อขออนุมัติเปิดใช้งานบัญชีก่อนเริ่มส่งสลิปใบเสร็จนะครับ');
+            continue;
+          }
 
           // 2. Download Image
           const imageBuffer = await getLineContent(messageId);
@@ -142,11 +163,6 @@ export async function POST(req: NextRequest) {
           // 4. Upload to Google Cloud Storage
           let driveFileId = null;
           let gcsUrl = null;
-          const { ObjectId } = await import('mongodb');
-          let userDoc = await db.collection('users').findOne({ _id: internalUserId as any });
-          if (!userDoc && ObjectId.isValid(internalUserId)) {
-            userDoc = await db.collection('users').findOne({ _id: new ObjectId(internalUserId) });
-          }
 
           let driveErrorMsg = '';
           let userAccessToken: string | undefined;

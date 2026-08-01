@@ -13,7 +13,8 @@ import styles from './history.module.css';
 const CreateReceiptSheet = dynamic(() => import('@/components/CreateReceiptSheet'), { ssr: false });
 const ReceiptDetailSheet = dynamic(() => import('@/components/ReceiptDetailSheet'), { ssr: false });
 
-const CATEGORIES = ['ทั้งหมด', 'อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'];
+import { useUserCategories } from '@/lib/useUserCategories';
+
 const PERIODS = ['7 วัน', 'รายเดือน', 'รายปี'];
 const MONTHS = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -23,6 +24,7 @@ const MONTHS = [
 export default function HistoryPage() {
   const { data: session } = useSession();
   const { receipts, fetchReceipts, loading, error } = useReceipts();
+  const { categories: CATEGORIES } = useUserCategories();
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
@@ -228,17 +230,42 @@ export default function HistoryPage() {
               <div className={styles.filtersRow}>
                 <div className={styles.filterGroup}>
                   <span className={styles.filterLabel}>หมวดหมู่:</span>
-                  <div className={styles.filterChips}>
-                    {CATEGORIES.map(cat => (
-                      <div
-                        key={cat}
-                        className={`${styles.filterChip} ${activeCategory === cat ? styles.filterChipActive : ''}`}
-                        onClick={() => setActiveCategory(cat)}
-                      >
-                        {cat}
-                      </div>
-                    ))}
-                  </div>
+                  {CATEGORIES.length >= 4 ? (
+                    <select
+                      value={activeCategory}
+                      onChange={e => setActiveCategory(e.target.value)}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border-color)',
+                        background: 'var(--input-bg)',
+                        color: 'var(--text-main)',
+                        fontSize: '0.88rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        outline: 'none',
+                        minWidth: '160px'
+                      }}
+                    >
+                      {CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>
+                          {cat === 'ทั้งหมด' ? 'หมวดหมู่ทั้งหมด' : cat}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className={styles.filterChips}>
+                      {CATEGORIES.map(cat => (
+                        <div
+                          key={cat}
+                          className={`${styles.filterChip} ${activeCategory === cat ? styles.filterChipActive : ''}`}
+                          onClick={() => setActiveCategory(cat)}
+                        >
+                          {cat}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className={styles.filterGroup}>

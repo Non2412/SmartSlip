@@ -102,20 +102,45 @@ export const FilterBar = ({
                 />
             </div>
 
-            {/* Desktop: chips */}
+            {/* Desktop: chips or dropdown */}
             <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
                 <span className={styles.filterLabel}>หมวดหมู่:</span>
-                <div className={styles.filterChips}>
-                    {categoriesList.map(cat => (
-                        <div
-                            key={cat}
-                            className={`${styles.filterChip} ${activeCategory === cat ? styles.filterChipActive : ''}`}
-                            onClick={() => onCategoryChange(cat)}
-                        >
-                            {cat}
-                        </div>
-                    ))}
-                </div>
+                {categoriesList.length >= 4 ? (
+                    <select
+                        value={activeCategory}
+                        onChange={e => onCategoryChange(e.target.value)}
+                        style={{
+                            padding: '8px 14px',
+                            borderRadius: '10px',
+                            border: '1px solid var(--border-color)',
+                            background: 'var(--input-bg)',
+                            color: 'var(--text-main)',
+                            fontSize: '0.88rem',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            outline: 'none',
+                            minWidth: '160px'
+                        }}
+                    >
+                        {categoriesList.map(cat => (
+                            <option key={cat} value={cat}>
+                                {cat === 'ทั้งหมด' ? 'หมวดหมู่ทั้งหมด' : cat}
+                            </option>
+                        ))}
+                    </select>
+                ) : (
+                    <div className={styles.filterChips}>
+                        {categoriesList.map(cat => (
+                            <div
+                                key={cat}
+                                className={`${styles.filterChip} ${activeCategory === cat ? styles.filterChipActive : ''}`}
+                                onClick={() => onCategoryChange(cat)}
+                            >
+                                {cat}
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
             <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
                 <span className={styles.filterLabel}>ช่วงเวลา:</span>

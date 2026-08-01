@@ -3,21 +3,110 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
-  height: calc(100vh - var(--header-height));
-  overflow-y: auto;
   font-family: var(--font-anuphan), sans-serif;
+}
+
+.customMobileDropdownContainer {
+  display: none;
+  position: relative;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.customMobileDropdownTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: var(--card-bg);
+  border: 1.5px solid var(--border-color);
+  border-radius: 16px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.customMobileDropdownTrigger:active {
+  transform: scale(0.98);
+}
+
+.customMobileDropdownMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 999;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  padding: 8px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: dropdownFadeIn 0.2s ease;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.customMobileDropdownItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--text-main);
+}
+
+.customMobileDropdownItem:hover {
+  background: var(--surface-hover);
+}
+
+.customMobileDropdownItemActive {
+  background: rgba(16, 185, 129, 0.12) !important;
+  color: var(--primary-color) !important;
+  font-weight: 700;
 }
 
 .tabsContainer {
   display: flex;
   border-bottom: 1.5px solid var(--border-color);
   gap: 8px;
-  padding-bottom: 0px;
+  padding-bottom: 6px;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color) transparent;
+}
+
+.tabsContainer::-webkit-scrollbar {
+  height: 4px;
+}
+
+.tabsContainer::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
 }
 
 .tabButton {
-  padding: 12px 20px;
-  font-size: 0.95rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 10px 16px;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-muted);
   border-bottom: 3px solid transparent;
@@ -158,10 +247,23 @@
   overflow-x: auto;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color) transparent;
+}
+
+.tableWrapper::-webkit-scrollbar {
+  height: 6px;
+}
+
+.tableWrapper::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 4px;
 }
 
 .table {
   width: 100%;
+  min-width: 850px;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.9rem;
@@ -376,11 +478,60 @@
 }
 
 @media (max-width: 768px) {
+  .customMobileDropdownContainer {
+    display: block;
+  }
+
+  .tabsContainer {
+    display: none !important;
+  }
+
+  .container {
+    padding: 12px;
+    gap: 16px;
+  }
+
+  .card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
   .cardHeader {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
   }
+
   .searchBar {
     width: 100%;
+  }
+
+  .statsRow {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .statCard {
+    padding: 16px;
+    min-height: 120px;
+  }
+
+  .statValue {
+    font-size: 1.4rem;
+  }
+
+  .tableWrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 12px;
+  }
+
+  .table {
+    min-width: 650px;
+  }
+
+  .table th, .table td {
+    padding: 10px 12px;
+    font-size: 0.82rem;
   }
 }

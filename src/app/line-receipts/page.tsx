@@ -10,6 +10,7 @@ import BulkEditModal, { BulkEditData } from '@/components/BulkEditModal';
 import { useSession } from 'next-auth/react';
 import { useReceipts } from '@/hooks/useReceipts';
 import { useToast } from '@/components/Toast';
+import { useUserCategories } from '@/lib/useUserCategories';
 import { Receipt, cleanAndProxyImageUrl } from '@/lib/apiClient';
 import { identifyDuplicateReceipts } from '@/lib/ocr-utils';
 import styles from './LineReceipts.module.css';
@@ -37,6 +38,7 @@ function LineReceiptsContent() {
   const [viewedIds, setViewedIds] = useState<Set<string>>(new Set());
   const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const { categories: userFilterCategories } = useUserCategories();
   
   // Bulk selection states
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -442,20 +444,45 @@ function LineReceiptsContent() {
               />
             </div>
 
-            {/* Desktop: chips (hidden on mobile) */}
+            {/* Desktop: chips or dropdown (hidden on mobile) */}
             <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
               <span className={styles.filterLabel}>หมวดหมู่:</span>
-              <div className={styles.filterChips}>
-                {['ทั้งหมด', 'อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'].map(cat => (
-                  <div
-                    key={cat}
-                    className={`${styles.filterChip} ${selectedCategory === cat ? styles.filterChipActive : ''}`}
-                    onClick={() => setSelectedCategory(cat)}
-                  >
-                    {cat}
-                  </div>
-                ))}
-              </div>
+              {userFilterCategories.length >= 4 ? (
+                <select
+                  value={selectedCategory}
+                  onChange={e => setSelectedCategory(e.target.value)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--input-bg)',
+                    color: 'var(--text-main)',
+                    fontSize: '0.88rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    minWidth: '160px'
+                  }}
+                >
+                  {userFilterCategories.map(cat => (
+                    <option key={cat} value={cat}>
+                      {cat === 'ทั้งหมด' ? 'หมวดหมู่ทั้งหมด' : cat}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className={styles.filterChips}>
+                  {userFilterCategories.map(cat => (
+                    <div
+                      key={cat}
+                      className={`${styles.filterChip} ${selectedCategory === cat ? styles.filterChipActive : ''}`}
+                      onClick={() => setSelectedCategory(cat)}
+                    >
+                      {cat}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className={`${styles.filterGroup} ${styles.desktopOnly}`}>
               <span className={styles.filterLabel}>ช่วงเวลา:</span>
@@ -518,11 +545,11 @@ function LineReceiptsContent() {
                   value={selectedCategory}
                   onChange={e => setSelectedCategory(e.target.value)}
                 >
-                  <option value="ทั้งหมด">หมวดหมู่: ทั้งหมด</option>
-                  <option value="อาหาร">อาหาร</option>
-                  <option value="เดินทาง">เดินทาง</option>
-                  <option value="ช้อปปิ้ง">ช้อปปิ้ง</option>
-                  <option value="อื่นๆ">อื่นๆ</option>
+                  {userFilterCategories.map(cat => (
+                    <option key={cat} value={cat}>
+                      {cat === 'ทั้งหมด' ? 'หมวดหมู่: ทั้งหมด' : cat}
+                    </option>
+                  ))}
                 </select>
                 <select
                   className={styles.mobileSelect}

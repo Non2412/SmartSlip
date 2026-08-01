@@ -2,9 +2,19 @@ import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { GoogleGenAI } from '@google/genai';
 import { identifyDuplicateReceipts } from '@/lib/ocr-utils';
+import { auth } from '@/auth';
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if ((session.user as any).status !== 'active' && (session.user as any).role !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
     const { userId, lineUserId, messages } = await request.json();
 
     if (!userId) {

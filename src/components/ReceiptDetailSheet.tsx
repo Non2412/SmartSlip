@@ -5,6 +5,7 @@ import { useReceipts } from '@/hooks/useReceipts';
 import Image from 'next/image';
 import { cleanAndProxyImageUrl } from '@/lib/apiClient';
 import { useSession } from 'next-auth/react';
+import { useUserCategories } from '@/lib/useUserCategories';
 
 const formatToInputDate = (dateStr: string): string => {
     if (!dateStr) return '';
@@ -65,6 +66,7 @@ const zoomBtnStyle: React.CSSProperties = {
 const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, initialIndex = 0 }: ReceiptDetailSheetProps) => {
     const { updateReceipt, extractFromImage } = useReceipts();
     const { data: session } = useSession();
+    const { categoriesWithoutAll } = useUserCategories();
     const isQueueMode = !!(allReceipts && allReceipts.length > 0);
 
     const [currentIdx, setCurrentIdx] = useState(initialIndex);
@@ -599,37 +601,42 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                             </div>
                             <div style={{ gridColumn: '1 / -1' }}>
                                 <label style={darkLabelStyle}>หมวดหมู่ค่าใช้จ่าย</label>
-                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: ['อาหาร','เดินทาง','ช้อปปิ้ง','อื่นๆ'].includes(category) ? 0 : '8px' }}>
-                                    {[
-                                        { id: 'อาหาร',    icon: '🍴', color: '#fef3c7', border: '#f59e0b', text: '#92400e' },
-                                        { id: 'เดินทาง',  icon: '🚗', color: '#eff6ff', border: '#3b82f6', text: '#1e40af' },
-                                        { id: 'ช้อปปิ้ง', icon: '🛍️', color: '#fdf4ff', border: '#a855f7', text: '#6b21a8' },
-                                        { id: 'อื่นๆ',    icon: '✨', color: '#f8fafc', border: '#94a3b8', text: '#475569' },
-                                    ].map(cat => {
-                                        const active = category === cat.id;
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                                    {categoriesWithoutAll.map(catName => {
+                                        let icon = '🏷️';
+                                        let color = '#f0fdf4';
+                                        let border = '#10b981';
+                                        let text = '#047857';
+
+                                        if (catName === 'อาหาร') { icon = '🍴'; color = '#fef3c7'; border = '#f59e0b'; text = '#92400e'; }
+                                        else if (catName === 'เดินทาง') { icon = '🚗'; color = '#eff6ff'; border = '#3b82f6'; text = '#1e40af'; }
+                                        else if (catName === 'ช้อปปิ้ง') { icon = '🛍️'; color = '#fdf4ff'; border = '#a855f7'; text = '#6b21a8'; }
+                                        else if (catName === 'อื่นๆ') { icon = '✨'; color = '#f8fafc'; border = '#94a3b8'; text = '#475569'; }
+
+                                        const active = category === catName;
                                         return (
                                             <button
-                                                key={cat.id}
+                                                key={catName}
                                                 type="button"
-                                                onClick={() => setCategory(cat.id)}
+                                                onClick={() => setCategory(catName)}
                                                 style={{
                                                     padding: '6px 14px', borderRadius: '20px',
-                                                    border: `1.5px solid ${active ? cat.border : 'var(--border-color)'}`,
-                                                    background: active ? cat.color : 'var(--input-bg)',
-                                                    color: active ? cat.text : 'var(--text-muted)',
+                                                    border: `1.5px solid ${active ? border : 'var(--border-color)'}`,
+                                                    background: active ? color : 'var(--input-bg)',
+                                                    color: active ? text : 'var(--text-muted)',
                                                     fontWeight: active ? '800' : '600',
                                                     fontSize: '0.8rem', cursor: 'pointer',
                                                     display: 'flex', alignItems: 'center', gap: '5px',
-                                                    boxShadow: active ? `0 0 0 3px ${cat.border}22` : 'none',
+                                                    boxShadow: active ? `0 0 0 3px ${border}22` : 'none',
                                                     transition: 'all 0.15s',
                                                 }}
                                             >
-                                                {cat.icon} {cat.id}
+                                                {icon} {catName}
                                             </button>
                                         );
                                     })}
                                 </div>
-                                {!['อาหาร','เดินทาง','ช้อปปิ้ง','อื่นๆ'].includes(category) && (
+                                {!categoriesWithoutAll.includes(category) && (
                                     <input
                                         value={category}
                                         onChange={e => setCategory(e.target.value)}

@@ -147,7 +147,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 session.user.id = token.sub || ""
                 session.user.email = (token.email as string) || session.user.email
                 session.user.role = token.role || "user"
-                session.user.status = token.status || "active"
+                session.user.status = token.status || "pending"
                 
                 const s = session as unknown as Record<string, unknown>;
                 s.lineUserName = token.lineUserName;
@@ -171,18 +171,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 return true
             }
 
-            // 2. Check if user is pending approval
-            if (isLoggedIn && userStatus === "pending") {
-                if (nextUrl.pathname !== "/pending-approval") {
-                    return Response.redirect(new URL("/pending-approval", nextUrl))
+            // 2. Force profile completion if logged in but profile is not completed (for non-admin users)
+            if (isLoggedIn && userRole !== "admin" && !isProfileCompleted) {
+                if (nextUrl.pathname !== "/profile") {
+                    return Response.redirect(new URL("/profile?force=true", nextUrl))
                 }
                 return true
             }
 
-            // 3. Force profile completion if logged in but profile is not completed (only for regular users)
-            if (isLoggedIn && userStatus === "active" && userRole === "user" && !isProfileCompleted) {
-                if (nextUrl.pathname !== "/profile") {
-                    return Response.redirect(new URL("/profile?force=true", nextUrl))
+            // 3. Check if user is pending approval (after profile is completed)
+            if (isLoggedIn && userStatus === "pending") {
+                if (nextUrl.pathname !== "/pending-approval") {
+                    return Response.redirect(new URL("/pending-approval", nextUrl))
                 }
                 return true
             }
