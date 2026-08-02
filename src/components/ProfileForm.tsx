@@ -15,6 +15,8 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
     citizenId: "",
   });
   const [requestedRole, setRequestedRole] = useState<"clerk" | "user">("user");
+  const [requestMode, setRequestMode] = useState<"role_change" | "issue_report">("role_change");
+  const [issueCategory, setIssueCategory] = useState<string>("🐛 พบข้อผิดพลาด/บักในระบบ");
   const [roleReason, setRoleReason] = useState("");
   const [roleRequestsList, setRoleRequestsList] = useState<any[]>([]);
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
@@ -27,6 +29,53 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
   const [isForced, setIsForced] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [userImage, setUserImage] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleImageFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showToast("กรุณาเลือกไฟล์รูปภาพเท่านั้นครับ", "error");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("ขนาดรูปภาพต้องไม่เกิน 5MB ครับ", "error");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = reader.result as string;
+        const res = await fetch("/api/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...form,
+            image: base64,
+          }),
+        });
+
+        if (res.ok) {
+          setUserImage(base64);
+          showToast("อัปเดตรูปโปรไฟล์ใหม่เรียบร้อยแล้ว! 🖼️", "success");
+        } else {
+          showToast("เกิดข้อผิดพลาดในการบันทึกรูปโปรไฟล์", "error");
+        }
+        setIsUploadingImage(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Upload avatar error:", err);
+      showToast("เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ", "error");
+      setIsUploadingImage(false);
+    }
+  };
 
   const fetchRoleRequests = () => {
     fetch("/api/role-requests")
@@ -54,7 +103,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
 
   const handleRoleRequestSubmit = async () => {
     if (!roleReason.trim()) {
-      showToast("กรุณาระบุเหตุผลการยื่นคำร้องขอเปลี่ยนบทบาทครับ", "warning");
+      showToast(requestMode === "role_change" ? "กรุณาระบุเหตุผลการยื่นคำร้องขอเปลี่ยนบทบาทครับ" : "กรุณาระบุรายละเอียดปัญหาที่พบครับ", "warning");
       return;
     }
 
@@ -66,21 +115,22 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
         body: JSON.stringify({
           targetRole: requestedRole,
           reason: roleReason.trim(),
-          requestType: "role_change",
+          requestType: requestMode,
+          issueCategory: requestMode === "issue_report" ? issueCategory : null,
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        showToast("ยื่นคำร้องขอเปลี่ยนบทบาทส่งไปยังผู้ดูแลระบบเรียบร้อยแล้ว! 📨", "success", 5000);
+        showToast(requestMode === "role_change" ? "ยื่นคำร้องขอเปลี่ยนบทบาทส่งไปยังผู้ดูแลระบบเรียบร้อยแล้ว! 📨" : "ส่งรายงานแจ้งปัญหาไปยังผู้ดูแลระบบเรียบร้อยแล้ว! 🛠️", "success", 5000);
         setRoleReason("");
         fetchRoleRequests();
       } else {
-        showToast(data.error || "เกิดข้อผิดพลาดในการส่งคำร้อง", "error");
+        showToast(data.error || "เกิดข้อผิดพลาดในการส่งข้อมูล", "error");
       }
     } catch (err) {
       console.error(err);
-      showToast("เกิดข้อผิดพลาดในการส่งคำร้อง", "error");
+      showToast("เกิดข้อผิดพลาดในการส่งข้อมูล", "error");
     } finally {
       setIsSubmittingRequest(false);
     }
@@ -100,6 +150,10 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
             address: data.address || data.about || data.from || "",
             citizenId: data.citizenId || "",
           });
+
+          if (data.image) {
+            setUserImage(data.image);
+          }
 
           if (data.requestedRole === 'clerk' || data.requestedRole === 'user') {
             setRequestedRole(data.requestedRole);
@@ -366,21 +420,58 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
         gap: '20px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-          <img 
-            src={session?.user?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(form.name || 'User')}`} 
-            alt={form.name || "User Avatar"} 
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(form.name || 'User')}`;
-            }}
-            style={{
-              width: '68px',
-              height: '68px',
+          {/* Avatar Container with Camera Overlay Badge */}
+          <div 
+            style={{ position: 'relative', cursor: 'pointer' }}
+            onClick={() => fileInputRef.current?.click()}
+            title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
+          >
+            <input 
+              type="file" 
+              ref={fileInputRef}
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleImageFileSelect}
+            />
+
+            <img 
+              src={userImage || session?.user?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(form.name || 'User')}`} 
+              alt={form.name || "User Avatar"} 
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(form.name || 'User')}`;
+              }}
+              style={{
+                width: '72px',
+                height: '72px',
+                borderRadius: '50%',
+                objectFit: 'cover',
+                border: '3px solid var(--primary-color, #10b981)',
+                boxShadow: '0 4px 14px rgba(16, 185, 129, 0.25)',
+                opacity: isUploadingImage ? 0.5 : 1,
+                transition: 'all 0.2s'
+              }}
+            />
+
+            {/* Camera Overlay Badge Button */}
+            <div style={{
+              position: 'absolute',
+              bottom: '0',
+              right: '0',
+              width: '26px',
+              height: '26px',
               borderRadius: '50%',
-              objectFit: 'cover',
-              border: '3px solid var(--primary-color, #10b981)',
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
-            }}
-          />
+              background: 'var(--primary-color, #10b981)',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.8rem',
+              border: '2px solid var(--card-bg, #ffffff)',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.18)'
+            }}>
+              {isUploadingImage ? '⌛' : '📷'}
+            </div>
+          </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-main, #0f172a)' }}>
@@ -786,8 +877,66 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
               ยื่นคำร้องขอเปลี่ยนสิทธิ์บทบาท / แจ้งปัญหาการใช้งาน
             </h3>
 
+            {/* 2 Mode Selector Buttons */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '12px',
+              marginBottom: '20px'
+            }}>
+              {/* Mode 1: ขอเปลี่ยนบทบาท */}
+              <button
+                type="button"
+                onClick={() => setRequestMode('role_change')}
+                style={{
+                  padding: '14px 18px',
+                  borderRadius: '14px',
+                  border: requestMode === 'role_change' ? '2px solid #6366f1' : '1px solid var(--border-color, #e2e8f0)',
+                  background: requestMode === 'role_change' ? 'rgba(99, 102, 241, 0.12)' : 'var(--input-bg, #f8fafc)',
+                  color: requestMode === 'role_change' ? '#6366f1' : 'var(--text-muted, #64748b)',
+                  fontWeight: '700',
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: requestMode === 'role_change' ? '0 4px 12px rgba(99, 102, 241, 0.15)' : 'none',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <span>👤</span> 1. ยื่นขอเปลี่ยนบทบาท (Role)
+              </button>
+
+              {/* Mode 2: แจ้งปัญหาการใช้งาน */}
+              <button
+                type="button"
+                onClick={() => setRequestMode('issue_report')}
+                style={{
+                  padding: '14px 18px',
+                  borderRadius: '14px',
+                  border: requestMode === 'issue_report' ? '2px solid #ef4444' : '1px solid var(--border-color, #e2e8f0)',
+                  background: requestMode === 'issue_report' ? 'rgba(239, 68, 68, 0.12)' : 'var(--input-bg, #f8fafc)',
+                  color: requestMode === 'issue_report' ? '#ef4444' : 'var(--text-muted, #64748b)',
+                  fontWeight: '700',
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: requestMode === 'issue_report' ? '0 4px 12px rgba(239, 68, 68, 0.15)' : 'none',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <span>⚠️</span> 2. แจ้งปัญหาการใช้งานระบบ
+              </button>
+            </div>
+
             <p style={{ margin: '0 0 16px 0', fontSize: '0.85rem', color: 'var(--text-muted, #64748b)', lineHeight: '1.5' }}>
-              หากคุณต้องการปรับเปลี่ยนสิทธิ์บทบาทการใช้งาน (เช่น ขอเปลี่ยนสิทธิ์เป็นเสมียน หรือผู้ใช้งานทั่วไป) จำเป็นต้องระบุเหตุผลความจำเป็นเพื่อให้ผู้ดูแลระบบ (Admin) พิจารณาอนุมัติก่อนเปลี่ยนสิทธิ์ครับ
+              {requestMode === 'role_change'
+                ? 'หากคุณต้องการปรับเปลี่ยนสิทธิ์บทบาทการใช้งาน (เช่น ขอเปลี่ยนสิทธิ์เป็นเสมียน หรือผู้ใช้งานทั่วไป) จำเป็นต้องระบุเหตุผลความจำเป็นเพื่อให้ผู้ดูแลระบบ (Admin) พิจารณาอนุมัติก่อนเปลี่ยนสิทธิ์ครับ'
+                : 'หากคุณพบข้อผิดพลาด (Bug) สแกนใบเสร็จไม่ตรง หรือมีข้อเสนอแนะในการปรับปรุงระบบ สามารถกรอกรายละเอียดแจ้งปัญหาไปยังผู้ดูแลระบบได้ทันทีครับ'}
             </p>
 
             {/* Active Pending Request Alert */}
@@ -800,13 +949,13 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                 marginBottom: '20px'
               }}>
                 <div style={{ fontWeight: '700', color: '#6366f1', fontSize: '0.92rem', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>⏳</span> คำร้องขอสิทธิ์ของคุณอยู่ระหว่างรอผู้ดูแลระบบอนุมัติ
+                  <span>⏳</span> รายการของคุณอยู่ระหว่างรอผู้ดูแลระบบตรวจสอบ
                 </div>
                 <p style={{ margin: '0 0 6px 0', fontSize: '0.85rem', color: 'var(--text-main, #0f172a)' }}>
-                  สิทธิ์ที่ขอเปลี่ยน: <strong>{pendingRequest.targetRole === 'clerk' ? '💼 เสมียน (Clerk)' : '👤 ผู้ใช้งานทั่วไป (User)'}</strong>
+                  ประเภท: <strong>{pendingRequest.requestType === 'issue_report' ? `⚠️ แจ้งปัญหา (${pendingRequest.issueCategory || 'ทั่วไป'})` : `👤 ขอเปลี่ยนสิทธิ์เป็น ${pendingRequest.targetRole === 'clerk' ? '💼 เสมียน (Clerk)' : '👤 ผู้ใช้งานทั่วไป'}`}</strong>
                 </p>
                 <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted, #64748b)' }}>
-                  เหตุผลที่ระบุ: &ldquo;{pendingRequest.reason}&rdquo; ({new Date(pendingRequest.createdAt).toLocaleString('th-TH')})
+                  รายละเอียด: &ldquo;{pendingRequest.reason}&rdquo; ({new Date(pendingRequest.createdAt).toLocaleString('th-TH')})
                 </p>
               </div>
             )}
@@ -821,10 +970,12 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                 marginBottom: '20px'
               }}>
                 <div style={{ fontWeight: '700', color: '#10b981', fontSize: '0.92rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>🎉</span> คำร้องขอเปลี่ยนบทบาทได้รับการอนุมัติแล้ว!
+                  <span>🎉</span> รายการล่าสุดได้รับการดำเนินการแล้ว!
                 </div>
                 <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-main, #0f172a)' }}>
-                  สิทธิ์การใช้งานใหม่ของคุณถูกปรับเป็น <strong>{roleRequestsList[0].targetRole === 'clerk' ? '💼 เสมียน (Clerk)' : '👤 ผู้ใช้งานทั่วไป'}</strong> เรียบร้อยแล้วครับ
+                  {roleRequestsList[0].requestType === 'issue_report'
+                    ? 'ผู้ดูแลระบบได้รับทราบและดำเนินการตรวจสอบปัญหาของคุณเรียบร้อยแล้วครับ'
+                    : `สิทธิ์การใช้งานใหม่ของคุณถูกปรับเป็น ${roleRequestsList[0].targetRole === 'clerk' ? '💼 เสมียน (Clerk)' : '👤 ผู้ใช้งานทั่วไป'} เรียบร้อยแล้วครับ`}
                 </p>
               </div>
             )}
@@ -838,20 +989,58 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                 marginBottom: '20px'
               }}>
                 <div style={{ fontWeight: '700', color: '#ef4444', fontSize: '0.92rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>❌</span> คำร้องขอเปลี่ยนบทบาทถูกปฏิเสธ
+                  <span>❌</span> รายการสิทธิ์ล่าสุดถูกปฏิเสธ
                 </div>
                 <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-main, #0f172a)' }}>
-                  คำร้องขอสิทธิ์ <strong>{roleRequestsList[0].targetRole === 'clerk' ? '💼 เสมียน (Clerk)' : '👤 ผู้ใช้งานทั่วไป'}</strong> ถูกปฏิเสธโดยผู้ดูแลระบบ{roleRequestsList[0].adminNote ? ` (เหตุผล: ${roleRequestsList[0].adminNote})` : ''}
+                  คำร้องสิทธิ์ถูกปฏิเสธโดยผู้ดูแลระบบ{roleRequestsList[0].adminNote ? ` (เหตุผล: ${roleRequestsList[0].adminNote})` : ''}
                 </p>
               </div>
             )}
 
             <div style={{ background: 'var(--input-bg, #f8fafc)', borderRadius: '16px', padding: '20px', border: '1px solid var(--border-color, #e2e8f0)' }}>
+              {/* Category Pills when in Mode 2 */}
+              {requestMode === 'issue_report' && (
+                <div style={{ marginBottom: '16px' }}>
+                  <label className={styles.label} style={{ marginBottom: '8px' }}>เลือกประเภทปัญหาที่พบ:</label>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {[
+                      '🐛 พบข้อผิดพลาด/บักในระบบ',
+                      '📄 ปัญหาสแกน/อ่านสลิป',
+                      '🔑 ปัญหาเข้าสู่ระบบ/บัญชี',
+                      '💡 ข้อเสนอแนะการใช้งาน'
+                    ].map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setIssueCategory(cat)}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: '20px',
+                          fontSize: '0.82rem',
+                          fontWeight: '700',
+                          border: issueCategory === cat ? '1px solid #ef4444' : '1px solid var(--border-color, #e2e8f0)',
+                          background: issueCategory === cat ? 'rgba(239, 68, 68, 0.12)' : 'var(--card-bg, #ffffff)',
+                          color: issueCategory === cat ? '#ef4444' : 'var(--text-muted, #64748b)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
-                <label className={styles.label}>เหตุผลที่ต้องการขอเปลี่ยนบทบาท / รายละเอียดปัญหาที่พบ <span style={{ color: '#ef4444' }}>*</span></label>
+                <label className={styles.label}>
+                  {requestMode === 'role_change' ? 'เหตุผลความจำเป็นในการขอเปลี่ยนบทบาท (Role)' : 'รายละเอียดปัญหาหรือข้อผิดพลาดที่พบ'} <span style={{ color: '#ef4444' }}>*</span>
+                </label>
                 <textarea
                   className={styles.input}
-                  placeholder="ระบุเหตุผลความจำเป็น เช่น ต้องช่วยตรวจเช็คเอกสารสลิปของแผนกการเงิน หรือแจ้งปัญหาที่พบ..."
+                  placeholder={requestMode === 'role_change'
+                    ? 'ระบุเหตุผลความจำเป็น เช่น ต้องช่วยตรวจเช็คเอกสารสลิปของแผนกการเงิน หรือช่วยคุมรายจ่าย...'
+                    : 'อธิบายรายละเอียดปัญหาที่พบ เช่น สแกนสลิปใบเสร็จแล้วยอดเงินไม่ตรง หรือระบบแสดงผลช้าในมือถือ...'}
                   value={roleReason}
                   onChange={(e) => setRoleReason(e.target.value)}
                   rows={3}
@@ -864,23 +1053,27 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                 onClick={handleRoleRequestSubmit}
                 disabled={isSubmittingRequest || !roleReason.trim()}
                 style={{
-                  padding: '10px 20px',
-                  background: '#6366f1',
+                  padding: '12px 22px',
+                  background: requestMode === 'role_change' ? '#6366f1' : '#ef4444',
                   color: '#ffffff',
                   border: 'none',
-                  borderRadius: '10px',
+                  borderRadius: '12px',
                   fontWeight: '700',
-                  fontSize: '0.9rem',
+                  fontSize: '0.92rem',
                   cursor: isSubmittingRequest || !roleReason.trim() ? 'not-allowed' : 'pointer',
                   opacity: isSubmittingRequest || !roleReason.trim() ? 0.6 : 1,
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.25)',
+                  boxShadow: requestMode === 'role_change' ? '0 4px 12px rgba(99, 102, 241, 0.25)' : '0 4px 12px rgba(239, 68, 68, 0.25)',
                   transition: 'all 0.2s'
                 }}
               >
-                {isSubmittingRequest ? '⌛ กำลังส่งคำร้อง...' : '📨 ยื่นคำร้องขอเปลี่ยนสิทธิ์บทบาทแก่ Admin'}
+                {isSubmittingRequest
+                  ? '⌛ กำลังส่งข้อมูล...'
+                  : requestMode === 'role_change'
+                    ? '📨 ยื่นคำร้องขอเปลี่ยนสิทธิ์บทบาทแก่ Admin'
+                    : '🛠️ ส่งรายงานแจ้งปัญหาแก่ Admin'}
               </button>
             </div>
           </div>

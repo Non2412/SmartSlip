@@ -382,4 +382,9 @@
         padding: 2rem 1.5rem;
         border-radius: 1.25rem;
     }
+
+    .loginLogo img {
+        max-width: 100%;
+        height: auto;
+    }
 }

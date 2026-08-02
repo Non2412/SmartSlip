@@ -21,12 +21,14 @@ export async function GET(req: NextRequest) {
         phone: "",
         address: "",
         citizenId: "",
+        image: session.user.image || null,
         requestedRole: "user",
         customCategories: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'],
       });
     }
 
     return NextResponse.json({
+      image: profile.image || session.user.image || null,
       requestedRole: "user",
       customCategories: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'],
       ...profile,
@@ -45,7 +47,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, company, email, phone, address, budgets, citizenId, requestedRole, customCategories } = body;
+    const { name, company, email, phone, address, budgets, citizenId, requestedRole, customCategories, image } = body;
 
     const client = await clientPromise;
     const db = client.db();
@@ -60,6 +62,10 @@ export async function POST(req: NextRequest) {
       citizenId,
       updatedAt: new Date(),
     };
+
+    if (image) {
+      updateFields.image = image;
+    }
 
     if (requestedRole) {
       updateFields.requestedRole = requestedRole;
@@ -79,19 +85,21 @@ export async function POST(req: NextRequest) {
       { upsert: true }
     );
 
-    // Also update requestedRole on users collection for admin list visibility
-    if (requestedRole) {
-      const { ObjectId } = await import("mongodb");
-      const filterConditions: any[] = [{ id: session.user.id }];
-      if (ObjectId.isValid(session.user.id)) {
-        filterConditions.push({ _id: new ObjectId(session.user.id) });
-      }
-
-      await db.collection("users").updateOne(
-        { $or: filterConditions } as any,
-        { $set: { requestedRole, updatedAt: new Date() } }
-      );
+    // Also update requestedRole and image on users collection for system-wide sync
+    const { ObjectId } = await import("mongodb");
+    const filterConditions: any[] = [{ id: session.user.id }];
+    if (ObjectId.isValid(session.user.id)) {
+      filterConditions.push({ _id: new ObjectId(session.user.id) });
     }
+
+    const userUpdateFields: any = { updatedAt: new Date() };
+    if (requestedRole) userUpdateFields.requestedRole = requestedRole;
+    if (image) userUpdateFields.image = image;
+
+    await db.collection("users").updateOne(
+      { $or: filterConditions } as any,
+      { $set: userUpdateFields }
+    );
 
     return NextResponse.json({ success: true });
   } catch (error) {
