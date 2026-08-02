@@ -989,7 +989,11 @@ export default function AdminPage() {
                   </p>
                 </div>
               ) : (
-                <div className={styles.tableContainer}>
+                <>
+                  <div className={styles.tableScrollHint}>
+                    <span>↔️</span> เลื่อนปัดซ้าย-ขวาเพื่อดูข้อมูลและปุ่มดำเนินการทั้งหมด
+                  </div>
+                  <div className={styles.tableWrapper}>
                   <table className={styles.table}>
                     <thead>
                       <tr>
@@ -1099,6 +1103,7 @@ export default function AdminPage() {
                     </tbody>
                   </table>
                 </div>
+                </>
               )}
             </div>
           )}
@@ -1477,9 +1482,10 @@ export default function AdminPage() {
                     <thead>
                       <tr>
                         <th>ผู้ยื่นคำร้อง</th>
+                        <th>ประเภทรายการ</th>
                         <th>สิทธิ์ปัจจุบัน</th>
-                        <th>สิทธิ์ที่ขอเปลี่ยน</th>
-                        <th>เหตุผลความจำเป็นที่ระบุ</th>
+                        <th>รายละเอียดสิทธิ์ / หัวข้อปัญหา</th>
+                        <th>ข้อความรายละเอียด</th>
                         <th>วันที่ยื่น</th>
                         <th>สถานะ</th>
                         <th>การดำเนินการ</th>
@@ -1502,22 +1508,63 @@ export default function AdminPage() {
                             </div>
                           </td>
                           <td>
+                            {r.requestType === 'issue_report' ? (
+                              <span style={{
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                fontSize: '0.8rem',
+                                fontWeight: '700',
+                                background: 'rgba(239, 68, 68, 0.12)',
+                                color: '#ef4444',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                              }}>
+                                ⚠️ แจ้งปัญหา
+                              </span>
+                            ) : (
+                              <span style={{
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                fontSize: '0.8rem',
+                                fontWeight: '700',
+                                background: 'rgba(99, 102, 241, 0.12)',
+                                color: '#6366f1',
+                                border: '1px solid rgba(99, 102, 241, 0.3)',
+                              }}>
+                                👤 ขอเปลี่ยนบทบาท
+                              </span>
+                            )}
+                          </td>
+                          <td>
                             <span className={`${styles.badge} ${r.currentRole === 'admin' ? styles.badgeAdmin : r.currentRole === 'clerk' ? styles.badgeAdmin : styles.badgeUser}`}>
                               {r.currentRole === 'admin' ? '🛡️ Admin' : r.currentRole === 'clerk' ? '💼 Clerk' : '👤 User'}
                             </span>
                           </td>
                           <td>
-                            <span style={{
-                              padding: '4px 10px',
-                              borderRadius: '8px',
-                              fontSize: '0.8rem',
-                              fontWeight: '700',
-                              background: r.targetRole === 'clerk' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(16, 185, 129, 0.12)',
-                              color: r.targetRole === 'clerk' ? '#6366f1' : '#10b981',
-                              border: r.targetRole === 'clerk' ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
-                            }}>
-                              {r.targetRole === 'clerk' ? '💼 1. เสมียน (Clerk)' : '👤 2. ผู้ใช้งานทั่วไป'}
-                            </span>
+                            {r.requestType === 'issue_report' ? (
+                              <span style={{
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                fontSize: '0.8rem',
+                                fontWeight: '700',
+                                background: 'rgba(245, 158, 11, 0.12)',
+                                color: '#f59e0b',
+                                border: '1px solid rgba(245, 158, 11, 0.3)',
+                              }}>
+                                {r.issueCategory || '🐛 แจ้งปัญหาทั่วไป'}
+                              </span>
+                            ) : (
+                              <span style={{
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                fontSize: '0.8rem',
+                                fontWeight: '700',
+                                background: r.targetRole === 'clerk' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+                                color: r.targetRole === 'clerk' ? '#6366f1' : '#10b981',
+                                border: r.targetRole === 'clerk' ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
+                              }}>
+                                {r.targetRole === 'clerk' ? '💼 1. เสมียน (Clerk)' : '👤 2. ผู้ใช้งานทั่วไป'}
+                              </span>
+                            )}
                           </td>
                           <td style={{ maxWidth: '300px' }}>
                             <div style={{
