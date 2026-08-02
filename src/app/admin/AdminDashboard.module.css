@@ -355,6 +355,16 @@
   color: #f59e0b;
 }
 
+/* Inline-colored pills (request type / target role / issue category) */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 /* Buttons */
 .actionBtn {
   display: inline-flex;
@@ -556,5 +566,10 @@
   .table th, .table td {
     padding: 10px 12px;
     font-size: 0.82rem;
+  }
+
+  .badge,
+  .pill {
+    white-space: nowrap;
   }
 }
