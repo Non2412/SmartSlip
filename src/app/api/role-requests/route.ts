@@ -46,10 +46,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { targetRole, reason, requestType } = body;
+    const { targetRole, reason, requestType, issueCategory } = body;
 
     if (!reason || !reason.trim()) {
-      return NextResponse.json({ error: "กรุณาระบุเหตุผลการยื่นคำร้อง" }, { status: 400 });
+      return NextResponse.json({ error: "กรุณาระบุข้อความรายละเอียด" }, { status: 400 });
     }
 
     const client = await clientPromise;
@@ -59,11 +59,12 @@ export async function POST(req: NextRequest) {
     const existingPending = await db.collection("role_requests").findOne({
       userId: session.user.id,
       status: "pending",
+      requestType: requestType || "role_change",
     });
 
     if (existingPending) {
       return NextResponse.json(
-        { error: "คุณมีคำร้องขอที่อยู่ระหว่างรอผู้ดูแลระบบอนุมัติแล้วครับ" },
+        { error: "คุณมีรายการที่อยู่ระหว่างรอผู้ดูแลระบบตรวจสอบแล้วครับ" },
         { status: 400 }
       );
     }
@@ -75,7 +76,8 @@ export async function POST(req: NextRequest) {
       userImage: session.user.image || null,
       currentRole: (session.user as any).role || "user",
       targetRole: targetRole || "clerk",
-      requestType: requestType || "role_change", // role_change | report_issue
+      requestType: requestType || "role_change", // role_change | issue_report
+      issueCategory: issueCategory || null,
       reason: reason.trim(),
       status: "pending",
       createdAt: new Date(),

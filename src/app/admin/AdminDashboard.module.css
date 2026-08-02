@@ -355,6 +355,16 @@
   color: #f59e0b;
 }
 
+/* Inline-colored pills (request type / target role / issue category) */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 /* Buttons */
 .actionBtn {
   display: inline-flex;
@@ -477,6 +487,19 @@
   to { transform: rotate(360deg); }
 }
 
+.tableContainer {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color) transparent;
+}
+
+.tableScrollHint {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .customMobileDropdownContainer {
     display: block;
@@ -484,6 +507,16 @@
 
   .tabsContainer {
     display: none !important;
+  }
+
+  .tableScrollHint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-style: italic;
   }
 
   .container {
@@ -520,7 +553,7 @@
     font-size: 1.4rem;
   }
 
-  .tableWrapper {
+  .tableWrapper, .tableContainer {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     border-radius: 12px;
@@ -533,5 +566,10 @@
   .table th, .table td {
     padding: 10px 12px;
     font-size: 0.82rem;
+  }
+
+  .badge,
+  .pill {
+    white-space: nowrap;
   }
 }
