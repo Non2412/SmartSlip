@@ -1509,11 +1509,7 @@ export default function AdminPage() {
                           </td>
                           <td>
                             {r.requestType === 'issue_report' ? (
-                              <span style={{
-                                padding: '4px 10px',
-                                borderRadius: '8px',
-                                fontSize: '0.8rem',
-                                fontWeight: '700',
+                              <span className={styles.pill} style={{
                                 background: 'rgba(239, 68, 68, 0.12)',
                                 color: '#ef4444',
                                 border: '1px solid rgba(239, 68, 68, 0.3)',
@@ -1521,11 +1517,7 @@ export default function AdminPage() {
                                 ⚠️ แจ้งปัญหา
                               </span>
                             ) : (
-                              <span style={{
-                                padding: '4px 10px',
-                                borderRadius: '8px',
-                                fontSize: '0.8rem',
-                                fontWeight: '700',
+                              <span className={styles.pill} style={{
                                 background: 'rgba(99, 102, 241, 0.12)',
                                 color: '#6366f1',
                                 border: '1px solid rgba(99, 102, 241, 0.3)',
@@ -1541,11 +1533,7 @@ export default function AdminPage() {
                           </td>
                           <td>
                             {r.requestType === 'issue_report' ? (
-                              <span style={{
-                                padding: '4px 10px',
-                                borderRadius: '8px',
-                                fontSize: '0.8rem',
-                                fontWeight: '700',
+                              <span className={styles.pill} style={{
                                 background: 'rgba(245, 158, 11, 0.12)',
                                 color: '#f59e0b',
                                 border: '1px solid rgba(245, 158, 11, 0.3)',
@@ -1553,11 +1541,7 @@ export default function AdminPage() {
                                 {r.issueCategory || '🐛 แจ้งปัญหาทั่วไป'}
                               </span>
                             ) : (
-                              <span style={{
-                                padding: '4px 10px',
-                                borderRadius: '8px',
-                                fontSize: '0.8rem',
-                                fontWeight: '700',
+                              <span className={styles.pill} style={{
                                 background: r.targetRole === 'clerk' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(16, 185, 129, 0.12)',
                                 color: r.targetRole === 'clerk' ? '#6366f1' : '#10b981',
                                 border: r.targetRole === 'clerk' ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
