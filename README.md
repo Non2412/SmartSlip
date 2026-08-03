@@ -1,12 +1,12 @@
 # 🧾 SmartSlip: ระบบจัดการใบเสร็จอิเล็กทรอนิกส์ (Electronic Receipt Management System)
 
-[![Next.js Version](https://img.shields.io/badge/Next.js-16.1.6-black?style=for-the-badge&logo=nextdotjs)](https://nextjs.org/)
-[![React Version](https://img.shields.io/badge/React-19.2.3-blue?style=for-the-badge&logo=react)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/)
-[![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?style=for-the-badge&logo=vercel)](https://vercel.com/)
-[![LINE Login](https://img.shields.io/badge/LINE_Login-Integrated-00c300?style=for-the-badge&logo=line)](https://developers.line.biz/)
-[![Gemini OCR](https://img.shields.io/badge/Gemini_AI-OCR_Engine-8e75e5?style=for-the-badge&logo=google-gemini)](https://deepmind.google/technologies/gemini/)
+<a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16.1.6-black?style=for-the-badge&logo=nextdotjs" alt="Next.js Version"></a>
+<a href="https://react.dev/"><img src="https://img.shields.io/badge/React-19.2.3-blue?style=for-the-badge&logo=react" alt="React Version"></a>
+<a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript" alt="TypeScript"></a>
+<a href="https://www.mongodb.com/"><img src="https://img.shields.io/badge/MongoDB-Atlas-green?style=for-the-badge&logo=mongodb" alt="MongoDB"></a>
+<a href="https://vercel.com/"><img src="https://img.shields.io/badge/Vercel-Deployed-black?style=for-the-badge&logo=vercel" alt="Vercel"></a>
+<a href="https://developers.line.biz/"><img src="https://img.shields.io/badge/LINE_Login-Integrated-00c300?style=for-the-badge&logo=line" alt="LINE Login"></a>
+<a href="https://deepmind.google/technologies/gemini/"><img src="https://img.shields.io/badge/Gemini_AI-OCR_Engine-8e75e5?style=for-the-badge&logo=google-gemini" alt="Gemini OCR"></a>
 
 SmartSlip เป็นเว็บแอปพลิเคชันระดับ **Production-grade** ที่ถูกพัฒนาขึ้นเพื่อช่วยรวบรวม จัดเก็บ วิเคราะห์ และบริหารจัดการข้อมูลใบเสร็จในรูปแบบดิจิทัลแบบครบวงจร ช่วยลดปัญหาการสูญหายของเอกสาร เพิ่มความสะดวกรวดเร็วในการค้นหาย้อนหลัง และใช้ระบบ AI ในการดึงข้อมูลอัตโนมัติ พร้อมรองรับการเชื่อมต่อกับ LINE App เพื่อความสะดวกสบายสูงสุดของผู้ใช้งาน
 
@@ -50,6 +50,9 @@ SmartSlip เป็นเว็บแอปพลิเคชันระดั�
 *   **📑 Queue & Bulk Edit Mode (ฟีเจอร์ใหม่)**: โหมดแก้ไขสลิปทั้งหมดแบบต่อเนื่อง มีระบบพรีวิวรูปภาพฝั่งซ้าย (Zoom In/Out/Rotate) พร้อมแถบรูปภาพย่อ (Thumbnail Strip) แบบโปร่งใส (Transparent) รองรับทั้ง Light/Dark Mode
 *   **📋 Pre-Save Summary Modal (ฟีเจอร์ใหม่)**: หน้าต่างป๊อปอัปสรุปรายการใบเสร็จรอดำเนินการทั้งหมดและสรุปยอดเงินรวมสุทธิ (Grand Total Sum) ก่อนกดบันทึกจริง เพื่อให้ผู้ใช้ตรวจสอบความถูกต้องของยอดเงินอีกครั้ง
 *   **⚡ Live Dynamic Recalculation (ฟีเจอร์ใหม่)**: ระบบคำนวณยอดเงินรวมแบบเรียลไทม์ทันทีที่มีการลบ/แก้ไขรายการสินค้า ส่วนลด หรือ VAT เพื่อให้ยอดการใช้จ่ายอัปเดตตรงตามจริงเสมอ
+*   **🔒 Navigation Lock & Focused Setup (ฟีเจอร์ใหม่)**: ระบบล็อกหน้าจอความปลอดภัยสำหรับบัญชีใหม่ที่ข้อมูลโปรไฟล์ยังไม่ครบถ้วน โดยจะซ่อนเมนูนำทาง (Sidebar, TopBar) และป้องกันการนำทางไปหน้าอื่น เพื่อบังคับให้ลงทะเบียนข้อมูลให้สมบูรณ์ก่อนเริ่มใช้งานระบบ
+*   **📨 Dynamic Profile Save / Role Request (ฟีเจอร์ใหม่)**: ปุ่มบันทึกข้อมูลย้ายมาอยู่ใต้การเลือกบทบาทความต้องการสิทธิ์ โดยแสดงผลคำว่า `"ขอสิทธิ์การใช้งาน"` สำหรับผู้สมัครบัญชีใหม่ที่รอการอนุมัติ และแสดงคำว่า `"บันทึกข้อมูลโปรไฟล์"` เมื่อได้รับการอนุมัติใช้งานจากผู้ดูแลระบบเรียบร้อยแล้ว
+*   **🔔 User-Specific & Dismissible Notification (ฟีเจอร์ใหม่)**: การแจ้งเตือนผลอนุมัติหรือปฏิเสธคำขอสิทธิ์การใช้งานจากผู้ดูแลระบบ แสดงผลแยกเฉพาะรายบุคคล (User-specific) โดยไม่ปะปนกับผู้ใช้อื่น และมาพร้อมปุ่มปิด `✕` เพื่อบันทึกสถานะการอ่านลงใน `localStorage` ไม่ให้การแจ้งเตือนแสดงค้างหน้าจออย่างถาวร
 
 ---
 
@@ -117,6 +120,10 @@ User (LINE OA / Web Browser)
 ### 🚀 Challenge 4: Real-time Queue State & Pre-Save Confirmation Summary (ฟีเจอร์ใหม่)
 *   **ปัญหา**: ในการแก้ไขใบเสร็จหลายรายการในโหมดคิว (Queue Mode) หากผู้ใช้แก้ไขราคาสินค้า ปรับส่วนลด/VAT หรือลบรายการสินค้าในแต่ละสลิป ยอดเงินรวมทั้งหมดที่แสดงอาจไม่อัปเดตทันทีหากยังไม่ได้ถูกบันทึกลงฐานข้อมูล
 *   **แนวทางแก้ไข**: พัฒนาระบบจัดการสถานะแบบ Live Queue State Tracking พร้อมสร้างหน้าต่าง `SummaryConfirmModal` เพื่อรวบรวมรายการสลิปและคำนวณยอดเงินรวมสุทธิ (Grand Total) ใหม่แบบ Real-time ให้ผู้ใช้ตรวจสอบยอดเงินถูกต้องตรงตามจริงก่อนกดยืนยันบันทึกทั้งหมดลงฐานข้อมูล
+
+### 🚀 Challenge 5: Secure Screen Locking and Dynamic Application Access
+*   **ปัญหา**: ความต้องการล็อกการเข้าถึงส่วนอื่นของระบบสำหรับผู้สมัครสมาชิกใหม่ที่ยังกรอกข้อมูลโปรไฟล์ไม่ครบถ้วน เพื่อป้องกันไม่ให้กดลิงก์นำทางหรือเข้าชมหน้าแดชบอร์ด/ประวัติการใช้จ่ายได้ก่อนลงทะเบียนเสร็จสมบูรณ์
+*   **แนวทางแก้ไข**: ใช้เทคนิค client-side layout filtering โดยตรวจสอบความสมบูรณ์ของโปรไฟล์ร่วมกับ NextAuth session เพื่อซ่อนคอมโพเนนต์ Sidebar และ TopBar บนหน้าโปรไฟล์ พร้อมทั้งใช้การเรียก API ที่เจาะจง `/api/role-requests?myOwn=true` ร่วมกับการบันทึกประวัติการปิดแจ้งเตือน (Dismiss state) ใน `localStorage` เพื่อแยกแยะการแสดงผลการแจ้งเตือนสิทธิ์การใช้งานรายบุคคลได้อย่างถูกต้องและไม่แสดงค้างหน้าจอ
 
 ---
 
