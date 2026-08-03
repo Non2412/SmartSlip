@@ -5,13 +5,13 @@ Viewed README.md:1-229
 ```markdown
 # 🧾 SmartSlip: ระบบจัดการใบเสร็จอิเล็กทรอนิกส์ (Electronic Receipt Management System)
 
-[![Next.js Version](https://img.shields.io/badge/Next.js-16.1.6-black?style=for-the-badge&logo=nextdotjs)](https://nextjs.org/)
-[![React Version](https://img.shields.io/badge/React-19.2.3-blue?style=for-the-badge&logo=react)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green?style=for-the-badge&logo=mongodb)](https://www.mongodb.com/)
-[![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?style=for-the-badge&logo=vercel)](https://vercel.com/)
-[![LINE Login](https://img.shields.io/badge/LINE_Login-Integrated-00c300?style=for-the-badge&logo=line)](https://developers.line.biz/)
-[![Gemini OCR](https://img.shields.io/badge/Gemini_AI-OCR_Engine-8e75e5?style=for-the-badge&logo=google-gemini)](https://deepmind.google/technologies/gemini/)
+<a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16.1.6-black?style=for-the-badge&logo=nextdotjs" alt="Next.js Version"></a>
+<a href="https://react.dev/"><img src="https://img.shields.io/badge/React-19.2.3-blue?style=for-the-badge&logo=react" alt="React Version"></a>
+<a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript" alt="TypeScript"></a>
+<a href="https://www.mongodb.com/"><img src="https://img.shields.io/badge/MongoDB-Atlas-green?style=for-the-badge&logo=mongodb" alt="MongoDB"></a>
+<a href="https://vercel.com/"><img src="https://img.shields.io/badge/Vercel-Deployed-black?style=for-the-badge&logo=vercel" alt="Vercel"></a>
+<a href="https://developers.line.biz/"><img src="https://img.shields.io/badge/LINE_Login-Integrated-00c300?style=for-the-badge&logo=line" alt="LINE Login"></a>
+<a href="https://deepmind.google/technologies/gemini/"><img src="https://img.shields.io/badge/Gemini_AI-OCR_Engine-8e75e5?style=for-the-badge&logo=google-gemini" alt="Gemini OCR"></a>
 
 SmartSlip เป็นเว็บแอปพลิเคชันระดับ **Production-grade** ที่ถูกพัฒนาขึ้นเพื่อช่วยรวบรวม จัดเก็บ วิเคราะห์ และบริหารจัดการข้อมูลใบเสร็จในรูปแบบดิจิทัลแบบครบวงจร ช่วยลดปัญหาการสูญหายของเอกสาร เพิ่มความสะดวกรวดเร็วในการค้นหาย้อนหลัง และใช้ระบบ AI ในการดึงข้อมูลอัตโนมัติ พร้อมรองรับการเชื่อมต่อกับ LINE App เพื่อความสะดวกสบายสูงสุดของผู้ใช้งาน
 
