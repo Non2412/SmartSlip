@@ -13,7 +13,7 @@ export default function ProfilePage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
@@ -25,6 +25,35 @@ export default function ProfilePage() {
     // Trigger ProfileCard to re-fetch data
     setRefreshTrigger(prev => prev + 1);
   };
+
+  if (status === "loading") {
+    return (
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main, #0f172a)', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-anuphan), sans-serif' }}>
+        กำลังโหลดข้อมูลโปรไฟล์...
+      </div>
+    );
+  }
+
+  const isProfileNotCompleted = session?.user && (session.user as any).role !== "admin" && (session as any).isProfileCompleted === false;
+
+  if (isProfileNotCompleted) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'flex-start', 
+        minHeight: '100vh', 
+        background: 'var(--bg-main, #0f172a)', 
+        padding: '40px 20px',
+        fontFamily: 'var(--font-anuphan), sans-serif',
+        overflowY: 'auto'
+      }}>
+        <div style={{ maxWidth: '800px', width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <ProfileForm onSaved={handleProfileSaved} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-layout">
