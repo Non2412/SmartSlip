@@ -31,6 +31,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [userImage, setUserImage] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [dismissedRequests, setDismissedRequests] = useState<string[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const handleImageFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,7 +79,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
   };
 
   const fetchRoleRequests = () => {
-    fetch("/api/role-requests")
+    fetch("/api/role-requests?myOwn=true")
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -94,9 +95,29 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
       if (params.get("force") === "true") {
         setIsForced(true);
       }
+      try {
+        const saved = localStorage.getItem("smartslip_dismissed_role_requests");
+        if (saved) {
+          setDismissedRequests(JSON.parse(saved));
+        }
+      } catch (err) {
+        console.error("Failed to load dismissed requests:", err);
+      }
     }
     fetchRoleRequests();
   }, []);
+
+  const handleDismissNotification = (id: string) => {
+    const updated = [...dismissedRequests, id];
+    setDismissedRequests(updated);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("smartslip_dismissed_role_requests", JSON.stringify(updated));
+      } catch (err) {
+        console.error("Failed to save dismissed requests:", err);
+      }
+    }
+  };
 
   const isSessionNotCompleted = session?.user && (session.user as any).role === "user" && (session as any).isProfileCompleted === false;
   const isForcedView = isForced || isSessionNotCompleted;
@@ -790,6 +811,29 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                 </div>
               </div>
             </div>
+
+            {/* Submit Action Button */}
+            <div style={{ marginTop: '24px' }}>
+              <button 
+                type="submit" 
+                className={styles.button} 
+                disabled={loading}
+                style={{
+                  padding: '14px',
+                  fontSize: '1rem',
+                  fontWeight: '700',
+                  borderRadius: '14px',
+                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
+                  cursor: loading ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {loading 
+                  ? "⌛ กำลังบันทึกข้อมูลโปรไฟล์..." 
+                  : (session?.user && (session.user as any).status === "active" 
+                      ? "💾 บันทึกข้อมูลโปรไฟล์" 
+                      : "📨 ขอสิทธิ์การใช้งาน")}
+              </button>
+            </div>
           </div>
 
           <hr style={{ margin: '32px 0', border: 'none', borderTop: '1px dashed var(--border-color, #cbd5e1)' }} />
@@ -961,18 +1005,38 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
             )}
 
             {/* Resolved Status Notification Banners */}
-            {!pendingRequest && roleRequestsList.length > 0 && roleRequestsList[0].status === 'approved' && (
+            {!pendingRequest && roleRequestsList.length > 0 && roleRequestsList[0].status === 'approved' && !dismissedRequests.includes(roleRequestsList[0]._id || roleRequestsList[0].id) && (
               <div style={{
                 background: 'rgba(16, 185, 129, 0.08)',
                 border: '1px solid rgba(16, 185, 129, 0.3)',
                 borderRadius: '14px',
                 padding: '16px 20px',
-                marginBottom: '20px'
+                marginBottom: '20px',
+                position: 'relative'
               }}>
+                <button
+                  type="button"
+                  onClick={() => handleDismissNotification(roleRequestsList[0]._id || roleRequestsList[0].id)}
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '16px',
+                    background: 'none',
+                    border: 'none',
+                    color: '#10b981',
+                    fontSize: '1.1rem',
+                    cursor: 'pointer',
+                    opacity: 0.7,
+                    fontWeight: 'bold'
+                  }}
+                  title="ปิดการแจ้งเตือน"
+                >
+                  ✕
+                </button>
                 <div style={{ fontWeight: '700', color: '#10b981', fontSize: '0.92rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>🎉</span> รายการล่าสุดได้รับการดำเนินการแล้ว!
                 </div>
-                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-main, #0f172a)' }}>
+                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-main, #0f172a)', paddingRight: '24px' }}>
                   {roleRequestsList[0].requestType === 'issue_report'
                     ? 'ผู้ดูแลระบบได้รับทราบและดำเนินการตรวจสอบปัญหาของคุณเรียบร้อยแล้วครับ'
                     : `สิทธิ์การใช้งานใหม่ของคุณถูกปรับเป็น ${roleRequestsList[0].targetRole === 'clerk' ? '💼 เสมียน (Clerk)' : '👤 ผู้ใช้งานทั่วไป'} เรียบร้อยแล้วครับ`}
@@ -980,18 +1044,38 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
               </div>
             )}
 
-            {!pendingRequest && roleRequestsList.length > 0 && roleRequestsList[0].status === 'rejected' && (
+            {!pendingRequest && roleRequestsList.length > 0 && roleRequestsList[0].status === 'rejected' && !dismissedRequests.includes(roleRequestsList[0]._id || roleRequestsList[0].id) && (
               <div style={{
                 background: 'rgba(239, 68, 68, 0.08)',
                 border: '1px solid rgba(239, 68, 68, 0.3)',
                 borderRadius: '14px',
                 padding: '16px 20px',
-                marginBottom: '20px'
+                marginBottom: '20px',
+                position: 'relative'
               }}>
+                <button
+                  type="button"
+                  onClick={() => handleDismissNotification(roleRequestsList[0]._id || roleRequestsList[0].id)}
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '16px',
+                    background: 'none',
+                    border: 'none',
+                    color: '#ef4444',
+                    fontSize: '1.1rem',
+                    cursor: 'pointer',
+                    opacity: 0.7,
+                    fontWeight: 'bold'
+                  }}
+                  title="ปิดการแจ้งเตือน"
+                >
+                  ✕
+                </button>
                 <div style={{ fontWeight: '700', color: '#ef4444', fontSize: '0.92rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>❌</span> รายการสิทธิ์ล่าสุดถูกปฏิเสธ
                 </div>
-                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-main, #0f172a)' }}>
+                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-main, #0f172a)', paddingRight: '24px' }}>
                   คำร้องสิทธิ์ถูกปฏิเสธโดยผู้ดูแลระบบ{roleRequestsList[0].adminNote ? ` (เหตุผล: ${roleRequestsList[0].adminNote})` : ''}
                 </p>
               </div>
@@ -1077,25 +1161,6 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
               </button>
             </div>
           </div>
-
-          <hr style={{ margin: '32px 0', border: 'none', borderTop: '1px dashed var(--border-color, #cbd5e1)' }} />
-
-          {/* Submit Action Button */}
-          <button 
-            type="submit" 
-            className={styles.button} 
-            disabled={loading}
-            style={{
-              padding: '14px',
-              fontSize: '1rem',
-              fontWeight: '700',
-              borderRadius: '14px',
-              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
-              cursor: loading ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {loading ? "⌛ กำลังบันทึกข้อมูลโปรไฟล์..." : "💾 บันทึกข้อมูลโปรไฟล์ทั้งหมด"}
-          </button>
         </form>
       </div>
     </div>

@@ -14,8 +14,10 @@ export async function GET(req: NextRequest) {
     const db = client.db();
 
     const userRole = (session.user as any).role;
+    const { searchParams } = new URL(req.url);
+    const myOwn = searchParams.get("myOwn") === "true";
 
-    if (userRole === "admin") {
+    if (userRole === "admin" && !myOwn) {
       // Admin sees all role requests
       const requests = await db
         .collection("role_requests")
@@ -24,7 +26,7 @@ export async function GET(req: NextRequest) {
         .toArray();
       return NextResponse.json(requests);
     } else {
-      // Regular users see their own requests
+      // Regular users or admin requesting myOwn see their own requests
       const userRequests = await db
         .collection("role_requests")
         .find({ userId: session.user.id })
