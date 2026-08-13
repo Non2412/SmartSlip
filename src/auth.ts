@@ -6,6 +6,7 @@ import { ObjectId } from "mongodb"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     adapter: MongoDBAdapter(clientPromise),
+    secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
     trustHost: true,
     debug: process.env.NODE_ENV === "development" || process.env.NEXTAUTH_DEBUG === "true" || true,
     session: {
