@@ -1,7 +1,7 @@
 "use client"
-import { signIn } from "next-auth/react"
+import { signIn, useSession } from "next-auth/react"
 import { useState, useEffect, Suspense } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import styles from "./login.module.css"
 
 function LoginContent() {
@@ -9,10 +9,32 @@ function LoginContent() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const { data: session, status } = useSession()
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/dashboard")
+    }
+  }, [status, router])
 
   useEffect(() => {
     if (searchParams.get('registered') === 'true') {
       setSuccess('สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ')
+    }
+    
+    // Check for NextAuth errors in url query params
+    const urlError = searchParams.get('error')
+    if (urlError) {
+      console.warn("🔐 Auth error detected in URL query:", urlError)
+      if (urlError === 'Configuration') {
+        setError('พบข้อผิดพลาดในการตรวจสอบสิทธิ์ (บัญชีของคุณมีสิทธิ์ใช้งานอยู่แล้ว หรือเกิดปัญหาการส่งต่อข้อมูล กรุณาลองเข้าสู่ระบบใหม่อีกครั้ง)')
+      } else if (urlError === 'OAuthCallbackError') {
+        setError('ไม่สามารถลงชื่อเข้าใช้งานผ่าน LINE ได้ (กรุณาลองใหม่อีกครั้ง)')
+      } else {
+        setError(`เกิดข้อผิดพลาดในการยืนยันตัวตน (${urlError})`)
+      }
     }
   }, [searchParams])
 
