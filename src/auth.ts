@@ -47,13 +47,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             if (user) {
                 token.sub = user.id
                 token.email = user.email
+                
+                // NextAuth by default copies user.image to token.picture.
+                // We strip it if it is a large base64 string to prevent ERR_HTTP2_PROTOCOL_ERROR.
+                const img = user.image;
+                if (img && (img.startsWith("data:") || img.length > 500)) {
+                    console.log("✂️ [JWT] Stripped base64/large image from token.picture");
+                    token.picture = undefined;
+                } else {
+                    token.picture = img || undefined;
+                }
                 console.log("📝 บันทึก ID ผู้ใช้และอีเมล:", user.id, user.email);
             }
 
             // Store LINE user info as primary account
             if (account?.provider === "line") {
                 token.lineUserName = user?.name || undefined
-                token.lineUserImage = user?.image || undefined
+                
+                const lineImg = user?.image;
+                if (lineImg && !lineImg.startsWith("data:") && lineImg.length < 500) {
+                    token.lineUserImage = lineImg;
+                } else {
+                    token.lineUserImage = undefined;
+                }
+                
                 token.lineUserId = account.providerAccountId
                 console.log("📝 บันทึกข้อมูล LINE:", user?.name, "providerAccountId:", account.providerAccountId);
             }
@@ -140,6 +157,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     token.status = token.status || "pending";
                     token.isProfileCompleted = token.isProfileCompleted || false;
                 }
+            }
+            // Global check to ensure no base64/large image remains in the token
+            if (typeof token.picture === "string" && (token.picture.startsWith("data:") || token.picture.length > 500)) {
+                token.picture = undefined;
+            }
+            if (typeof token.lineUserImage === "string" && (token.lineUserImage.startsWith("data:") || token.lineUserImage.length > 500)) {
+                token.lineUserImage = undefined;
             }
 
             return token
