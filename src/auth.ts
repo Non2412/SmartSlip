@@ -20,6 +20,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     ],
     pages: {
         signIn: "/login",
+        error: "/login",
     },
     callbacks: {
         async signIn({ user, account }) {
@@ -32,8 +33,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             });
             return true
         },
-        async jwt({ token, account, user }) {
-            if (user || account) {
+        async jwt({ token, account, user, trigger }) {
+            const isSignIn = !!user || !!account;
+            const isUpdate = trigger === "update";
+
+            if (isSignIn) {
                 console.log("🔐 JWT ตรวจสอบ (user/account change)", {
                     hasUser: !!user,
                     provider: account?.provider,
@@ -54,31 +58,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 console.log("📝 บันทึกข้อมูล LINE:", user?.name, "providerAccountId:", account.providerAccountId);
             }
 
-            // If the token has a sub (userId) but no lineUserId, query DB to see if there is a linked LINE account
-            if (token.sub && !token.lineUserId) {
-                try {
-                    const client = await clientPromise;
-                    const db = client.db();
-                    const queryUserId = ObjectId.isValid(token.sub) ? new ObjectId(token.sub) : token.sub;
-                    const lineAccount = await db.collection("accounts").findOne({
-                        userId: queryUserId as any,
-                        provider: "line"
-                    });
-                    if (lineAccount) {
-                        token.lineUserId = lineAccount.providerAccountId;
-                        console.log("🔍 Found linked LINE account in DB for user:", token.sub, "-> LINE:", lineAccount.providerAccountId);
-                    }
-                } catch (err) {
-                    console.error("❌ Failed to fetch linked LINE account:", err);
-                }
-            }
+            // Only query database during sign in, session update, or if critical info is missing from the token
+            const needsDbFetch = isSignIn || isUpdate || !token.role || !token.status || token.isProfileCompleted === undefined;
 
-            // Fetch user role & status from DB and set defaults
-            if (token.sub) {
+            if (token.sub && needsDbFetch) {
                 try {
                     const client = await clientPromise;
                     const db = client.db();
                     const queryUserId = ObjectId.isValid(token.sub) ? new ObjectId(token.sub) : token.sub;
+
+                    // 1. Fetch LINE user ID if not already in token
+                    if (!token.lineUserId) {
+                        const lineAccount = await db.collection("accounts").findOne({
+                            userId: queryUserId as any,
+                            provider: "line"
+                        });
+                        if (lineAccount) {
+                            token.lineUserId = lineAccount.providerAccountId;
+                            console.log("🔍 Found linked LINE account in DB for user:", token.sub, "-> LINE:", lineAccount.providerAccountId);
+                        }
+                    }
+
+                    // 2. Fetch user role & status
                     const userDoc = await db.collection("users").findOne({ _id: queryUserId as any });
                     if (userDoc) {
                         let role = userDoc.role;
@@ -119,11 +120,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                         token.role = role;
                         token.status = status;
                     } else {
-                        token.role = "user";
-                        token.status = "pending";
+                        token.role = token.role || "user";
+                        token.status = token.status || "pending";
                     }
 
-                    // Check if profile is completed
+                    // 3. Check if profile is completed
                     const profileDoc = await db.collection("profiles").findOne({ userId: token.sub });
                     const isProfileCompleted = !!(
                         profileDoc && 
@@ -134,10 +135,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     );
                     token.isProfileCompleted = isProfileCompleted;
                 } catch (err) {
-                    console.error("❌ Failed to fetch user role & status:", err);
+                    console.error("❌ Failed to fetch user role & status in JWT callback:", err);
                     token.role = token.role || "user";
                     token.status = token.status || "pending";
-                    token.isProfileCompleted = false;
+                    token.isProfileCompleted = token.isProfileCompleted || false;
                 }
             }
 
