@@ -197,18 +197,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 return true
             }
 
-            // 2. Force profile completion if logged in but profile is not completed (for non-admin users)
-            if (isLoggedIn && userRole !== "admin" && !isProfileCompleted) {
+            // 2. Force profile completion or admin approval if logged in (for non-admin users)
+            if (isLoggedIn && userRole !== "admin" && (!isProfileCompleted || userStatus === "pending")) {
                 if (nextUrl.pathname !== "/profile") {
                     return Response.redirect(new URL("/profile?force=true", nextUrl))
-                }
-                return true
-            }
-
-            // 3. Check if user is pending approval (after profile is completed)
-            if (isLoggedIn && userStatus === "pending") {
-                if (nextUrl.pathname !== "/pending-approval") {
-                    return Response.redirect(new URL("/pending-approval", nextUrl))
                 }
                 return true
             }
@@ -221,10 +213,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 return Response.redirect(new URL("/dashboard", nextUrl))
             }
 
-            // Prevent redirect loop for pending-approval
+            // Prevent redirect loop for pending-approval (redirect to profile if pending)
             if (nextUrl.pathname === "/pending-approval") {
                 if (isLoggedIn && userStatus === "pending") {
-                    return true
+                    return Response.redirect(new URL("/profile?force=true", nextUrl))
                 }
                 return Response.redirect(new URL("/dashboard", nextUrl))
             }

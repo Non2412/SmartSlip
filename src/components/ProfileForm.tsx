@@ -120,7 +120,8 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
   };
 
   const isSessionNotCompleted = session?.user && (session.user as any).role === "user" && (session as any).isProfileCompleted === false;
-  const isForcedView = isForced || isSessionNotCompleted;
+  const isSessionPending = session?.user && (session.user as any).role === "user" && (session.user as any).status === "pending";
+  const isForcedView = isForced || isSessionNotCompleted || isSessionPending;
 
   const handleRoleRequestSubmit = async () => {
     if (!roleReason.trim()) {
@@ -406,7 +407,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
         if (onSaved) onSaved();
 
         if (isForcedView) {
-          setTimeout(() => { window.location.href = "/pending-approval"; }, 1500);
+          setTimeout(() => { window.location.href = "/profile"; }, 1500);
         }
       } else {
         showToast("เกิดข้อผิดพลาดในการบันทึกข้อมูล", "error");
@@ -561,21 +562,54 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
       {/* ── 2. Forced Profile Warning Alert ── */}
       {isForcedView && (
         <div style={{
-          background: 'rgba(239, 68, 68, 0.08)',
-          border: '1px solid rgba(239, 68, 68, 0.25)',
+          background: (session?.user as any)?.status === "pending" ? 'rgba(245, 158, 11, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+          border: (session?.user as any)?.status === "pending" ? '1px solid rgba(245, 158, 11, 0.25)' : '1px solid rgba(239, 68, 68, 0.25)',
           borderRadius: '16px',
           padding: '20px 24px',
           display: 'flex',
           flexDirection: 'column',
           gap: '12px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444', fontWeight: 'bold', fontSize: '1.05rem' }}>
-            <span>⚠️</span> กรุณากรอกข้อมูลส่วนตัวให้ครบถ้วนก่อนเริ่มใช้งานระบบ
-          </div>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-            เพื่อความถูกต้องและความปลอดภัยในการใช้งาน จำเป็นต้องกรอกชื่อ-นามสกุล, ชื่อบริษัท/ที่ทำงาน, ที่อยู่/ประวัติตนเอง, เบอร์โทรศัพท์ และรหัสประจำตัวประชาชนให้ครบถ้วนก่อนจึงจะสามารถทำรายการเข้าชมหน้าหลักหรือแดชบอร์ดได้ครับ
-          </p>
+          {(session?.user as any)?.status === "pending" ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f59e0b', fontWeight: 'bold', fontSize: '1.05rem' }}>
+                <span>⏳</span> อยู่ระหว่างรอการอนุมัติสิทธิ์การใช้งานจากผู้ดูแลระบบ
+              </div>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                บัญชีของคุณได้รับการลงทะเบียนและกรอกข้อมูลครบถ้วนแล้ว เพื่อความปลอดภัย บัญชีของคุณจึงจำเป็นต้องได้รับการอนุมัติจากผู้ดูแลระบบ (Admin) ก่อนเริ่มใช้งานครับ กรุณาแจ้งผู้ดูแลระบบของคุณเพื่ออนุมัติเปิดใช้งานบัญชี
+              </p>
+            </>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444', fontWeight: 'bold', fontSize: '1.05rem' }}>
+                <span>⚠️</span> กรุณากรอกข้อมูลส่วนตัวให้ครบถ้วนก่อนเริ่มใช้งานระบบ
+              </div>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                เพื่อความถูกต้องและความปลอดภัยในการใช้งาน จำเป็นต้องกรอกชื่อ-นามสกุล, ชื่อบริษัท/ที่ทำงาน, ที่อยู่/ประวัติตนเอง, เบอร์โทรศัพท์ และรหัสประจำตัวประชาชนให้ครบถ้วนก่อนจึงจะสามารถทำรายการเข้าชมหน้าหลักหรือแดชบอร์ดได้ครับ
+              </p>
+            </>
+          )}
           <div style={{ display: 'flex', justifyContent: 'flex-start', gap: '12px', marginTop: '4px' }}>
+            {(session?.user as any)?.status === "pending" && (
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                style={{
+                  padding: '6px 14px',
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  border: 'none',
+                  color: 'white',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 2px 6px rgba(16, 185, 129, 0.2)'
+                }}
+              >
+                🔄 รีเฟรชสถานะ
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -584,8 +618,8 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
               style={{
                 padding: '6px 14px',
                 background: 'transparent',
-                border: '1px solid #ef4444',
-                color: '#ef4444',
+                border: (session?.user as any)?.status === "pending" ? '1px solid #94a3b8' : '1px solid #ef4444',
+                color: (session?.user as any)?.status === "pending" ? '#94a3b8' : '#ef4444',
                 borderRadius: '8px',
                 fontSize: '0.8rem',
                 fontWeight: '600',

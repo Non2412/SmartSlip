@@ -34,7 +34,7 @@ export default function ProfilePage() {
     );
   }
 
-  const isProfileNotCompleted = session?.user && (session.user as any).role !== "admin" && (session as any).isProfileCompleted === false;
+  const isProfileNotCompleted = session?.user && (session.user as any).role !== "admin" && ((session as any).isProfileCompleted === false || (session.user as any).status === "pending");
 
   if (isProfileNotCompleted) {
     return (
@@ -42,11 +42,16 @@ export default function ProfilePage() {
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'flex-start', 
-        minHeight: '100vh', 
+        height: '100dvh', 
+        width: '100vw',
         background: 'var(--bg-main, #0f172a)', 
         padding: '40px 20px',
         fontFamily: 'var(--font-anuphan), sans-serif',
-        overflowY: 'auto'
+        overflowY: 'auto',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        zIndex: 9999
       }}>
         <div style={{ maxWidth: '800px', width: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <ProfileForm onSaved={handleProfileSaved} />
