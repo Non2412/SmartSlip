@@ -2031,13 +2031,13 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                 </div>
                                                 <div style={{ textAlign: 'center', padding: '0 12px', wordBreak: 'break-word' }}>
                                                     <div style={{ fontWeight: '800', fontSize: '1rem' }}>ลากวางไฟล์ หรือ <span style={{ color: '#0052cc', textDecoration: 'underline' }}>กดเพื่อเลือกไฟล์</span></div>
-                                                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>รองรับ JPEG, PNG, WebP, HEIC, PDF</p>
+                                                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '4px' }}>รองรับ JPG, PNG</p>
                                                 </div>
                                             </>
                                         )}
                                     </div>
                                 )}
-                                <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} style={{ display: 'none' }} accept=".jpg,.jpeg,.png,.webp,.heic,.pdf" />
+                                <input type="file" ref={fileInputRef} multiple onChange={handleFileChange} style={{ display: 'none' }} accept=".jpg,.jpeg,.png" />
 
                                 {(creationMethod === 'manual' || (creationMethod === 'upload' && image)) && (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -2212,13 +2212,13 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                                                         </div>
                                                         <p style={{ fontSize: '0.85rem', fontWeight: '700', color: txMain, margin: '0 0 4px' }}>คลิกเพื่อเลือกรูปหรือลากไฟล์มาวาง</p>
-                                                        <p style={{ fontSize: '0.75rem', color: txMuted, margin: 0 }}>รองรับ JPG, PNG, WEBP, PDF</p>
+                                                        <p style={{ fontSize: '0.75rem', color: txMuted, margin: 0 }}>รองรับ JPG, PNG</p>
                                                     </div>
                                                 )}
                                                 <input
                                                     type="file"
                                                     ref={manualImageRef}
-                                                    accept=".jpg,.jpeg,.png,.webp,.heic,.pdf"
+                                                    accept=".jpg,.jpeg,.png"
                                                     style={{ display: 'none' }}
                                                     onChange={e => { const f = e.target.files?.[0]; if (f) handleManualImageFile(f); e.target.value = ''; }}
                                                 />
