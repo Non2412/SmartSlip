@@ -131,7 +131,7 @@ function ToastCard({ toast, onRemove }: { toast: ToastItem; onRemove: (id: strin
         gap: "12px",
         padding: "14px 16px",
         borderRadius: "14px",
-        background: cfg.bg,
+        background: "var(--card-bg, #ffffff)",
         border: `1px solid ${cfg.border}`,
         backdropFilter: "blur(12px)",
         boxShadow: "0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)",
