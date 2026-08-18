@@ -782,31 +782,13 @@ export default function AdminPage() {
                                   </button>
                                 </>
                               ) : (
-                                <>
-                                  <button 
-                                    className={`${styles.actionBtn} ${u.status === 'restricted' ? styles.successBtn : styles.dangerBtn}`}
-                                    onClick={() => handleUserUpdate(u.id, { status: u.status === 'restricted' ? 'active' : 'restricted' })}
-                                    disabled={actionLoading !== null}
-                                  >
-                                    {u.status === 'restricted' ? '🔓 ปลดบล็อก' : '🚫 ระงับใช้งาน'}
-                                  </button>
-                                  {u.status === 'restricted' && (
-                                    <button 
-                                      className={styles.actionBtn}
-                                      style={{ 
-                                        background: 'transparent',
-                                        border: '1px solid var(--border-color)',
-                                        color: 'var(--text-main)',
-                                        fontWeight: '600'
-                                      }}
-                                      onClick={() => handleUserUpdate(u.id, { status: 'pending' })}
-                                      disabled={actionLoading !== null}
-                                      title="รีเซ็ตสถานะเป็นรอนุมัติเพื่อให้ผู้ใช้แก้ไขข้อมูลและยื่นสิทธิ์ใหม่ได้"
-                                    >
-                                      🔄 ให้ขอใหม่
-                                    </button>
-                                  )}
-                                </>
+                                <button 
+                                  className={`${styles.actionBtn} ${u.status === 'restricted' ? styles.successBtn : styles.dangerBtn}`}
+                                  onClick={() => handleUserUpdate(u.id, { status: u.status === 'restricted' ? 'active' : 'restricted' })}
+                                  disabled={actionLoading !== null}
+                                >
+                                  {u.status === 'restricted' ? '🔓 ปลดบล็อก' : '🚫 ระงับใช้งาน'}
+                                </button>
                               )}
                             </div>
                           </td>
@@ -1109,7 +1091,7 @@ export default function AdminPage() {
                               <button 
                                 className={`${styles.actionBtn} ${styles.dangerBtn}`}
                                 style={{ padding: '8px 16px', fontWeight: '700' }}
-                                onClick={() => handleUserUpdate(u.id, { status: 'restricted' })}
+                                onClick={() => handleUserUpdate(u.id, { status: 'rejected' })}
                                 disabled={actionLoading !== null}
                               >
                                 ❌ ปฏิเสธ
