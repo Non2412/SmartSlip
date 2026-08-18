@@ -14,12 +14,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
     address: "",
     citizenId: "",
   });
-  const [requestedRole, setRequestedRole] = useState<"clerk" | "user">("user");
-  const [requestMode, setRequestMode] = useState<"role_change" | "issue_report">("role_change");
-  const [issueCategory, setIssueCategory] = useState<string>("🐛 พบข้อผิดพลาด/บักในระบบ");
-  const [roleReason, setRoleReason] = useState("");
-  const [roleRequestsList, setRoleRequestsList] = useState<any[]>([]);
-  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<"clerk" | "user">("user");
   const [phoneCode, setPhoneCode] = useState("+66");
   const [phoneNumberOnly, setPhoneNumberOnly] = useState("");
   const [customCategories, setCustomCategories] = useState<string[]>([]);
@@ -31,7 +26,6 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [userImage, setUserImage] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [dismissedRequests, setDismissedRequests] = useState<string[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const handleImageFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,89 +72,20 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
     }
   };
 
-  const fetchRoleRequests = () => {
-    fetch("/api/role-requests?myOwn=true")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setRoleRequestsList(data);
-        }
-      })
-      .catch(console.error);
-  };
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("force") === "true") {
         setIsForced(true);
       }
-      try {
-        const saved = localStorage.getItem("smartslip_dismissed_role_requests");
-        if (saved) {
-          setDismissedRequests(JSON.parse(saved));
-        }
-      } catch (err) {
-        console.error("Failed to load dismissed requests:", err);
-      }
     }
-    fetchRoleRequests();
   }, []);
-
-  const handleDismissNotification = (id: string) => {
-    const updated = [...dismissedRequests, id];
-    setDismissedRequests(updated);
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem("smartslip_dismissed_role_requests", JSON.stringify(updated));
-      } catch (err) {
-        console.error("Failed to save dismissed requests:", err);
-      }
-    }
-  };
 
   const isSessionNotCompleted = session?.user && (session.user as any).role === "user" && (session as any).isProfileCompleted === false;
   const isSessionPending = session?.user && (session.user as any).role === "user" && (session.user as any).status === "pending";
   const isSessionRejected = session?.user && (session.user as any).role === "user" && (session.user as any).status === "rejected";
   const isSessionRestricted = session?.user && (session.user as any).role === "user" && (session.user as any).status === "restricted";
   const isForcedView = isForced || isSessionNotCompleted || isSessionPending || isSessionRejected || isSessionRestricted;
-
-  const handleRoleRequestSubmit = async () => {
-    if (!roleReason.trim()) {
-      showToast(requestMode === "role_change" ? "กรุณาระบุเหตุผลการยื่นคำร้องขอเปลี่ยนบทบาทครับ" : "กรุณาระบุรายละเอียดปัญหาที่พบครับ", "warning");
-      return;
-    }
-
-    setIsSubmittingRequest(true);
-    try {
-      const res = await fetch("/api/role-requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          targetRole: requestedRole,
-          reason: roleReason.trim(),
-          requestType: requestMode,
-          issueCategory: requestMode === "issue_report" ? issueCategory : null,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        showToast(requestMode === "role_change" ? "ยื่นคำร้องขอเปลี่ยนบทบาทส่งไปยังผู้ดูแลระบบเรียบร้อยแล้ว! 📨" : "ส่งรายงานแจ้งปัญหาไปยังผู้ดูแลระบบเรียบร้อยแล้ว! 🛠️", "success", 5000);
-        setRoleReason("");
-        fetchRoleRequests();
-      } else {
-        showToast(data.error || "เกิดข้อผิดพลาดในการส่งข้อมูล", "error");
-      }
-    } catch (err) {
-      console.error(err);
-      showToast("เกิดข้อผิดพลาดในการส่งข้อมูล", "error");
-    } finally {
-      setIsSubmittingRequest(false);
-    }
-  };
-
-  const pendingRequest = roleRequestsList.find((r) => r.status === "pending");
 
   useEffect(() => {
     fetch("/api/profile")
@@ -179,8 +104,9 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
             setUserImage(data.image);
           }
 
-          if (data.requestedRole === 'clerk' || data.requestedRole === 'user') {
-            setRequestedRole(data.requestedRole);
+          const currentRole = (data.role as 'clerk' | 'user') || data.requestedRole;
+          if (currentRole === 'clerk' || currentRole === 'user') {
+            setSelectedRole(currentRole);
           }
 
           const phoneVal = data.phone || "";
@@ -400,7 +326,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
         body: JSON.stringify({ 
           ...form, 
           phone: finalPhone, 
-          requestedRole,
+          role: selectedRole,
           customCategories 
         }),
       });
@@ -511,11 +437,11 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                 fontWeight: '700',
                 padding: '3px 10px',
                 borderRadius: '20px',
-                background: (session?.user as any)?.role === 'admin' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(16, 185, 129, 0.12)',
-                color: (session?.user as any)?.role === 'admin' ? '#6366f1' : '#10b981',
-                border: (session?.user as any)?.role === 'admin' ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
+                background: (session?.user as any)?.role === 'admin' ? 'rgba(99, 102, 241, 0.12)' : selectedRole === 'clerk' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+                color: (session?.user as any)?.role === 'admin' ? '#6366f1' : selectedRole === 'clerk' ? '#6366f1' : '#10b981',
+                border: (session?.user as any)?.role === 'admin' ? '1px solid rgba(99, 102, 241, 0.3)' : selectedRole === 'clerk' ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
               }}>
-                {(session?.user as any)?.role === 'admin' ? '🛡️ ผู้ดูแลระบบ (Admin)' : '👤 ผู้ใช้งานทั่วไป'}
+                {(session?.user as any)?.role === 'admin' ? '🛡️ ผู้ดูแลระบบ (Admin)' : selectedRole === 'clerk' ? '💼 เสมียน (Clerk)' : '👤 ผู้ใช้งานทั่วไป'}
               </span>
             </div>
             <p style={{ margin: '4px 0 0', fontSize: '0.88rem', color: 'var(--text-muted, #64748b)' }}>
@@ -783,24 +709,24 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
               )}
             </div>
 
-            {/* ── Role Request Selection Cards ── */}
+            {/* ── Role Selection Cards ── */}
             <div style={{ marginTop: '24px', background: 'var(--input-bg, #f8fafc)', borderRadius: '16px', padding: '20px', border: '1px solid var(--border-color, #e2e8f0)' }}>
               <label className={styles.label} style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-main, #0f172a)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>🔑</span> เลือกขอสถานะ / สิทธิ์การใช้งานระบบ
+                <span>🔑</span> เลือกบทบาทการใช้งาน
               </label>
               <p style={{ margin: '0 0 16px 0', fontSize: '0.82rem', color: 'var(--text-muted, #64748b)' }}>
-                กรุณาเลือกสถานะการใช้งานที่คุณต้องการขออนุญาตจากผู้ดูแลระบบ (Admin)
+                บทบาทที่เลือกจะมีผลทันทีเมื่อกดบันทึก — ข้อมูลใบเสร็จและประวัติของแต่ละบทบาทจะแยกกัน
               </p>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
                 {/* Option 1: เสมียน (Clerk) */}
                 <div 
-                  onClick={() => setRequestedRole('clerk')}
+                  onClick={() => setSelectedRole('clerk')}
                   style={{
                     padding: '16px 18px',
                     borderRadius: '14px',
-                    border: requestedRole === 'clerk' ? '2px solid #6366f1' : '1px solid var(--border-color, #e2e8f0)',
-                    background: requestedRole === 'clerk' ? 'rgba(99, 102, 241, 0.08)' : 'var(--card-bg, #ffffff)',
+                    border: selectedRole === 'clerk' ? '2px solid #6366f1' : '1px solid var(--border-color, #e2e8f0)',
+                    background: selectedRole === 'clerk' ? 'rgba(99, 102, 241, 0.08)' : 'var(--card-bg, #ffffff)',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     display: 'flex',
@@ -810,30 +736,30 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                 >
                   <input 
                     type="radio" 
-                    name="requestedRole" 
+                    name="selectedRole" 
                     value="clerk" 
-                    checked={requestedRole === 'clerk'} 
-                    onChange={() => setRequestedRole('clerk')} 
+                    checked={selectedRole === 'clerk'} 
+                    onChange={() => setSelectedRole('clerk')} 
                     style={{ marginTop: '3px', accentColor: '#6366f1' }}
                   />
                   <div>
-                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: requestedRole === 'clerk' ? '#6366f1' : 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: selectedRole === 'clerk' ? '#6366f1' : 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span>💼</span> 1. เสมียน (Clerk)
                     </div>
                     <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted, #64748b)', lineHeight: '1.4' }}>
-                      ขอสิทธิ์ใช้งานในฐานะเสมียน เพื่อช่วยตรวจสอบ ตรวจเช็ค และจัดการเอกสารสลิป/ใบเสร็จในระบบ
+                      ใช้งานในฐานะเสมียน เพื่อช่วยตรวจสอบ ตรวจเช็ค และจัดการเอกสารสลิป/ใบเสร็จในระบบ
                     </p>
                   </div>
                 </div>
 
                 {/* Option 2: ผู้ใช้งานทั่วไป (General User) */}
                 <div 
-                  onClick={() => setRequestedRole('user')}
+                  onClick={() => setSelectedRole('user')}
                   style={{
                     padding: '16px 18px',
                     borderRadius: '14px',
-                    border: requestedRole === 'user' ? '2px solid #10b981' : '1px solid var(--border-color, #e2e8f0)',
-                    background: requestedRole === 'user' ? 'rgba(16, 185, 129, 0.08)' : 'var(--card-bg, #ffffff)',
+                    border: selectedRole === 'user' ? '2px solid #10b981' : '1px solid var(--border-color, #e2e8f0)',
+                    background: selectedRole === 'user' ? 'rgba(16, 185, 129, 0.08)' : 'var(--card-bg, #ffffff)',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     display: 'flex',
@@ -843,18 +769,18 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                 >
                   <input 
                     type="radio" 
-                    name="requestedRole" 
+                    name="selectedRole" 
                     value="user" 
-                    checked={requestedRole === 'user'} 
-                    onChange={() => setRequestedRole('user')} 
+                    checked={selectedRole === 'user'} 
+                    onChange={() => setSelectedRole('user')} 
                     style={{ marginTop: '3px', accentColor: '#10b981' }}
                   />
                   <div>
-                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: requestedRole === 'user' ? '#10b981' : 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: selectedRole === 'user' ? '#10b981' : 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span>👤</span> 2. ผู้ใช้งานทั่วไป (General User)
                     </div>
                     <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted, #64748b)', lineHeight: '1.4' }}>
-                      ขอสิทธิ์ใช้งานในฐานะผู้ใช้งานทั่วไป สำหรับสแกน บันทึก และคุมรายจ่ายใบเสร็จส่วนตัว
+                      ใช้งานในฐานะผู้ใช้งานทั่วไป สำหรับสแกน บันทึก และคุมรายจ่ายใบเสร็จส่วนตัว
                     </p>
                   </div>
                 </div>
@@ -961,255 +887,6 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
             </div>
           </div>
 
-          <hr style={{ margin: '32px 0', border: 'none', borderTop: '1px dashed var(--border-color, #cbd5e1)' }} />
-
-          {/* Section 3: ยื่นคำร้องขอเปลี่ยนสิทธิ์บทบาท / แจ้งปัญหา */}
-          <div style={{ marginBottom: '28px' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.15rem', fontWeight: '700', color: 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ background: 'rgba(99, 102, 241, 0.12)', padding: '6px 10px', borderRadius: '10px', color: '#6366f1', fontSize: '1rem' }}>📝</span>
-              ยื่นคำร้องขอเปลี่ยนสิทธิ์บทบาท / แจ้งปัญหาการใช้งาน
-            </h3>
-
-            {/* 2 Mode Selector Buttons */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '12px',
-              marginBottom: '20px'
-            }}>
-              {/* Mode 1: ขอเปลี่ยนบทบาท */}
-              <button
-                type="button"
-                onClick={() => setRequestMode('role_change')}
-                style={{
-                  padding: '14px 18px',
-                  borderRadius: '14px',
-                  border: requestMode === 'role_change' ? '2px solid #6366f1' : '1px solid var(--border-color, #e2e8f0)',
-                  background: requestMode === 'role_change' ? 'rgba(99, 102, 241, 0.12)' : 'var(--input-bg, #f8fafc)',
-                  color: requestMode === 'role_change' ? '#6366f1' : 'var(--text-muted, #64748b)',
-                  fontWeight: '700',
-                  fontSize: '0.95rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: requestMode === 'role_change' ? '0 4px 12px rgba(99, 102, 241, 0.15)' : 'none',
-                  transition: 'all 0.2s'
-                }}
-              >
-                <span>👤</span> 1. ยื่นขอเปลี่ยนบทบาท (Role)
-              </button>
-
-              {/* Mode 2: แจ้งปัญหาการใช้งาน */}
-              <button
-                type="button"
-                onClick={() => setRequestMode('issue_report')}
-                style={{
-                  padding: '14px 18px',
-                  borderRadius: '14px',
-                  border: requestMode === 'issue_report' ? '2px solid #ef4444' : '1px solid var(--border-color, #e2e8f0)',
-                  background: requestMode === 'issue_report' ? 'rgba(239, 68, 68, 0.12)' : 'var(--input-bg, #f8fafc)',
-                  color: requestMode === 'issue_report' ? '#ef4444' : 'var(--text-muted, #64748b)',
-                  fontWeight: '700',
-                  fontSize: '0.95rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: requestMode === 'issue_report' ? '0 4px 12px rgba(239, 68, 68, 0.15)' : 'none',
-                  transition: 'all 0.2s'
-                }}
-              >
-                <span>⚠️</span> 2. แจ้งปัญหาการใช้งานระบบ
-              </button>
-            </div>
-
-            <p style={{ margin: '0 0 16px 0', fontSize: '0.85rem', color: 'var(--text-muted, #64748b)', lineHeight: '1.5' }}>
-              {requestMode === 'role_change'
-                ? 'หากคุณต้องการปรับเปลี่ยนสิทธิ์บทบาทการใช้งาน (เช่น ขอเปลี่ยนสิทธิ์เป็นเสมียน หรือผู้ใช้งานทั่วไป) จำเป็นต้องระบุเหตุผลความจำเป็นเพื่อให้ผู้ดูแลระบบ (Admin) พิจารณาอนุมัติก่อนเปลี่ยนสิทธิ์ครับ'
-                : 'หากคุณพบข้อผิดพลาด (Bug) สแกนใบเสร็จไม่ตรง หรือมีข้อเสนอแนะในการปรับปรุงระบบ สามารถกรอกรายละเอียดแจ้งปัญหาไปยังผู้ดูแลระบบได้ทันทีครับ'}
-            </p>
-
-            {/* Active Pending Request Alert */}
-            {pendingRequest && (
-              <div style={{
-                background: 'rgba(99, 102, 241, 0.08)',
-                border: '1px solid rgba(99, 102, 241, 0.25)',
-                borderRadius: '14px',
-                padding: '16px 20px',
-                marginBottom: '20px'
-              }}>
-                <div style={{ fontWeight: '700', color: '#6366f1', fontSize: '0.92rem', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>⏳</span> รายการของคุณอยู่ระหว่างรอผู้ดูแลระบบตรวจสอบ
-                </div>
-                <p style={{ margin: '0 0 6px 0', fontSize: '0.85rem', color: 'var(--text-main, #0f172a)' }}>
-                  ประเภท: <strong>{pendingRequest.requestType === 'issue_report' ? `⚠️ แจ้งปัญหา (${pendingRequest.issueCategory || 'ทั่วไป'})` : `👤 ขอเปลี่ยนสิทธิ์เป็น ${pendingRequest.targetRole === 'clerk' ? '💼 เสมียน (Clerk)' : '👤 ผู้ใช้งานทั่วไป'}`}</strong>
-                </p>
-                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted, #64748b)' }}>
-                  รายละเอียด: &ldquo;{pendingRequest.reason}&rdquo; ({new Date(pendingRequest.createdAt).toLocaleString('th-TH')})
-                </p>
-              </div>
-            )}
-
-            {/* Resolved Status Notification Banners */}
-            {!pendingRequest && roleRequestsList.length > 0 && roleRequestsList[0].status === 'approved' && !dismissedRequests.includes(roleRequestsList[0]._id || roleRequestsList[0].id) && (
-              <div style={{
-                background: 'rgba(16, 185, 129, 0.08)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                borderRadius: '14px',
-                padding: '16px 20px',
-                marginBottom: '20px',
-                position: 'relative'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => handleDismissNotification(roleRequestsList[0]._id || roleRequestsList[0].id)}
-                  style={{
-                    position: 'absolute',
-                    top: '12px',
-                    right: '16px',
-                    background: 'none',
-                    border: 'none',
-                    color: '#10b981',
-                    fontSize: '1.1rem',
-                    cursor: 'pointer',
-                    opacity: 0.7,
-                    fontWeight: 'bold'
-                  }}
-                  title="ปิดการแจ้งเตือน"
-                >
-                  ✕
-                </button>
-                <div style={{ fontWeight: '700', color: '#10b981', fontSize: '0.92rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>🎉</span> รายการล่าสุดได้รับการดำเนินการแล้ว!
-                </div>
-                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-main, #0f172a)', paddingRight: '24px' }}>
-                  {roleRequestsList[0].requestType === 'issue_report'
-                    ? 'ผู้ดูแลระบบได้รับทราบและดำเนินการตรวจสอบปัญหาของคุณเรียบร้อยแล้วครับ'
-                    : `สิทธิ์การใช้งานใหม่ของคุณถูกปรับเป็น ${roleRequestsList[0].targetRole === 'clerk' ? '💼 เสมียน (Clerk)' : '👤 ผู้ใช้งานทั่วไป'} เรียบร้อยแล้วครับ`}
-                </p>
-              </div>
-            )}
-
-            {!pendingRequest && roleRequestsList.length > 0 && roleRequestsList[0].status === 'rejected' && !dismissedRequests.includes(roleRequestsList[0]._id || roleRequestsList[0].id) && (
-              <div style={{
-                background: 'rgba(239, 68, 68, 0.08)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                borderRadius: '14px',
-                padding: '16px 20px',
-                marginBottom: '20px',
-                position: 'relative'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => handleDismissNotification(roleRequestsList[0]._id || roleRequestsList[0].id)}
-                  style={{
-                    position: 'absolute',
-                    top: '12px',
-                    right: '16px',
-                    background: 'none',
-                    border: 'none',
-                    color: '#ef4444',
-                    fontSize: '1.1rem',
-                    cursor: 'pointer',
-                    opacity: 0.7,
-                    fontWeight: 'bold'
-                  }}
-                  title="ปิดการแจ้งเตือน"
-                >
-                  ✕
-                </button>
-                <div style={{ fontWeight: '700', color: '#ef4444', fontSize: '0.92rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>❌</span> รายการสิทธิ์ล่าสุดถูกปฏิเสธ
-                </div>
-                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-main, #0f172a)', paddingRight: '24px' }}>
-                  คำร้องสิทธิ์ถูกปฏิเสธโดยผู้ดูแลระบบ{roleRequestsList[0].adminNote ? ` (เหตุผล: ${roleRequestsList[0].adminNote})` : ''}
-                </p>
-              </div>
-            )}
-
-            <div style={{ background: 'var(--input-bg, #f8fafc)', borderRadius: '16px', padding: '20px', border: '1px solid var(--border-color, #e2e8f0)' }}>
-              {/* Category Pills when in Mode 2 */}
-              {requestMode === 'issue_report' && (
-                <div style={{ marginBottom: '16px' }}>
-                  <label className={styles.label} style={{ marginBottom: '8px' }}>เลือกประเภทปัญหาที่พบ:</label>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {[
-                      '🐛 พบข้อผิดพลาด/บักในระบบ',
-                      '📄 ปัญหาสแกน/อ่านสลิป',
-                      '🔑 ปัญหาเข้าสู่ระบบ/บัญชี',
-                      '💡 ข้อเสนอแนะการใช้งาน'
-                    ].map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => setIssueCategory(cat)}
-                        style={{
-                          padding: '6px 14px',
-                          borderRadius: '20px',
-                          fontSize: '0.82rem',
-                          fontWeight: '700',
-                          border: issueCategory === cat ? '1px solid #ef4444' : '1px solid var(--border-color, #e2e8f0)',
-                          background: issueCategory === cat ? 'rgba(239, 68, 68, 0.12)' : 'var(--card-bg, #ffffff)',
-                          color: issueCategory === cat ? '#ef4444' : 'var(--text-muted, #64748b)',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s'
-                        }}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
-                <label className={styles.label}>
-                  {requestMode === 'role_change' ? 'เหตุผลความจำเป็นในการขอเปลี่ยนบทบาท (Role)' : 'รายละเอียดปัญหาหรือข้อผิดพลาดที่พบ'} <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <textarea
-                  className={styles.input}
-                  placeholder={requestMode === 'role_change'
-                    ? 'ระบุเหตุผลความจำเป็น เช่น ต้องช่วยตรวจเช็คเอกสารสลิปของแผนกการเงิน หรือช่วยคุมรายจ่าย...'
-                    : 'อธิบายรายละเอียดปัญหาที่พบ เช่น สแกนสลิปใบเสร็จแล้วยอดเงินไม่ตรง หรือระบบแสดงผลช้าในมือถือ...'}
-                  value={roleReason}
-                  onChange={(e) => setRoleReason(e.target.value)}
-                  rows={3}
-                  style={{ resize: 'vertical', minHeight: '80px', fontFamily: 'inherit', padding: '12px 14px', lineHeight: '1.5' }}
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={handleRoleRequestSubmit}
-                disabled={isSubmittingRequest || !roleReason.trim()}
-                style={{
-                  padding: '12px 22px',
-                  background: requestMode === 'role_change' ? '#6366f1' : '#ef4444',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontWeight: '700',
-                  fontSize: '0.92rem',
-                  cursor: isSubmittingRequest || !roleReason.trim() ? 'not-allowed' : 'pointer',
-                  opacity: isSubmittingRequest || !roleReason.trim() ? 0.6 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: requestMode === 'role_change' ? '0 4px 12px rgba(99, 102, 241, 0.25)' : '0 4px 12px rgba(239, 68, 68, 0.25)',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {isSubmittingRequest
-                  ? '⌛ กำลังส่งข้อมูล...'
-                  : requestMode === 'role_change'
-                    ? '📨 ยื่นคำร้องขอเปลี่ยนสิทธิ์บทบาทแก่ Admin'
-                    : '🛠️ ส่งรายงานแจ้งปัญหาแก่ Admin'}
-              </button>
-            </div>
-          </div>
         </form>
       </div>
     </div>

@@ -45,6 +45,11 @@ export async function GET(request: Request) {
       } else if (currentUserId) {
         query = { userId: currentUserId };
       }
+      // Separate logs per role
+      const roleFilter = userRole === 'clerk'
+        ? { roleContext: 'clerk' }
+        : { $or: [{ roleContext: 'user' }, { roleContext: { $exists: false } }] };
+      query = { $and: [query, roleFilter] };
     }
 
     // 1. ดึงรายการใบเสร็จทั้งหมดของผู้ใช้เพื่อนำไปใช้ในการ backfill ประวัติกิจกรรมเก่า
@@ -74,7 +79,8 @@ export async function GET(request: Request) {
           action: 'add',
           details: `เพิ่มใบเสร็จร้าน "${storeName}" ยอดเงิน ฿${parseFloat(amt.toString()).toFixed(2)} บาท`,
           timestamp: receipt.createdAt || new Date().toISOString(),
-          receiptId: receiptIdStr
+          receiptId: receiptIdStr,
+          roleContext: receipt.roleContext || 'user'
         });
       }
     }
@@ -158,6 +164,7 @@ export async function POST(request: Request) {
       action,
       details,
       timestamp: new Date().toISOString(),
+      roleContext: userRole === 'admin' ? undefined : userRole,
       receiptId: receiptId || undefined,
       metadata: metadata || undefined
     };

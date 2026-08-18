@@ -45,6 +45,11 @@ export async function GET(request: Request) {
       } else if (currentUserId) {
         query = { userId: currentUserId };
       }
+      // Separate data per role: clerk sees only clerk receipts; user sees user + legacy (no roleContext)
+      const roleFilter = userRole === 'clerk'
+        ? { roleContext: 'clerk' }
+        : { $or: [{ roleContext: 'user' }, { roleContext: { $exists: false } }] };
+      query = { $and: [query, roleFilter] };
     }
 
     const receipts = await db
@@ -137,6 +142,7 @@ export async function POST(request: Request) {
       storeName,
       totalAmount: parseFloat(totalAmount.toString()),
       userId: targetUserId,
+      roleContext: userRole === 'admin' ? undefined : userRole,
       extractedData: extractedData || null,
       imageFileId: imageFileId || null,
       imageHash: imageHash || null,

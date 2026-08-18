@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, company, email, phone, address, budgets, citizenId, requestedRole, customCategories, image } = body;
+    const { name, company, email, phone, address, budgets, citizenId, role, requestedRole, customCategories, image } = body;
 
     const client = await clientPromise;
     const db = client.db();
@@ -95,6 +95,12 @@ export async function POST(req: NextRequest) {
     const currentUser = await db.collection("users").findOne({ $or: filterConditions } as any);
 
     const userUpdateFields: any = { updatedAt: new Date() };
+    // Allow non-admin users to switch between 'user' and 'clerk' directly
+    const newRole = role || requestedRole;
+    if (newRole && ['user', 'clerk'].includes(newRole) && currentUser?.role !== 'admin') {
+      userUpdateFields.role = newRole;
+      userUpdateFields.requestedRole = newRole;
+    }
     if (requestedRole) userUpdateFields.requestedRole = requestedRole;
     if (image) userUpdateFields.image = image;
 
