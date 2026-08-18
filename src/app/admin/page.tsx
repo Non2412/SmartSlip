@@ -269,10 +269,12 @@ export default function AdminPage() {
     try {
       setActionLoading(userId);
 
+      const adminKey = process.env.NEXT_PUBLIC_ADMIN_KEY || 'admin-secret-key-smartslip-2026';
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          'x-admin-key': adminKey,
         },
         body: JSON.stringify({
           role: updates.role,
@@ -321,13 +323,15 @@ export default function AdminPage() {
     if (!inspectingUser) return;
     try {
       setActionLoading(inspectingUser.id);
-      const res = await fetch('/api/admin/users', {
+      const adminKey = process.env.NEXT_PUBLIC_ADMIN_KEY || 'admin-secret-key-smartslip-2026';
+      const updates = { profile: editProfileForm };
+      const res = await fetch(`/api/admin/users/${inspectingUser.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: inspectingUser.id,
-          profile: editProfileForm
-        })
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-key': adminKey
+        },
+        body: JSON.stringify(updates)
       });
       const json = await res.json();
       if (json.success) {
