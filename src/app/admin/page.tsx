@@ -782,13 +782,25 @@ export default function AdminPage() {
                                   </button>
                                 </>
                               ) : (
-                                <button 
-                                  className={`${styles.actionBtn} ${(u.status === 'restricted' || u.status === 'rejected') ? styles.successBtn : styles.dangerBtn}`}
-                                  onClick={() => handleUserUpdate(u.id, { status: (u.status === 'restricted' || u.status === 'rejected') ? 'pending' : 'restricted' })}
-                                  disabled={actionLoading !== null}
-                                >
-                                  {(u.status === 'restricted' || u.status === 'rejected') ? '🔓 ปลดบล็อก' : '🚫 ระงับใช้งาน'}
-                                </button>
+                                <>
+                                  <button 
+                                    className={`${styles.actionBtn} ${(u.status === 'restricted' || u.status === 'rejected') ? styles.successBtn : styles.dangerBtn}`}
+                                    onClick={() => handleUserUpdate(u.id, { status: (u.status === 'restricted' || u.status === 'rejected') ? 'pending' : 'restricted' })}
+                                    disabled={actionLoading !== null}
+                                  >
+                                    {(u.status === 'restricted' || u.status === 'rejected') ? '🔓 ปลดบล็อก' : '🚫 ระงับใช้งาน'}
+                                  </button>
+                                  {u.status === 'active' && (
+                                    <button 
+                                      className={`${styles.actionBtn} ${styles.warningBtn}`}
+                                      onClick={() => handleUserUpdate(u.id, { status: 'rejected' })}
+                                      disabled={actionLoading !== null}
+                                      title="ยกเลิกการใช้งานบัญชีเพื่อให้ต้องขอสิทธิ์เข้ามาใหม่"
+                                    >
+                                      🚫 ยกเลิกการใช้งาน
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </div>
                           </td>
