@@ -198,7 +198,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
 
             // 2. Force profile completion or admin approval if logged in (for non-admin users)
-            if (isLoggedIn && userRole !== "admin" && (!isProfileCompleted || userStatus === "pending")) {
+            if (isLoggedIn && userRole !== "admin" && (!isProfileCompleted || userStatus === "pending" || userStatus === "rejected")) {
                 if (nextUrl.pathname !== "/profile") {
                     return Response.redirect(new URL("/profile?force=true", nextUrl))
                 }

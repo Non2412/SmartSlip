@@ -92,9 +92,15 @@ export async function POST(req: NextRequest) {
       filterConditions.push({ _id: new ObjectId(session.user.id) });
     }
 
+    const currentUser = await db.collection("users").findOne({ $or: filterConditions } as any);
+
     const userUpdateFields: any = { updatedAt: new Date() };
     if (requestedRole) userUpdateFields.requestedRole = requestedRole;
     if (image) userUpdateFields.image = image;
+
+    if (currentUser && currentUser.status === "rejected") {
+      userUpdateFields.status = "pending";
+    }
 
     await db.collection("users").updateOne(
       { $or: filterConditions } as any,

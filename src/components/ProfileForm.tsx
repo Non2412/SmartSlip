@@ -5,7 +5,7 @@ import styles from "./Profile.module.css";
 import { useToast } from "./Toast";
 
 export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const { showToast } = useToast();
   const [form, setForm] = useState({
     name: "",
@@ -121,7 +121,8 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
 
   const isSessionNotCompleted = session?.user && (session.user as any).role === "user" && (session as any).isProfileCompleted === false;
   const isSessionPending = session?.user && (session.user as any).role === "user" && (session.user as any).status === "pending";
-  const isForcedView = isForced || isSessionNotCompleted || isSessionPending;
+  const isSessionRejected = session?.user && (session.user as any).role === "user" && (session.user as any).status === "rejected";
+  const isForcedView = isForced || isSessionNotCompleted || isSessionPending || isSessionRejected;
 
   const handleRoleRequestSubmit = async () => {
     if (!roleReason.trim()) {
@@ -404,6 +405,11 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
       });
       if (res.ok) {
         showToast("บันทึกข้อมูลเรียบร้อยแล้ว! ✅", "success", 5000);
+        
+        if (update) {
+          await update();
+        }
+
         if (onSaved) onSaved();
 
         if (isForcedView) {
@@ -559,7 +565,6 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
         </div>
       </div>
 
-      {/* ── 2. Forced Profile Warning Alert ── */}
       {isForcedView && (
         <div style={{
           background: (session?.user as any)?.status === "pending" ? 'rgba(245, 158, 11, 0.08)' : 'rgba(239, 68, 68, 0.08)',
@@ -577,6 +582,15 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
               </div>
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
                 บัญชีของคุณได้รับการลงทะเบียนและกรอกข้อมูลครบถ้วนแล้ว เพื่อความปลอดภัย บัญชีของคุณจึงจำเป็นต้องได้รับการอนุมัติจากผู้ดูแลระบบ (Admin) ก่อนเริ่มใช้งานครับ กรุณาแจ้งผู้ดูแลระบบของคุณเพื่ออนุมัติเปิดใช้งานบัญชี
+              </p>
+            </>
+          ) : (session?.user as any)?.status === "rejected" ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444', fontWeight: 'bold', fontSize: '1.05rem' }}>
+                <span>❌</span> คำขออนุมัติเข้าใช้งานระบบของคุณถูกปฏิเสธ
+              </div>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                ผู้ดูแลระบบได้ตรวจสอบข้อมูลและไม่สามารถอนุมัติสิทธิ์การเข้าใช้งานระบบในขณะนี้ได้ กรุณาตรวจสอบและแก้ไขข้อมูลส่วนตัวด้านล่างให้ถูกต้อง จากนั้นกดปุ่มส่งขอสิทธิ์ใหม่อีกครั้งเพื่อส่งกลับไปให้ผู้ดูแลระบบตรวจสอบใหม่ครับ
               </p>
             </>
           ) : (

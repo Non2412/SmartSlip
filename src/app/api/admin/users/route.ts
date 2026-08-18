@@ -203,7 +203,7 @@ export async function PATCH(request: Request) {
       updateFields.role = role;
     }
     if (status) {
-      if (status !== 'active' && status !== 'restricted' && status !== 'pending') {
+      if (status !== 'active' && status !== 'restricted' && status !== 'pending' && status !== 'rejected') {
         return NextResponse.json({ success: false, error: 'Invalid status value' }, { status: 400 });
       }
       updateFields.status = status;
