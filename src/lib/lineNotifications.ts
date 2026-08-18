@@ -1,12 +1,6 @@
 import clientPromise from './mongodb';
 import { ObjectId } from 'mongodb';
 
-const line = require('@line/bot-sdk');
-
-const lineClient = new line.Client({
-  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-});
-
 export async function notifyUserByLine(
   userId: string,
   message: string
@@ -39,16 +33,9 @@ export async function notifyUserByLine(
 
     const lineUserId = lineAccount.providerAccountId;
 
-    await lineClient.pushMessage(lineUserId, {
-      type: 'text',
-      text: message,
-    });
-
-    console.log(
-      `[LINE Notification] Sent to user ${userId}: "${message}"`
-    );
+    await notifyUserByLineUserId(lineUserId, message);
   } catch (error) {
-    console.error('[LINE Notification] Error:', error);
+    console.error('[LINE Notification] Error in notifyUserByLine:', error);
     throw error;
   }
 }
@@ -58,16 +45,33 @@ export async function notifyUserByLineUserId(
   message: string
 ): Promise<void> {
   try {
-    await lineClient.pushMessage(lineUserId, {
-      type: 'text',
-      text: message,
+    if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+      console.warn('[LINE Notification] LINE_CHANNEL_ACCESS_TOKEN is not defined');
+      return;
+    }
+
+    const response = await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify({
+        to: lineUserId,
+        messages: [{ type: 'text', text: message }],
+      }),
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`LINE API responded with status ${response.status}: ${errorText}`);
+    }
 
     console.log(
       `[LINE Notification] Sent to LineUserId ${lineUserId}: "${message}"`
     );
   } catch (error) {
-    console.error('[LINE Notification] Error:', error);
+    console.error('[LINE Notification] Error in notifyUserByLineUserId:', error);
     throw error;
   }
 }
