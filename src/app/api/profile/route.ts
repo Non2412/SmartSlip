@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       image: profile.image || session.user.image || null,
       requestedRole: "user",
+      activeRole: "user",
       customCategories: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'],
       ...profile,
     });
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, company, email, phone, address, budgets, citizenId, requestedRole, customCategories, image } = body;
+    const { name, company, email, phone, address, budgets, citizenId, role, requestedRole, customCategories, image } = body;
 
     const client = await clientPromise;
     const db = client.db();
@@ -69,6 +70,13 @@ export async function POST(req: NextRequest) {
 
     if (requestedRole) {
       updateFields.requestedRole = requestedRole;
+    }
+
+    // activeRole tracks the role-context the user is currently operating under,
+    // separate from their real permission role (so admins keep Admin access)
+    const newRole = role || requestedRole;
+    if (newRole && ['user', 'clerk'].includes(newRole)) {
+      updateFields.activeRole = newRole;
     }
 
     if (budgets !== undefined) {
@@ -95,7 +103,14 @@ export async function POST(req: NextRequest) {
     const currentUser = await db.collection("users").findOne({ $or: filterConditions } as any);
 
     const userUpdateFields: any = { updatedAt: new Date() };
-    if (requestedRole) userUpdateFields.requestedRole = requestedRole;
+    if (newRole && ['user', 'clerk'].includes(newRole)) {
+      userUpdateFields.activeRole = newRole;
+      // Only mutate the real permission role for non-admin accounts (avoids demoting Admin)
+      if (currentUser?.role !== 'admin') {
+        userUpdateFields.role = newRole;
+        userUpdateFields.requestedRole = newRole;
+      }
+    }
     if (image) userUpdateFields.image = image;
 
     if (currentUser && (currentUser.status === "rejected" || currentUser.status === "restricted")) {
