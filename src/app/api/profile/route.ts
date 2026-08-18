@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
     if (requestedRole) userUpdateFields.requestedRole = requestedRole;
     if (image) userUpdateFields.image = image;
 
-    if (currentUser && currentUser.status === "rejected") {
+    if (currentUser && (currentUser.status === "rejected" || currentUser.status === "restricted")) {
       userUpdateFields.status = "pending";
     }
 

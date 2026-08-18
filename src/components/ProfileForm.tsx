@@ -122,7 +122,8 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
   const isSessionNotCompleted = session?.user && (session.user as any).role === "user" && (session as any).isProfileCompleted === false;
   const isSessionPending = session?.user && (session.user as any).role === "user" && (session.user as any).status === "pending";
   const isSessionRejected = session?.user && (session.user as any).role === "user" && (session.user as any).status === "rejected";
-  const isForcedView = isForced || isSessionNotCompleted || isSessionPending || isSessionRejected;
+  const isSessionRestricted = session?.user && (session.user as any).role === "user" && (session.user as any).status === "restricted";
+  const isForcedView = isForced || isSessionNotCompleted || isSessionPending || isSessionRejected || isSessionRestricted;
 
   const handleRoleRequestSubmit = async () => {
     if (!roleReason.trim()) {
@@ -584,13 +585,13 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
                 บัญชีของคุณได้รับการลงทะเบียนและกรอกข้อมูลครบถ้วนแล้ว เพื่อความปลอดภัย บัญชีของคุณจึงจำเป็นต้องได้รับการอนุมัติจากผู้ดูแลระบบ (Admin) ก่อนเริ่มใช้งานครับ กรุณาแจ้งผู้ดูแลระบบของคุณเพื่ออนุมัติเปิดใช้งานบัญชี
               </p>
             </>
-          ) : (session?.user as any)?.status === "rejected" ? (
+          ) : ((session?.user as any)?.status === "rejected" || (session?.user as any)?.status === "restricted") ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444', fontWeight: 'bold', fontSize: '1.05rem' }}>
-                <span>❌</span> คำขออนุมัติเข้าใช้งานระบบของคุณถูกปฏิเสธ
+                <span>❌</span> บัญชีถูกปิดใช้งาน หรือ คำขออนุมัติถูกปฏิเสธ
               </div>
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                ผู้ดูแลระบบได้ตรวจสอบข้อมูลและไม่สามารถอนุมัติสิทธิ์การเข้าใช้งานระบบในขณะนี้ได้ กรุณาตรวจสอบและแก้ไขข้อมูลส่วนตัวด้านล่างให้ถูกต้อง จากนั้นกดปุ่มส่งขอสิทธิ์ใหม่อีกครั้งเพื่อส่งกลับไปให้ผู้ดูแลระบบตรวจสอบใหม่ครับ
+                บัญชีของคุณถูกยกเลิกการใช้งาน หรือไม่ได้รับการอนุมัติสิทธิ์เข้าใช้งานในขณะนี้ หากต้องการกลับมาใช้งานระบบ กรุณาตรวจสอบและแก้ไขข้อมูลส่วนตัวด้านล่างให้ถูกต้อง จากนั้นกดปุ่มส่งขอสิทธิ์ใหม่อีกครั้งเพื่อส่งกลับไปให้ผู้ดูแลระบบตรวจสอบใหม่ครับ
               </p>
             </>
           ) : (
