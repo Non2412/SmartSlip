@@ -268,31 +268,49 @@ export default function AdminPage() {
   const handleUserUpdate = async (userId: string, updates: { role?: string; status?: string }) => {
     try {
       setActionLoading(userId);
-      const adminKey = process.env.NEXT_PUBLIC_ADMIN_KEY || 'admin-secret-key-smartslip-2026';
-      
-      // ✅ ใช้ template literal เพื่อแทนที่ userId ให้ถูกต้อง
-      const res = await fetch(`/api/admin/users/${userId}`, {  
+
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'PATCH',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'x-admin-key': adminKey
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           role: updates.role,
-          status: updates.status 
-        })
+          status: updates.status,
+        }),
       });
-      
-      const json = await res.json();
-      if (json.success) {
-        await Promise.all([fetchUsers(), fetchStats(), fetchLogs()]);
-        showToast('อัปเดตข้อมูลผู้ใช้งานเรียบร้อยแล้ว!', 'success');
-      } else {
-        showToast(json.error || 'Failed to update user', 'error');
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update user');
       }
-    } catch (e) {
-      console.error(e);
-      showToast('Network error', 'error');
+
+      const result = await response.json();
+
+      // อัปเดต Local State
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === userId
+            ? {
+                ...user,
+                role: result.user.role,
+                status: result.user.status,
+              }
+            : user
+        )
+      );
+
+      // Refresh Stats and Logs
+      await Promise.all([fetchStats(), fetchLogs()]);
+
+      // แสดง Success Toast
+      showToast('อัปเดตผู้ใช้สำเร็จ', 'success');
+    } catch (error) {
+      console.error('Update user error:', error);
+      showToast(
+        error instanceof Error ? error.message : 'Failed to update user',
+        'error'
+      );
     } finally {
       setActionLoading(null);
     }
