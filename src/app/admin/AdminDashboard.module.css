@@ -409,6 +409,17 @@
   border-color: #22c55e;
 }
 
+.warningBtn {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.25);
+  background: rgba(245, 158, 11, 0.03);
+}
+
+.warningBtn:hover {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: #f59e0b;
+}
+
 /* Logs view */
 .logItem {
   border-left: 3px solid var(--border-color);
