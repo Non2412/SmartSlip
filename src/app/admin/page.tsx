@@ -61,12 +61,12 @@ export default function AdminPage() {
   const router = useRouter();
   const { showToast } = useToast();
 
-  // Mask citizen ID — show only last 3 digits
-  const maskCitizenId = (id?: string): string => {
+  // Format citizen ID to X-XXXX-XXXXX-XX-X style
+  const formatCitizenId = (id?: string): string => {
     if (!id) return 'ไม่ระบุ';
     const digits = id.replace(/-/g, '');
-    if (digits.length <= 3) return id;
-    return 'X'.repeat(digits.length - 3) + digits.slice(-3);
+    if (digits.length !== 13) return id;
+    return `${digits[0]}-${digits.slice(1, 5)}-${digits.slice(5, 10)}-${digits.slice(10, 12)}-${digits[12]}`;
   };
 
   const isUserOnline = (lastActiveAt?: string | null) => {
@@ -1799,7 +1799,6 @@ export default function AdminPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>
                             เลขประจำตัวประชาชน (13 หลัก)
-                            <span style={{ fontSize: '0.7rem', fontWeight: 400, marginLeft: '4px', opacity: 0.6 }}>🔒 3 ตัวท้าย</span>
                           </span>
                           <span style={{ 
                             padding: '10px 16px', 
@@ -1814,7 +1813,7 @@ export default function AdminPage() {
                             fontFamily: 'monospace',
                             letterSpacing: '1.5px'
                           }}>
-                            {maskCitizenId(inspectingUser.profile?.citizenId)}
+                            {formatCitizenId(inspectingUser.profile?.citizenId)}
                           </span>
                         </div>
 
