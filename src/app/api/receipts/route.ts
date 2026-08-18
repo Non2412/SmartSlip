@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { auth } from '@/auth';
+import { getEffectiveRoleContext, buildRoleContextFilter } from '@/lib/roleContext';
 
 // GET: ดึงรายการใบเสร็จทั้งหมด
 export async function GET(request: Request) {
@@ -37,6 +38,11 @@ export async function GET(request: Request) {
         } else if (targetUserId) {
           query = { userId: targetUserId };
         }
+        // Admin viewing their own receipts (not someone else's, via admin management): respect chosen role-context preview
+        if (targetUserId === currentUserId) {
+          const roleContext = await getEffectiveRoleContext(session);
+          query = { $and: [query, buildRoleContextFilter(roleContext)] };
+        }
       }
       // If all === true, query is empty, fetching all receipts
     } else {
@@ -46,10 +52,7 @@ export async function GET(request: Request) {
         query = { userId: currentUserId };
       }
       // Separate data per role: clerk sees only clerk receipts; user sees user + legacy (no roleContext)
-      const roleFilter = userRole === 'clerk'
-        ? { roleContext: 'clerk' }
-        : { $or: [{ roleContext: 'user' }, { roleContext: { $exists: false } }] };
-      query = { $and: [query, roleFilter] };
+      query = { $and: [query, buildRoleContextFilter(userRole === 'clerk' ? 'clerk' : 'user')] };
     }
 
     const receipts = await db
@@ -138,11 +141,13 @@ export async function POST(request: Request) {
     const client = await clientPromise;
     const db = client.db('smartslip_api');
 
+    const roleContext = await getEffectiveRoleContext(session);
+
     const newReceipt = {
       storeName,
       totalAmount: parseFloat(totalAmount.toString()),
       userId: targetUserId,
-      roleContext: userRole === 'admin' ? undefined : userRole,
+      roleContext,
       extractedData: extractedData || null,
       imageFileId: imageFileId || null,
       imageHash: imageHash || null,

@@ -26,6 +26,10 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [userImage, setUserImage] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [issueCategory, setIssueCategory] = useState<string>("🐛 พบข้อผิดพลาด/บักในระบบ");
+  const [issueReason, setIssueReason] = useState("");
+  const [isSubmittingIssue, setIsSubmittingIssue] = useState(false);
+  const [issueRequestsList, setIssueRequestsList] = useState<any[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const handleImageFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,7 +83,55 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
         setIsForced(true);
       }
     }
+    fetchIssueRequests();
   }, []);
+
+  const fetchIssueRequests = () => {
+    fetch("/api/role-requests?myOwn=true")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setIssueRequestsList(data.filter((r) => r.requestType === "issue_report"));
+        }
+      })
+      .catch(console.error);
+  };
+
+  const handleIssueSubmit = async () => {
+    if (!issueReason.trim()) {
+      showToast("กรุณาระบุรายละเอียดปัญหาที่พบครับ", "warning");
+      return;
+    }
+
+    setIsSubmittingIssue(true);
+    try {
+      const res = await fetch("/api/role-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: issueReason.trim(),
+          requestType: "issue_report",
+          issueCategory,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast("ส่งรายงานแจ้งปัญหาไปยังผู้ดูแลระบบเรียบร้อยแล้ว! 🛠️", "success", 5000);
+        setIssueReason("");
+        fetchIssueRequests();
+      } else {
+        showToast(data.error || "เกิดข้อผิดพลาดในการส่งข้อมูล", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("เกิดข้อผิดพลาดในการส่งข้อมูล", "error");
+    } finally {
+      setIsSubmittingIssue(false);
+    }
+  };
+
+  const pendingIssue = issueRequestsList.find((r) => r.status === "pending");
 
   const isSessionNotCompleted = session?.user && (session.user as any).role === "user" && (session as any).isProfileCompleted === false;
   const isSessionPending = session?.user && (session.user as any).role === "user" && (session.user as any).status === "pending";
@@ -104,7 +156,7 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
             setUserImage(data.image);
           }
 
-          const currentRole = (data.role as 'clerk' | 'user') || data.requestedRole;
+          const currentRole = data.activeRole || (['clerk', 'user'].includes(data.role) ? data.role : data.requestedRole);
           if (currentRole === 'clerk' || currentRole === 'user') {
             setSelectedRole(currentRole);
           }
@@ -888,6 +940,108 @@ export default function ProfileForm({ onSaved }: { onSaved?: () => void }) {
           </div>
 
         </form>
+      </div>
+
+      {/* ── แจ้งปัญหาการใช้งาน ── */}
+      <div className={styles.card} style={{ borderRadius: '20px', padding: '32px' }}>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '1.15rem', fontWeight: '700', color: 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ background: 'rgba(239, 68, 68, 0.12)', padding: '6px 10px', borderRadius: '10px', color: '#ef4444', fontSize: '1rem' }}>⚠️</span>
+          แจ้งปัญหาการใช้งานระบบ
+        </h3>
+        <p style={{ margin: '0 0 16px 0', fontSize: '0.85rem', color: 'var(--text-muted, #64748b)', lineHeight: '1.5' }}>
+          หากคุณพบข้อผิดพลาด (Bug) สแกนใบเสร็จไม่ตรง หรือมีข้อเสนอแนะในการปรับปรุงระบบ สามารถกรอกรายละเอียดแจ้งปัญหาไปยังผู้ดูแลระบบได้ทันทีครับ
+        </p>
+
+        {pendingIssue && (
+          <div style={{
+            background: 'rgba(99, 102, 241, 0.08)',
+            border: '1px solid rgba(99, 102, 241, 0.25)',
+            borderRadius: '14px',
+            padding: '16px 20px',
+            marginBottom: '20px'
+          }}>
+            <div style={{ fontWeight: '700', color: '#6366f1', fontSize: '0.92rem', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>⏳</span> รายงานของคุณอยู่ระหว่างรอผู้ดูแลระบบตรวจสอบ
+            </div>
+            <p style={{ margin: '0 0 6px 0', fontSize: '0.85rem', color: 'var(--text-main, #0f172a)' }}>
+              ประเภท: <strong>⚠️ {pendingIssue.issueCategory || 'ทั่วไป'}</strong>
+            </p>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted, #64748b)' }}>
+              รายละเอียด: &ldquo;{pendingIssue.reason}&rdquo; ({new Date(pendingIssue.createdAt).toLocaleString('th-TH')})
+            </p>
+          </div>
+        )}
+
+        <div style={{ background: 'var(--input-bg, #f8fafc)', borderRadius: '16px', padding: '20px', border: '1px solid var(--border-color, #e2e8f0)' }}>
+          <div style={{ marginBottom: '16px' }}>
+            <label className={styles.label} style={{ marginBottom: '8px' }}>เลือกประเภทปัญหาที่พบ:</label>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {[
+                '🐛 พบข้อผิดพลาด/บักในระบบ',
+                '📄 ปัญหาสแกน/อ่านสลิป',
+                '🔑 ปัญหาเข้าสู่ระบบ/บัญชี',
+                '💡 ข้อเสนอแนะการใช้งาน'
+              ].map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setIssueCategory(cat)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '20px',
+                    fontSize: '0.82rem',
+                    fontWeight: '700',
+                    border: issueCategory === cat ? '1px solid #ef4444' : '1px solid var(--border-color, #e2e8f0)',
+                    background: issueCategory === cat ? 'rgba(239, 68, 68, 0.12)' : 'var(--card-bg, #ffffff)',
+                    color: issueCategory === cat ? '#ef4444' : 'var(--text-muted, #64748b)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className={styles.formGroup} style={{ marginBottom: '16px' }}>
+            <label className={styles.label}>
+              รายละเอียดปัญหาหรือข้อผิดพลาดที่พบ <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <textarea
+              className={styles.input}
+              placeholder="อธิบายรายละเอียดปัญหาที่พบ เช่น สแกนสลิปใบเสร็จแล้วยอดเงินไม่ตรง หรือระบบแสดงผลช้าในมือถือ..."
+              value={issueReason}
+              onChange={(e) => setIssueReason(e.target.value)}
+              rows={3}
+              style={{ resize: 'vertical', minHeight: '80px', fontFamily: 'inherit', padding: '12px 14px', lineHeight: '1.5' }}
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleIssueSubmit}
+            disabled={isSubmittingIssue || !issueReason.trim()}
+            style={{
+              padding: '12px 22px',
+              background: '#ef4444',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '12px',
+              fontWeight: '700',
+              fontSize: '0.92rem',
+              cursor: isSubmittingIssue || !issueReason.trim() ? 'not-allowed' : 'pointer',
+              opacity: isSubmittingIssue || !issueReason.trim() ? 0.6 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)',
+              transition: 'all 0.2s'
+            }}
+          >
+            {isSubmittingIssue ? '⌛ กำลังส่งข้อมูล...' : '🛠️ ส่งรายงานแจ้งปัญหาแก่ Admin'}
+          </button>
+        </div>
       </div>
     </div>
   );

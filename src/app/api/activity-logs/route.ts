@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 import { auth } from '@/auth';
+import { getEffectiveRoleContext, buildRoleContextFilter } from '@/lib/roleContext';
 
 // GET: ดึงรายการประวัติกิจกรรม
 export async function GET(request: Request) {
@@ -37,6 +38,11 @@ export async function GET(request: Request) {
         } else if (targetUserId) {
           query = { userId: targetUserId };
         }
+        // Admin viewing their own logs (not someone else's, via admin management): respect chosen role-context preview
+        if (targetUserId === currentUserId) {
+          const roleContext = await getEffectiveRoleContext(session);
+          query = { $and: [query, buildRoleContextFilter(roleContext)] };
+        }
       }
       // If all === true, query is empty, fetching all activity logs
     } else {
@@ -46,10 +52,7 @@ export async function GET(request: Request) {
         query = { userId: currentUserId };
       }
       // Separate logs per role
-      const roleFilter = userRole === 'clerk'
-        ? { roleContext: 'clerk' }
-        : { $or: [{ roleContext: 'user' }, { roleContext: { $exists: false } }] };
-      query = { $and: [query, roleFilter] };
+      query = { $and: [query, buildRoleContextFilter(userRole === 'clerk' ? 'clerk' : 'user')] };
     }
 
     // 1. ดึงรายการใบเสร็จทั้งหมดของผู้ใช้เพื่อนำไปใช้ในการ backfill ประวัติกิจกรรมเก่า
@@ -159,12 +162,14 @@ export async function POST(request: Request) {
     const client = await clientPromise;
     const db = client.db('smartslip_api');
 
+    const roleContext = await getEffectiveRoleContext(session);
+
     const newLog = {
       userId: targetUserId,
       action,
       details,
       timestamp: new Date().toISOString(),
-      roleContext: userRole === 'admin' ? undefined : userRole,
+      roleContext,
       receiptId: receiptId || undefined,
       metadata: metadata || undefined
     };
