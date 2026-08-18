@@ -268,33 +268,30 @@ export default function AdminPage() {
   const handleUserUpdate = async (userId: string, updates: { role?: string; status?: string }) => {
     try {
       setActionLoading(userId);
+      const adminKey = process.env.NEXT_PUBLIC_ADMIN_KEY || 'admin-secret-key-smartslip-2026';
       
-      // 🔑 ต้องส่ง admin key ใน header
-      const adminKey = 'admin-secret-key-smartslip-2026'; // ค่านี้ต้องตรงกับ backend
-      
-      const res = await fetch(`/api/admin/users/${userId}`, {  // ✅ endpoint: /api/admin/users/[id]
+      // ✅ ใช้ template literal เพื่อแทนที่ userId ให้ถูกต้อง
+      const res = await fetch(`/api/admin/users/${userId}`, {  
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
-          'x-admin-key': adminKey  // ✅ ต้องมี admin key header!
+          'x-admin-key': adminKey
         },
         body: JSON.stringify({ 
-          role: updates.role,      // ✅ ส่งเฉพาะ role
-          status: updates.status   // ✅ ส่งเฉพาะ status
+          role: updates.role,
+          status: updates.status 
         })
       });
       
       const json = await res.json();
-      
       if (json.success) {
-        console.log('✅ ผู้ใช้ได้รับการอัปเดตเรียบร้อย - LINE notification ส่งไปแล้ว');
         await Promise.all([fetchUsers(), fetchStats(), fetchLogs()]);
         showToast('อัปเดตข้อมูลผู้ใช้งานเรียบร้อยแล้ว!', 'success');
       } else {
         showToast(json.error || 'Failed to update user', 'error');
       }
     } catch (e) {
-      console.error('❌ Error updating user:', e);
+      console.error(e);
       showToast('Network error', 'error');
     } finally {
       setActionLoading(null);
