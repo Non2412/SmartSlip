@@ -270,24 +270,21 @@ export default function AdminPage() {
       setActionLoading(userId);
 
       const adminKey = process.env.NEXT_PUBLIC_ADMIN_KEY || 'admin-secret-key-smartslip-2026';
-      const response = await fetch(`/api/admin/users/${userId}`, {
+      const res = await fetch(`/api/admin/users/${userId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'x-admin-key': adminKey,
         },
-        body: JSON.stringify({
-          role: updates.role,
-          status: updates.status,
-        }),
+        body: JSON.stringify(updates),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
+      if (!res.ok) {
+        const error = await res.json();
         throw new Error(error.error || 'Failed to update user');
       }
 
-      const result = await response.json();
+      const result = await res.json();
 
       // อัปเดต Local State
       setUsers((prev) =>
