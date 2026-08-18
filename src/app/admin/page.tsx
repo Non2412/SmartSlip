@@ -783,11 +783,11 @@ export default function AdminPage() {
                                 </>
                               ) : (
                                 <button 
-                                  className={`${styles.actionBtn} ${u.status === 'restricted' ? styles.successBtn : styles.dangerBtn}`}
-                                  onClick={() => handleUserUpdate(u.id, { status: u.status === 'restricted' ? 'active' : 'restricted' })}
+                                  className={`${styles.actionBtn} ${(u.status === 'restricted' || u.status === 'rejected') ? styles.successBtn : styles.dangerBtn}`}
+                                  onClick={() => handleUserUpdate(u.id, { status: (u.status === 'restricted' || u.status === 'rejected') ? 'pending' : 'restricted' })}
                                   disabled={actionLoading !== null}
                                 >
-                                  {u.status === 'restricted' ? '🔓 ปลดบล็อก' : '🚫 ระงับใช้งาน'}
+                                  {(u.status === 'restricted' || u.status === 'rejected') ? '🔓 ปลดบล็อก' : '🚫 ระงับใช้งาน'}
                                 </button>
                               )}
                             </div>
