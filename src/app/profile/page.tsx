@@ -7,7 +7,7 @@ import ProfileForm from "@/components/ProfileForm";
 import ProfileCard from "@/components/ProfileCard";
 import styles from "./ProfilePage.module.css";
 import CreateReceiptSheet from "@/components/CreateReceiptSheet";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 
 export default function ProfilePage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -34,7 +34,7 @@ export default function ProfilePage() {
     );
   }
 
-  const isProfileNotCompleted = session?.user && (session.user as any).role !== "admin" && ((session as any).isProfileCompleted === false || (session.user as any).status === "pending");
+  const isProfileNotCompleted = session?.user && (session.user as any).role !== "admin" && ((session as any).isProfileCompleted === false || (session.user as any).status !== "active");
 
   if (isProfileNotCompleted) {
     return (
