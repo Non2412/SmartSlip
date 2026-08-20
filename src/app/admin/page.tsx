@@ -130,6 +130,7 @@ export default function AdminPage() {
 
   // Inspect user modal states
   const [inspectingUser, setInspectingUser] = useState<UserStat | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [editProfileForm, setEditProfileForm] = useState({
     company: '',
     phone: '',
@@ -415,7 +416,7 @@ export default function AdminPage() {
 
   if (sessionStatus === 'loading' || (sessionStatus === 'authenticated' && (session?.user as any)?.role !== 'admin')) {
     return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main, #0f172a)', color: '#94a3b8' }}>
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--main-bg, #f4f6fa)', color: '#94a3b8' }}>
         กำลังโหลดหน้าระบบจัดการ...
       </div>
     );
@@ -908,7 +909,28 @@ export default function AdminPage() {
                             <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                               {new Date(date).toLocaleString('th-TH')}
                             </td>
-                            <td>
+                            <td style={{ display: 'flex', gap: '6px' }}>
+                              {(() => {
+                                const rawImg = r.imageUrl || r.imageURL || r.extractedData?.imageData || r.extractedData?.imageUrl;
+                                const proxiedImg = cleanAndProxyImageUrl(rawImg);
+                                if (proxiedImg) {
+                                  return (
+                                    <button
+                                      type="button"
+                                      className={styles.actionBtn}
+                                      onClick={() => setPreviewImage(proxiedImg)}
+                                      title="ดูภาพใบเสร็จ"
+                                    >
+                                      👁️ ดูรูปภาพ
+                                    </button>
+                                  );
+                                }
+                                return (
+                                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'inline-block', padding: '6px 12px' }}>
+                                    ไม่มีรูป
+                                  </span>
+                                );
+                              })()}
                               <button 
                                 className={`${styles.actionBtn} ${styles.dangerBtn}`}
                                 onClick={() => handleReceiptDelete(r.id || r._id)}
@@ -1929,6 +1951,128 @@ export default function AdminPage() {
               </div>
             );
           })()}
+          
+          {/* Preview Image Modal */}
+          {previewImage && (
+            <div 
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(15, 23, 42, 0.75)',
+                backdropFilter: 'blur(8px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 99999,
+                padding: '24px',
+              }}
+              onClick={() => setPreviewImage(null)}
+            >
+              <style dangerouslySetInnerHTML={{ __html: `
+                @keyframes scaleUp {
+                  from { opacity: 0; transform: scale(0.95); }
+                  to { opacity: 1; transform: scale(1); }
+                }
+              `}} />
+              <div 
+                style={{
+                  background: 'var(--card-bg, #ffffff)',
+                  borderRadius: '24px',
+                  padding: '24px',
+                  maxWidth: '600px',
+                  width: '100%',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '16px',
+                  animation: 'scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Close Button */}
+                <button
+                  onClick={() => setPreviewImage(null)}
+                  style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: '16px',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: 'var(--input-bg, #f1f5f9)',
+                    border: '1px solid var(--border-color, #cbd5e1)',
+                    color: 'var(--text-main, #0f172a)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    fontSize: '1.2rem',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                    e.currentTarget.style.color = '#ef4444';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'var(--input-bg, #f1f5f9)';
+                    e.currentTarget.style.color = 'var(--text-main, #0f172a)';
+                  }}
+                >
+                  ✕
+                </button>
+
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-main)', margin: 0, paddingRight: '36px', width: '100%' }}>
+                  🔍 ตรวจสอบรูปภาพใบเสร็จ
+                </h3>
+
+                <div 
+                  style={{ 
+                    width: '100%', 
+                    maxHeight: '70vh', 
+                    borderRadius: '16px', 
+                    overflow: 'hidden', 
+                    background: '#090d16',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
+                  <img 
+                    src={previewImage} 
+                    alt="Receipt preview" 
+                    style={{ 
+                      maxWidth: '100%', 
+                      maxHeight: '65vh', 
+                      objectFit: 'contain',
+                    }} 
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+                  <button
+                    onClick={() => setPreviewImage(null)}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '10px',
+                      border: '1.5px solid var(--border-color)',
+                      background: 'none',
+                      color: 'var(--text-main)',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ปิดหน้าต่าง
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

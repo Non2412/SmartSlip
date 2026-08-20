@@ -73,6 +73,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
     const currentReceipt = isQueueMode ? allReceipts![currentIdx] : receipt;
 
     const [isMobile, setIsMobile] = useState(false);
+    const [activeTab, setActiveTab] = useState<'image' | 'form'>('form');
     useEffect(() => {
         const mq = window.matchMedia('(max-width: 767px)');
         setIsMobile(mq.matches);
@@ -83,7 +84,10 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
 
     // Reset index when opening / allReceipts changes
     useEffect(() => {
-        if (isOpen) setCurrentIdx(initialIndex);
+        if (isOpen) {
+            setCurrentIdx(initialIndex);
+            setActiveTab('form');
+        }
     }, [isOpen, initialIndex]);
 
     // Image zoom/pan state
@@ -253,7 +257,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
     const removeItem = (id: string) => setItems(prev => prev.filter(it => it.id !== id));
     const addItem = () => setItems(prev => [...prev, { id: Date.now().toString(), description: '', quantity: 1, unitPrice: 0 }]);
     const calcSubtotal = () => items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
-    const calcTotal = () => calcSubtotal() - discount + vat;
+    const calcTotal = () => calcSubtotal() - discount;
 
     const getCurrentUpdatedReceipt = (): any | null => {
         if (!currentReceipt) return null;
@@ -395,10 +399,74 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                 </div>
             )}
 
+            {/* ── Mobile Tabs ── */}
+            {isMobile && (
+                <div style={{ 
+                    display: 'flex', 
+                    borderBottom: '1px solid var(--border-color)', 
+                    backgroundColor: 'var(--card-bg)',
+                    flexShrink: 0
+                }}>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('image')}
+                        style={{
+                            flex: 1,
+                            padding: '12px 8px',
+                            border: 'none',
+                            background: 'none',
+                            color: activeTab === 'image' ? '#7c3aed' : 'var(--text-muted)',
+                            fontWeight: '800',
+                            fontSize: '0.88rem',
+                            borderBottom: activeTab === 'image' ? '3px solid #7c3aed' : '3px solid transparent',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px'
+                        }}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                        รูปใบเสร็จ
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('form')}
+                        style={{
+                            flex: 1,
+                            padding: '12px 8px',
+                            border: 'none',
+                            background: 'none',
+                            color: activeTab === 'form' ? '#7c3aed' : 'var(--text-muted)',
+                            fontWeight: '800',
+                            fontSize: '0.88rem',
+                            borderBottom: activeTab === 'form' ? '3px solid #7c3aed' : '3px solid transparent',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px'
+                        }}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"/>
+                        </svg>
+                        แก้ไขข้อมูล ({items.length})
+                    </button>
+                </div>
+            )}
+
             {/* ── Two-column body ── */}
-            <div style={{ display: 'flex', flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflow: isMobile ? 'auto' : 'hidden', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
+            <div style={{ display: 'flex', flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
                 {/* Top (mobile) / Left (desktop): Image */}
-                <div style={{ flexGrow: 0, flexShrink: 0, flexBasis: isMobile ? 'auto' : '38%', width: isMobile ? '100%' : undefined, height: isMobile ? 'auto' : undefined, borderRight: isMobile ? 'none' : '1px solid #e2e8f0', borderBottom: isMobile ? '1px solid #e2e8f0' : 'none', backgroundColor: '#f8fafc', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', overflow: isMobile ? 'visible' : 'hidden' }}>
+                <div style={{ flexGrow: isMobile ? 1 : 0, flexShrink: isMobile ? 1 : 0, flexBasis: isMobile ? '0%' : '38%', width: isMobile ? '100%' : undefined, height: '100%', borderRight: isMobile ? 'none' : '1px solid #e2e8f0', borderBottom: isMobile ? '1px solid #e2e8f0' : 'none', backgroundColor: '#f8fafc', padding: '16px', display: isMobile ? (activeTab === 'image' ? 'flex' : 'none') : 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
                     <div
                         style={{
                             flexGrow: 1, flexShrink: 1, flexBasis: '0%', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -575,7 +643,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                 </div>
 
                 {/* RIGHT: Editable form */}
-                <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflowY: 'auto', padding: isMobile ? '14px' : '16px 20px', backgroundColor: 'var(--main-bg)' }}>
+                <div style={{ flexGrow: 1, flexShrink: 1, flexBasis: '0%', overflowY: 'auto', padding: isMobile ? '14px' : '16px 20px', backgroundColor: 'var(--main-bg)', display: isMobile ? (activeTab === 'form' ? 'block' : 'none') : 'block' }}>
 
                     {/* AI Success Banner */}
                     <div style={{ background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.25)', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -703,9 +771,12 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                         {items.map((item, idx) => (
                             isMobile ? (
                                 <div key={item.id} style={{ padding: '8px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    <div onClick={() => openDescModal(item)} style={{ ...darkInputStyle, padding: '7px 10px', fontSize: '0.88rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: item.description ? 'var(--text-main)' : 'var(--text-muted)' }}>
-                                        {item.description || 'ชื่อสินค้า/บริการ'}
-                                    </div>
+                                    <input
+                                        value={item.description}
+                                        onChange={e => updateItem(item.id, { description: e.target.value })}
+                                        placeholder="ชื่อสินค้า/บริการ"
+                                        style={{ ...darkInputStyle, padding: '7px 10px', fontSize: '0.88rem' }}
+                                    />
                                     <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end' }}>
                                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
                                             <span style={{ fontSize: '0.68rem', fontWeight: '700', color: 'var(--text-muted)', paddingLeft: '2px' }}>ราคา</span>
@@ -877,51 +948,166 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
                             กำลังแก้ไขรูปที่ <span style={{ color: '#7c3aed', fontWeight: '900' }}>{currentIdx + 1}</span> จาก {total}
                         </div>
                     )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: isMobile ? 'stretch' : 'flex-end', flexWrap: 'wrap' }}>
-                        <button onClick={onClose} style={{ padding: isMobile ? '11px 0' : '10px 20px', width: isMobile ? '100%' : 'auto', flex: isMobile ? '1' : 'none', border: '1.5px solid var(--border-color)', borderRadius: '10px', background: 'var(--surface-hover)', fontWeight: '700', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-                            ยกเลิก
-                        </button>
-
-                        {isQueueMode && hasNext && (
-                            <>
-                                <button
-                                    onClick={() => setCurrentIdx(i => i + 1)}
-                                    style={{ padding: isMobile ? '11px 0' : '10px 16px', flex: isMobile ? '1' : 'none', border: '1.5px solid var(--border-color)', borderRadius: '10px', background: 'var(--surface-hover)', fontWeight: '700', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                                >
-                                    ข้าม
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-                                </button>
-                                <button
-                                    onClick={handleOpenSummary}
-                                    style={{ padding: isMobile ? '11px 0' : '10px 16px', flex: isMobile ? '1' : 'none', border: '1.5px solid rgba(124,58,237,0.3)', borderRadius: '10px', background: 'rgba(124,58,237,0.08)', fontWeight: '800', cursor: 'pointer', color: '#7c3aed', fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                                >
-                                    📋 สรุปยอดเงิน
-                                </button>
-                            </>
+                    <div style={{ 
+                        display: 'flex', 
+                        flexDirection: isMobile ? 'column' : 'row', 
+                        gap: '8px', 
+                        width: '100%',
+                        justifyContent: 'flex-end'
+                    }}>
+                        {/* Main Action Button on top for mobile */}
+                        {isMobile && (
+                            <button onClick={handleSaveNext} disabled={isSaving || !store || !date} style={{
+                                padding: '12px 0',
+                                borderRadius: '10px',
+                                background: isSaving || !store || !date ? '#6d28d9' : 'linear-gradient(135deg,#7c3aed,#5b21b6)',
+                                color: 'white', fontWeight: '800', border: 'none',
+                                cursor: isSaving || !store || !date ? 'not-allowed' : 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem',
+                                boxShadow: isSaving ? 'none' : '0 4px 12px rgba(124,58,237,0.4)',
+                                opacity: isSaving || !store || !date ? 0.7 : 1,
+                                width: '100%'
+                            }}>
+                                {isSaving ? (
+                                    <><SpinIcon /> กำลังบันทึก...</>
+                                ) : isQueueMode && hasNext ? (
+                                    <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>บันทึก และถัดไป ({currentIdx + 1}/{total})</>
+                                ) : (
+                                    <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>สรุปรายการและบันทึก</>
+                                )}
+                            </button>
                         )}
 
-                        <button onClick={handleSaveNext} disabled={isSaving || !store || !date} style={{
-                            padding: isMobile ? '11px 0' : '11px 24px',
-                            flex: isMobile ? '2' : 'none',
-                            borderRadius: '10px',
-                            background: isSaving || !store || !date ? '#6d28d9' : 'linear-gradient(135deg,#7c3aed,#5b21b6)',
-                            color: 'white', fontWeight: '800', border: 'none',
-                            cursor: isSaving || !store || !date ? 'not-allowed' : 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.88rem',
-                            boxShadow: isSaving ? 'none' : '0 4px 12px rgba(124,58,237,0.4)',
-                            opacity: isSaving || !store || !date ? 0.7 : 1,
+                        <div style={{ 
+                            display: 'flex', 
+                            gap: '8px', 
+                            width: isMobile ? '100%' : 'auto',
+                            justifyContent: 'flex-end' 
                         }}>
-                            {isSaving ? (
-                                <><SpinIcon /> กำลังบันทึก...</>
-                            ) : isQueueMode && hasNext ? (
-                                <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>บันทึก และถัดไป ({currentIdx + 1}/{total})</>
-                            ) : (
-                                <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>สรุปรายการและบันทึก</>
+                            <button onClick={onClose} style={{ 
+                                padding: isMobile ? '11px 0' : '10px 20px', 
+                                flex: isMobile ? '1' : 'none', 
+                                border: '1.5px solid var(--border-color)', 
+                                borderRadius: '10px', 
+                                background: 'var(--surface-hover)', 
+                                fontWeight: '700', 
+                                cursor: 'pointer', 
+                                color: 'var(--text-muted)', 
+                                fontSize: '0.85rem' 
+                            }}>
+                                ยกเลิก
+                            </button>
+
+                            {isQueueMode && hasNext && (
+                                <>
+                                    <button
+                                        onClick={() => setCurrentIdx(i => i + 1)}
+                                        style={{ 
+                                            padding: isMobile ? '11px 0' : '10px 16px', 
+                                            flex: isMobile ? '1' : 'none', 
+                                            border: '1.5px solid var(--border-color)', 
+                                            borderRadius: '10px', 
+                                            background: 'var(--surface-hover)', 
+                                            fontWeight: '700', 
+                                            cursor: 'pointer', 
+                                            color: 'var(--text-muted)', 
+                                            fontSize: '0.85rem', 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            justifyContent: 'center', 
+                                            gap: '4px' 
+                                        }}
+                                    >
+                                        ข้าม
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                                    </button>
+                                    <button
+                                        onClick={handleOpenSummary}
+                                        style={{ 
+                                            padding: isMobile ? '11px 0' : '10px 16px', 
+                                            flex: isMobile ? '1' : 'none', 
+                                            border: '1.5px solid rgba(124,58,237,0.3)', 
+                                            borderRadius: '10px', 
+                                            background: 'rgba(124,58,237,0.08)', 
+                                            fontWeight: '800', 
+                                            cursor: 'pointer', 
+                                            color: '#7c3aed', 
+                                            fontSize: '0.85rem', 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            justifyContent: 'center', 
+                                            gap: '4px' 
+                                        }}
+                                    >
+                                        สรุปยอด
+                                    </button>
+                                </>
                             )}
-                        </button>
+
+                            {/* Main Action Button on right for desktop */}
+                            {!isMobile && (
+                                <button onClick={handleSaveNext} disabled={isSaving || !store || !date} style={{
+                                    padding: '11px 24px',
+                                    borderRadius: '10px',
+                                    background: isSaving || !store || !date ? '#6d28d9' : 'linear-gradient(135deg,#7c3aed,#5b21b6)',
+                                    color: 'white', fontWeight: '800', border: 'none',
+                                    cursor: isSaving || !store || !date ? 'not-allowed' : 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.88rem',
+                                    boxShadow: isSaving ? 'none' : '0 4px 12px rgba(124,58,237,0.4)',
+                                    opacity: isSaving || !store || !date ? 0.7 : 1,
+                                }}>
+                                    {isSaving ? (
+                                        <><SpinIcon /> กำลังบันทึก...</>
+                                    ) : isQueueMode && hasNext ? (
+                                        <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>บันทึก และถัดไป ({currentIdx + 1}/{total})</>
+                                    ) : (
+                                        <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>สรุปรายการและบันทึก</>
+                                    )}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
+            {/* Floating Action Button (FAB) for mobile quick tab switching */}
+            {isMobile && imageData && (
+                <button
+                    type="button"
+                    onClick={() => setActiveTab(activeTab === 'image' ? 'form' : 'image')}
+                    style={{
+                        position: 'absolute',
+                        bottom: '90px',
+                        right: '20px',
+                        zIndex: 999,
+                        backgroundColor: '#7c3aed',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '56px',
+                        height: '56px',
+                        boxShadow: '0 4px 16px rgba(124, 58, 237, 0.4)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                    }}
+                    title={activeTab === 'image' ? 'แก้ไขข้อมูล' : 'ดูรูปใบเสร็จ'}
+                >
+                    {activeTab === 'image' ? (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"/>
+                        </svg>
+                    ) : (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                    )}
+                </button>
+            )}
         </div>
 
         {/* Mobile description edit modal */}
