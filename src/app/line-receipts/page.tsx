@@ -53,9 +53,9 @@ function LineReceiptsContent() {
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
-  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'pending' | 'duplicate'>(() => {
+  const [filterTab, setFilterTab] = useState<'all' | 'line' | 'web' | 'pending' | 'duplicate' | 'approved'>(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'line' || tab === 'web' || tab === 'pending' || tab === 'duplicate') return tab;
+    if (tab === 'line' || tab === 'web' || tab === 'pending' || tab === 'duplicate' || tab === 'approved') return tab as any;
     return 'all';
   });
   const [searchQuery, setSearchQuery] = useState('');
@@ -89,7 +89,8 @@ function LineReceiptsContent() {
     // For other tabs, exclude duplicates
     if (isSubsequentDuplicate) return false;
 
-    if (filterTab === 'pending') return Boolean(r.isPending || !r.extractedData);
+    if (filterTab === 'pending') return r.status === 'reviewing';
+    if (filterTab === 'approved') return r.status === 'approved';
 
     const isLine = r.source === 'line' || r.transactionId?.startsWith('LINE-');
     if (filterTab === 'line') return isLine;
@@ -312,6 +313,19 @@ function LineReceiptsContent() {
                   activeBadge: '#334155',
                 },
                 {
+                  key: 'approved',
+                  label: 'อนุมัติแล้ว',
+                  count: allImageReceipts.filter(r => r.status === 'approved' && !duplicateIds.has(r._id || r.id || '')).length,
+                  icon: (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  ),
+                  activeColor: '#22c55e',
+                  activeBg: '#22c55e',
+                  activeBadge: '#16a34a',
+                },
+                {
                   key: 'line',
                   label: 'LINE',
                   count: allImageReceipts.filter(r => (r.source === 'line' || r.transactionId?.startsWith('LINE-')) && !duplicateIds.has(r._id || r.id || '')).length,
@@ -341,7 +355,7 @@ function LineReceiptsContent() {
                 {
                   key: 'pending',
                   label: 'รอตรวจสอบ',
-                  count: allImageReceipts.filter(r => (r.isPending || !r.extractedData) && !duplicateIds.has(r._id || r.id || '')).length,
+                  count: allImageReceipts.filter(r => r.status === 'reviewing' && !duplicateIds.has(r._id || r.id || '')).length,
                   icon: (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -848,6 +862,32 @@ function LineReceiptsContent() {
                           hour: '2-digit', minute: '2-digit'
                         })}
                       </div>
+                      {receipt.status && (
+                        <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: '700', padding: '4px 8px', borderRadius: '8px', width: 'fit-content',
+                          background: receipt.status === 'approved' ? '#dcfce7' :
+                                     receipt.status === 'reviewing' ? '#fef3c7' :
+                                     receipt.status === 'rejected' ? '#fee2e2' :
+                                     receipt.status === 'failed' ? '#fee2e2' :
+                                     '#f3f4f6',
+                          color: receipt.status === 'approved' ? '#166534' :
+                                receipt.status === 'reviewing' ? '#b45309' :
+                                receipt.status === 'rejected' ? '#991b1b' :
+                                receipt.status === 'failed' ? '#991b1b' :
+                                '#374151',
+                          border: receipt.status === 'approved' ? '1px solid #86efac' :
+                                 receipt.status === 'reviewing' ? '1px solid #fcd34d' :
+                                 receipt.status === 'rejected' ? '1px solid #fca5a5' :
+                                 receipt.status === 'failed' ? '1px solid #fca5a5' :
+                                 '1px solid #e5e7eb',
+                        }}>
+                          {receipt.status === 'approved' && '✅ อนุมัติแล้ว'}
+                          {receipt.status === 'reviewing' && '⏳ รอตรวจสอบ'}
+                          {receipt.status === 'pending' && '📝 ร่าง'}
+                          {receipt.status === 'rejected' && '❌ ปฏิเสธ'}
+                          {receipt.status === 'failed' && '⚠️ ล้มเหลว'}
+                          {receipt.status === 'completed' && '✔️ เสร็จสิ้น'}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
