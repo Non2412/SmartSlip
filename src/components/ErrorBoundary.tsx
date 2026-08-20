@@ -40,7 +40,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "var(--bg-main, #0f172a)",
+          background: "var(--main-bg, #f4f6fa)",
           padding: "24px",
           fontFamily: "var(--font-anuphan, sans-serif)",
         }}>

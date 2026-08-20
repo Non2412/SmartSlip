@@ -11,6 +11,14 @@ export async function GET(req: NextRequest) {
 
     const client = await clientPromise;
     const db = client.db();
+    
+    // Fetch status and role from users collection
+    const { ObjectId } = await import("mongodb");
+    const queryUserId = ObjectId.isValid(session.user.id) ? new ObjectId(session.user.id) : session.user.id;
+    const userDoc = await db.collection("users").findOne({ _id: queryUserId as any });
+    const status = userDoc?.status || "pending";
+    const role = userDoc?.role || "user";
+
     const profile = await db.collection("profiles").findOne({ userId: session.user.id });
 
     if (!profile) {
@@ -24,6 +32,8 @@ export async function GET(req: NextRequest) {
         image: session.user.image || null,
         requestedRole: "user",
         customCategories: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'],
+        status,
+        role,
       });
     }
 
@@ -33,6 +43,8 @@ export async function GET(req: NextRequest) {
       activeRole: "user",
       customCategories: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'อื่นๆ'],
       ...profile,
+      status,
+      role,
     });
   } catch (error) {
     console.error("GET Profile error:", error);
