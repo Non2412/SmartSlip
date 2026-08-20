@@ -349,7 +349,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         setVerItems(items => [...items, { id: Date.now().toString(), description: '', quantity: 1, unitPrice: 0 }]);
     };
     const calcVerSubtotal = () => verItems.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
-    const calcVerTotal = () => calcVerSubtotal() - verDiscount + verVat;
+    const calcVerTotal = () => calcVerSubtotal() - verDiscount;
 
     // Item list for manual form
     const [expenseItems, setExpenseItems] = useState<ExpenseItem[]>([
@@ -1108,7 +1108,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
         const subtotal = expenseItems.reduce((acc, it) => acc + (it.amount * it.quantity), 0);
         const vat = expenseItems.reduce((acc, it) => acc + it.vat, 0);
         const wht = expenseItems.reduce((acc, it) => acc + it.wht, 0);
-        const total = subtotal + vat - wht;
+        const total = subtotal - wht;
         return { subtotal, vat, wht, total };
     };
 
@@ -1574,7 +1574,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                         {verVat > 0 && (
                                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#16a34a', marginBottom: '8px' }}>
                                                 <span>ภาษีมูลค่าเพิ่ม (VAT)</span>
-                                                <span style={{ fontWeight: '700', fontVariantNumeric: 'tabular-nums' }}>+฿{verVat.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
+                                                <span style={{ fontWeight: '700', fontVariantNumeric: 'tabular-nums' }}>฿{verVat.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
                                             </div>
                                         )}
                                         <div style={{ height: '1px', background: 'linear-gradient(90deg,transparent,#e2e8f0,transparent)', margin: '12px 0' }} />
@@ -2474,7 +2474,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                             {vat > 0 && (
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#16a34a', marginBottom: '8px' }}>
                                                     <span>ภาษีมูลค่าเพิ่ม (VAT)</span>
-                                                    <span style={{ fontWeight: '700' }}>+฿{vat.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
+                                                    <span style={{ fontWeight: '700' }}>฿{vat.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
                                                 </div>
                                             )}
                                             <div style={{ height: '1px', background: 'linear-gradient(90deg,transparent,#e2e8f0,transparent)', margin: '12px 0' }} />
@@ -2485,7 +2485,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                                                 </div>
                                                 <div style={{ textAlign: 'right' }}>
                                                     <div style={{ fontWeight: '900', fontSize: '1.6rem', color: '#7c3aed', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
-                                                        ฿{(subtotal - manualDiscount + vat).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                                                        ฿{(subtotal - manualDiscount).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                                                     </div>
                                                     <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '600' }}>{currency}</div>
                                                 </div>

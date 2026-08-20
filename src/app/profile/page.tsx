@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import ProfileForm from "@/components/ProfileForm";
@@ -13,7 +13,7 @@ export default function ProfilePage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
   const closeSidebar = () => setIsSidebarOpen(false);
@@ -26,9 +26,32 @@ export default function ProfilePage() {
     setRefreshTrigger(prev => prev + 1);
   };
 
+  // Polling to detect admin approval
+  useEffect(() => {
+    if (!session || (session.user as any).status === "active") return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch("/api/profile");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === "active" && (session.user as any).status !== "active") {
+            console.log("🔔 Approval detected! Updating session...");
+            await update();
+            window.location.reload();
+          }
+        }
+      } catch (err) {
+        console.error("Error polling profile status:", err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [session, update]);
+
   if (status === "loading") {
     return (
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main, #0f172a)', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-anuphan), sans-serif' }}>
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--main-bg, #f4f6fa)', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-anuphan), sans-serif' }}>
         กำลังโหลดข้อมูลโปรไฟล์...
       </div>
     );
@@ -44,7 +67,7 @@ export default function ProfilePage() {
         alignItems: 'flex-start', 
         height: '100dvh', 
         width: '100vw',
-        background: 'var(--bg-main, #0f172a)', 
+        background: 'var(--main-bg, #f4f6fa)', 
         padding: '40px 20px',
         fontFamily: 'var(--font-anuphan), sans-serif',
         overflowY: 'auto',

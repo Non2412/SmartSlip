@@ -403,7 +403,7 @@ function DashboardContent() {
 export default function DashboardPage() {
   return (
     <Suspense fallback={
-      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main, #0f172a)', color: 'var(--text-muted, #94a3b8)', fontFamily: 'sans-serif' }}>
+      <div style={{ display: 'flex', height: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--main-bg, #f4f6fa)', color: 'var(--text-muted, #94a3b8)', fontFamily: 'sans-serif' }}>
         กำลังโหลด Dashboard...
       </div>
     }>
