@@ -321,7 +321,12 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
             for (const r of receiptsToSave) {
                 const id = r._id || r.id || '';
                 if (id) {
-                    await updateReceipt(id, r);
+                    // ถ้า status = 'reviewing' ให้เปลี่ยนเป็น 'approved'
+                    const updateData = { ...r };
+                    if (r.status === 'reviewing') {
+                        updateData.status = 'approved';
+                    }
+                    await updateReceipt(id, updateData);
                     if (onSuccess) onSuccess(id);
                 }
             }

@@ -19,6 +19,7 @@ export interface Receipt {
   transactionId?: string;
   imageHash?: string;
   isPending?: boolean;
+  status?: 'pending' | 'reviewing' | 'approved' | 'rejected' | 'completed' | 'failed';
   extractedData?: {
     date?: string;
     time?: string;

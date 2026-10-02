@@ -220,7 +220,7 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json();
-    const { storeName, totalAmount, extractedData, imageUrl, imageURL, imageHash } = body;
+    const { storeName, totalAmount, extractedData, imageUrl, imageURL, imageHash, status } = body;
 
     const updateFields: Record<string, unknown> = { updatedAt: new Date().toISOString() };
     if (storeName !== undefined) updateFields.storeName = storeName;
@@ -229,6 +229,7 @@ export async function PATCH(request: Request) {
     if (imageUrl !== undefined) updateFields.imageUrl = imageUrl;
     if (imageURL !== undefined) updateFields.imageURL = imageURL;
     if (imageHash !== undefined) updateFields.imageHash = imageHash;
+    if (status !== undefined) updateFields.status = status;
 
     const result = await db.collection('receipts').findOneAndUpdate(
       { _id: new ObjectId(id) },
