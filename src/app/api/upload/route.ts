@@ -51,23 +51,35 @@ export async function POST(request: Request) {
     const randomStr = Math.random().toString(36).substring(2, 8);
     const finalFileName = fileName || `receipt-${timestamp}-${randomStr}.${extension}`;
 
-    // Upload to Google Cloud Storage
-    const bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || 'smartslip-receipts';
-    const uploadResult = await uploadToGCS(
-      imageBuffer,
-      finalFileName,
-      mimeType,
-      bucketName,
-      userId
-    );
+    // Upload to Google Cloud Storage (with fallback to base64 if GCS is unavailable)
+    let finalImageUrl = '';
+    let storageType = 'gcs';
+
+    try {
+      const bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || 'smartslip-receipts';
+      const uploadResult = await uploadToGCS(
+        imageBuffer,
+        finalFileName,
+        mimeType,
+        bucketName,
+        userId
+      );
+      finalImageUrl = uploadResult.publicUrl;
+    } catch (gcsError: any) {
+      console.warn('⚠️ GCS upload failed, falling back to base64 storage:', gcsError.message);
+      // Fallback: Use base64 data URI so users can still create receipts and display slip images!
+      finalImageUrl = imageBase64.startsWith('data:') ? imageBase64 : `data:${mimeType};base64,${base64Data}`;
+      storageType = 'base64_fallback';
+    }
 
     return NextResponse.json({
       success: true,
       data: {
-        imageUrl: uploadResult.publicUrl,
+        imageUrl: finalImageUrl,
         fileName: finalFileName,
         mimeType,
-        imageHash
+        imageHash,
+        storageType
       }
     });
   } catch (error: any) {

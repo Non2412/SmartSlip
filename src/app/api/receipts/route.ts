@@ -73,6 +73,13 @@ export async function GET(request: Request) {
       if (doc.imageURL && !doc.imageUrl) {
         doc.imageUrl = doc.imageURL;
       }
+      if (doc.imageUrl && !doc.imageURL) {
+        doc.imageURL = doc.imageUrl;
+      }
+      if (!doc.imageUrl && doc.extractedData?.imageData) {
+        doc.imageUrl = doc.extractedData.imageData;
+        doc.imageURL = doc.extractedData.imageData;
+      }
       // Mark backend LINE webhook receipts as source='line'
       if (!doc.source && (doc.transactionId?.startsWith('LINE-') || (lineUserId && doc.userId === lineUserId))) {
         doc.source = 'line';
@@ -120,7 +127,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { storeName, totalAmount, userId, extractedData, imageFileId, imageHash } = body;
+    const { storeName, totalAmount, userId, extractedData, imageFileId, imageHash, imageUrl, imageURL } = body;
 
     if (!storeName || totalAmount === undefined) {
       return NextResponse.json(
@@ -143,11 +150,15 @@ export async function POST(request: Request) {
 
     const roleContext = await getEffectiveRoleContext(session);
 
+    const finalImageUrl = imageUrl || imageURL || (extractedData as any)?.imageData || null;
+
     const newReceipt = {
       storeName,
       totalAmount: parseFloat(totalAmount.toString()),
       userId: targetUserId,
       roleContext,
+      imageUrl: finalImageUrl,
+      imageURL: finalImageUrl,
       extractedData: extractedData || null,
       imageFileId: imageFileId || null,
       imageHash: imageHash || null,

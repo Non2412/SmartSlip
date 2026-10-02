@@ -43,6 +43,8 @@ export interface CreateReceiptData {
   storeName: string;
   totalAmount: number;
   userId: string;
+  imageUrl?: string;
+  imageURL?: string;
   extractedData?: unknown;
   imageFileId?: string;
   imageHash?: string;
@@ -194,24 +196,31 @@ export const activityLogApi = {
  */
 export const cleanAndProxyImageUrl = (url?: string): string => {
   if (!url) return '';
+  if (url.startsWith('data:')) return url;
   
   let targetUrl = url;
   
-  // 1. ตรวจสอบว่าในลิงก์มี query parameter ของ GCS proxy อยู่แล้วหรือไม่ ถ้ามีให้แกะ GCS URL จริงออกมา
-  if (url.includes('gcs-image?url=')) {
+  // 1. ตรวจสอบว่าในลิงก์มี query parameter ของ GCS proxy อยู่แล้วหรือไม่ ถอดรหัสจนถึง URL ต้นทางจริง
+  let decodeAttempts = 0;
+  while (targetUrl.includes('gcs-image?url=') && decodeAttempts < 3) {
+    decodeAttempts++;
     try {
-      const parts = url.split('gcs-image?url=');
-      const encodedPart = parts[1];
+      const parts = targetUrl.split('gcs-image?url=');
+      const encodedPart = parts[parts.length - 1];
       if (encodedPart) {
-        // หากมีเครื่องหมาย & ให้แยกออกเพื่อเอาเฉพาะ URL ของรูปภาพ
         const cleanEncodedPart = encodedPart.split('&')[0];
         const decoded = decodeURIComponent(cleanEncodedPart);
-        if (decoded.startsWith('http')) {
+        if (decoded.startsWith('http') || decoded.startsWith('/')) {
           targetUrl = decoded;
+        } else {
+          break;
         }
+      } else {
+        break;
       }
     } catch (e) {
       console.error('Failed to parse gcs-image url:', e);
+      break;
     }
   }
   

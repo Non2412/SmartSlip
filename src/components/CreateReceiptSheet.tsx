@@ -628,7 +628,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                 };
                 const result = st.extractedReceiptId
                     ? await updateReceipt(st.extractedReceiptId, { userId: userId ?? '', imageUrl: finalImageUrl || undefined, source: 'web', storeName, totalAmount: grandTotal, imageHash: finalImageHash || undefined, extractedData: payload })
-                    : await createReceipt({ userId: userId ?? '', storeName, totalAmount: grandTotal, imageHash: finalImageHash || undefined, extractedData: payload }) as any;
+                    : await createReceipt({ userId: userId ?? '', imageUrl: finalImageUrl || undefined, storeName, totalAmount: grandTotal, imageHash: finalImageHash || undefined, extractedData: payload }) as any;
                 if (result?.success) savedCount++;
             }
             if (onSuccess) onSuccess();
@@ -967,6 +967,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                   })
                 : await createReceipt({
                     userId: userId ?? '',
+                    imageUrl: finalImageUrl || undefined,
                     storeName: verStore,
                     totalAmount: grandTotal,
                     extractedData: payload,
@@ -1057,6 +1058,7 @@ const CreateReceiptSheet = ({ isOpen, onClose, onSuccess, userId }: CreateReceip
                   })
                 : await createReceipt({
                     userId: userId ?? '',
+                    imageUrl: finalImageUrl || undefined,
                     storeName: shopName,
                     totalAmount: finalTotal,
                     imageHash: finalImageHash || undefined,

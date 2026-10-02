@@ -177,8 +177,9 @@ export async function POST(req: NextRequest) {
             driveFileId = uploadResult.name; // Use the GCS path as the ID for now
             console.log('✅ LINE receipt uploaded to GCS:', gcsUrl);
           } catch (driveErr: any) {
-            console.error('❌ GCS upload failed:', driveErr);
-            driveErrorMsg = `\n(⚠️ อัปโหลดรูปไม่สำเร็จ: ${driveErr.message})`;
+            console.error('❌ GCS upload failed, falling back to base64:', driveErr);
+            gcsUrl = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+            driveErrorMsg = `\n(ℹ️ บันทึกรูปในระบบชั่วคราวเนื่องจาก Cloud Storage ไม่พร้อมใช้งาน)`;
           }
 
           // 5. Save to MongoDB
@@ -191,6 +192,7 @@ export async function POST(req: NextRequest) {
             extractedData: data || null,
             imageFileId: driveFileId,
             imageUrl: gcsUrl,
+            imageURL: gcsUrl,
             imageHash: crypto.createHash('sha256').update(imageBuffer).digest('hex'),
             createdAt: new Date().toISOString(),
           };

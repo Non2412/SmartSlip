@@ -350,12 +350,8 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
         return sum + amt;
     }, 0);
 
-    const getImageUrl = (url?: string) => {
-        if (!url) return '';
-        if (url.includes('storage.googleapis.com')) return '/api/gcs-image?url=' + encodeURIComponent(url);
-        return url;
-    };
-    const imageData = getImageUrl(currentReceipt?.extractedData?.imageData) || getImageUrl(currentReceipt?.imageURL || currentReceipt?.imageUrl) || null;
+    const rawImage = currentReceipt?.extractedData?.imageData || currentReceipt?.imageUrl || currentReceipt?.imageURL;
+    const imageData = cleanAndProxyImageUrl(rawImage) || null;
 
     const total = allReceipts?.length ?? 1;
     const hasNext = isQueueMode && currentIdx < total - 1;
@@ -897,7 +893,7 @@ const ReceiptDetailSheet = ({ isOpen, onClose, onSuccess, receipt, allReceipts, 
 
                         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', scrollbarWidth: 'thin', padding: '2px 0', width: '100%' }}>
                             {allReceipts!.map((r, idx) => {
-                                const img = getImageUrl(r.extractedData?.imageData) || getImageUrl(r.imageURL || r.imageUrl) || null;
+                                const img = cleanAndProxyImageUrl(r.extractedData?.imageData || r.imageURL || r.imageUrl) || null;
                                 const isActive = idx === currentIdx;
                                 return (
                                     <div
