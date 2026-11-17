@@ -31,5 +31,13 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "typescript": "^5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@google/genai",
+      "protobufjs",
+      "sharp",
+      "unrs-resolver"
+    ]
   }
 }
